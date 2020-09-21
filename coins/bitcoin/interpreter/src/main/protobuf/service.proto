@@ -3,12 +3,80 @@ syntax = "proto3";
 package pb.v1;
 option java_package = "co.ledger.lama.bitcoin.interpreter.protobuf";
 
-service BitcoinInterpreterService {
-    rpc saveTransactions(Foo) returns (Foo) {}
-    rpc deleteTransactions(Foo) returns (Foo) {}
-    rpc getTransactions(Foo) returns (Foo) {}
+enum SortingOrder {
+  ASC = 0;
+  DESC = 1;
 }
 
-message Foo {
-    uint64 bar = 1;
+message Cursor {
+  string previous_page = 1;
+  string next_page = 2;
+  SortingOrder sorting_order = 3;
+}
+
+service BitcoinInterpreterService {
+  rpc SaveTransactions(SaveTransactionsRequest) returns (SaveTransactionsResult) {}
+  rpc DeleteTransactions(DeleteTransactionsRequest) returns (DeleteTransactionsResult) {}
+  rpc GetTransactions(GetTransactionsRequest) returns (stream GetTransactionsResult) {}
+}
+
+message SaveTransactionsRequest {
+  repeated Transaction transactions = 1;
+}
+
+message SaveTransactionsResult {
+  repeated string transaction_ids = 1;
+}
+
+message DeleteTransactionsRequest {
+  repeated string transaction_ids = 1;
+}
+
+message DeleteTransactionsResult {
+  repeated string transaction_ids = 1;
+}
+
+message GetTransactionsRequest {
+  repeated string transaction_ids = 1;
+  string cursor = 2;
+}
+
+message GetTransactionsResult {
+  repeated Transaction transactions = 1;
+  Cursor cursor = 2;
+}
+
+message Transaction {
+  string id = 1;
+  string hash = 2;
+  int64 received_at = 3;
+  int32 lock_time = 4;
+  int64 fees = 5;
+  repeated Input inputs = 6;
+  repeated Output outputs = 7;
+  Block block = 8;
+  int32 confirmations = 9;
+}
+
+message Input {
+  string output_hash = 1;
+  int32 output_index = 2;
+  int64 value = 3;
+  string address = 4;
+  string script_sig = 5;
+  repeated string witness = 6;
+  string sequence = 7;
+}
+
+message Output {
+  int32 output_index = 1;
+  int64 value = 2;
+  string address = 3;
+  string script_pub_key = 4;
+}
+
+message Block {
+  string hash = 1;
+  int32 height = 2;
+  int64 time = 3;
 }
