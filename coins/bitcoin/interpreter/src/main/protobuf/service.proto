@@ -1,49 +1,44 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 package pb.v1;
+
 option java_package = "co.ledger.lama.bitcoin.interpreter.protobuf";
 
+// We sort by date
 enum SortingOrder {
-  ASC = 0;
-  DESC = 1;
-}
-
-message Cursor {
-  string previous_page = 1;
-  string next_page = 2;
-  SortingOrder sorting_order = 3;
+  DESC = 0;
+  ASC = 1;
 }
 
 service BitcoinInterpreterService {
-  rpc SaveTransactions(SaveTransactionsRequest) returns (SaveTransactionsResult) {}
-  rpc DeleteTransactions(DeleteTransactionsRequest) returns (DeleteTransactionsResult) {}
-  rpc GetTransactions(GetTransactionsRequest) returns (stream GetTransactionsResult) {}
+  rpc SaveTransactions(SaveTransactionsRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteTransactions(DeleteTransactionsRequest) returns (google.protobuf.Empty) {}
+  rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResult) {}
 }
 
 message SaveTransactionsRequest {
-  repeated Transaction transactions = 1;
-}
-
-message SaveTransactionsResult {
-  repeated string transaction_ids = 1;
+  bytes account_id = 1;
+  repeated Transaction transactions = 2;
 }
 
 message DeleteTransactionsRequest {
-  repeated string transaction_ids = 1;
-}
-
-message DeleteTransactionsResult {
-  repeated string transaction_ids = 1;
+  bytes account_id = 1;
+  int64 block_height = 2;
 }
 
 message GetTransactionsRequest {
-  repeated string transaction_ids = 1;
-  string cursor = 2;
+  bytes account_id = 1;
+  int64 block_height = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  SortingOrder sort = 5;
 }
 
 message GetTransactionsResult {
   repeated Transaction transactions = 1;
-  Cursor cursor = 2;
+  bool truncated = 2;
 }
 
 message Transaction {

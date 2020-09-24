@@ -1,6 +1,7 @@
 package co.ledger.lama.manager
 
 import co.ledger.lama.common.models.{Coin, CoinFamily}
+import co.ledger.lama.common.utils.{GrpcServerConfig, PostgresConfig}
 import dev.profunktor.fs2rabbit.config.{Fs2RabbitConfig, Fs2RabbitNodeConfig}
 import dev.profunktor.fs2rabbit.model.{ExchangeName, QueueName, RoutingKey}
 import pureconfig.ConfigReader
@@ -24,25 +25,6 @@ object config {
     implicit val rabbitNodeConfigReader: ConfigReader[Fs2RabbitNodeConfig] =
       deriveReader[Fs2RabbitNodeConfig]
     implicit val rabbitConfigReader: ConfigReader[Fs2RabbitConfig] = deriveReader[Fs2RabbitConfig]
-  }
-
-  case class GrpcServerConfig(port: Int)
-
-  object GrpcServerConfig {
-    implicit val configReader: ConfigReader[GrpcServerConfig] = deriveReader[GrpcServerConfig]
-  }
-
-  case class PostgresConfig(
-      url: String,
-      user: String,
-      password: String
-  ) {
-    val driver: String = "org.postgresql.Driver"
-    val poolSize: Int  = Runtime.getRuntime.availableProcessors() * 2
-  }
-
-  object PostgresConfig {
-    implicit val configReader: ConfigReader[PostgresConfig] = deriveReader[PostgresConfig]
   }
 
   case class RedisConfig(host: String, port: Int)

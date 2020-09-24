@@ -1,11 +1,10 @@
 package co.ledger.lama.manager
 
-import cats.effect.{Blocker, ExitCode, IO, IOApp, Resource}
+import cats.effect.{ExitCode, IO, IOApp, Resource}
 import co.ledger.lama.common.utils.{RabbitUtils, ResourceUtils}
+import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import co.ledger.lama.manager.config.Config
 import com.redis.RedisClient
-import doobie.hikari.HikariTransactor
-import doobie.util.ExecutionContexts
 import pureconfig.ConfigSource
 
 object App extends IOApp {
@@ -14,26 +13,15 @@ object App extends IOApp {
     val conf = ConfigSource.default.loadOrThrow[Config]
 
     val resources = for {
-      // our connect EC
-      ce <- ExecutionContexts.fixedThreadPool[IO](conf.postgres.poolSize)
-
-      // our transaction EC
-      te <- ExecutionContexts.cachedThreadPool[IO]
-
-      db <- ResourceUtils.retriableResource(HikariTransactor.newHikariTransactor[IO](
-        conf.postgres.driver,            // driver classname
-        conf.postgres.url,               // connect URL
-        conf.postgres.user,              // username
-        conf.postgres.password,          // password
-        ce,                              // await connection here
-        Blocker.liftExecutionContext(te) // execute JDBC operations here
-      ))
+      db <- postgresTransactor(conf.postgres)
 
       // rabbitmq client
       rabbitClient <- RabbitUtils.createClient(conf.rabbit)
+
       // redis client
-      redisClient <-
-        ResourceUtils.retriableResource(Resource.fromAutoCloseable(IO(new RedisClient(conf.redis.host, conf.redis.port))))
+      redisClient <- ResourceUtils.retriableResource(
+        Resource.fromAutoCloseable(IO(new RedisClient(conf.redis.host, conf.redis.port)))
+      )
 
       // create the orchestrator
       orchestrator = new CoinOrchestrator(
@@ -49,7 +37,7 @@ object App extends IOApp {
       )
 
       // create the grpc server
-      grpcServer <- GrpcServer.defaultServer(conf.grpcServer, serviceDefinitions)
+      grpcServer <- grpcServer(conf.grpcServer, serviceDefinitions)
     } yield (grpcServer, orchestrator)
 
     // start the grpc server and run the orchestrator stream

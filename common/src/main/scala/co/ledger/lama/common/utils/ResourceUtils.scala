@@ -1,9 +1,12 @@
 package co.ledger.lama.common.utils
 
-import cats.effect.{Async, Resource, Timer}
+import cats.effect.{Async, Blocker, ContextShift, IO, Resource, Timer}
+import io.grpc.{Server, ServerBuilder, ServerServiceDefinition}
+import org.lyranthe.fs2_grpc.java_runtime.implicits._
+import doobie.hikari.HikariTransactor
+import scala.concurrent.duration._
+import doobie.ExecutionContexts
 import fs2.{Pure, Stream}
-
-import scala.concurrent.duration.{FiniteDuration, _}
 
 object ResourceUtils {
 
@@ -39,4 +42,35 @@ object ResourceUtils {
         maxElapsedTime: FiniteDuration = 2.minute
     ): RetryPolicy = Stream.iterate(initial)(_ * factor).takeWhile(_ < maxElapsedTime)
   }
+
+  def postgresTransactor(
+      conf: PostgresConfig
+  )(implicit contextShift: ContextShift[IO], timer: Timer[IO]): Resource[IO, HikariTransactor[IO]] =
+    for {
+      ce <- ExecutionContexts.fixedThreadPool[IO](conf.poolSize)
+
+      te <- ExecutionContexts.cachedThreadPool[IO]
+
+      db <- retriableResource(
+        HikariTransactor.newHikariTransactor[IO](
+          conf.driver,                     // driver classname
+          conf.url,                        // connect URL
+          conf.user,                       // username
+          conf.password,                   // password
+          ce,                              // await connection here
+          Blocker.liftExecutionContext(te) // execute JDBC operations here
+        )
+      )
+    } yield db
+
+  def grpcServer(
+      conf: GrpcServerConfig,
+      services: List[ServerServiceDefinition]
+  ): Resource[IO, Server] =
+    services
+      .foldLeft(ServerBuilder.forPort(conf.port)) {
+        case (builder, service) =>
+          builder.addService(service)
+      }
+      .resource[IO]
 }

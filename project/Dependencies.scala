@@ -34,8 +34,10 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
   val pureconfigVersion = "0.13.0"
   val logbackVersion    = "1.2.3"
   val fs2Version        = "2.4.2"
+  val fs2GrpcVersion    = "0.7.3"
   val utilities: Seq[ModuleID] = Seq(
     "co.fs2"                %% "fs2-core"          % fs2Version,
+    "org.lyranthe.fs2-grpc" %% "java-runtime"      % fs2GrpcVersion,
     "ch.qos.logback"         % "logback-classic"   % logbackVersion,
     "com.github.pureconfig" %% "pureconfig"        % pureconfigVersion,
     "com.github.pureconfig" %% "pureconfig-cats"   % pureconfigVersion,
@@ -66,10 +68,15 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
     "it.ozimov"                % "embedded-redis"   % embeddedRedisVersion % Test
   )
 
-  val lamaCommon: Seq[ModuleID]     = circe ++ rabbit ++ utilities
-  val accountManager: Seq[ModuleID] = lamaCommon ++ postgres ++ redis
+  // https://scalapb.github.io/docs/faq/#i-am-getting-import-was-not-found-or-had-errors
+  val commonProtos: Seq[ModuleID] = Seq(
+    "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
+  )
+
+  val lamaCommon: Seq[ModuleID]     = circe ++ rabbit ++ utilities ++ postgres
+  val accountManager: Seq[ModuleID] = lamaCommon ++ redis
   val btcWorker: Seq[ModuleID]      = lamaCommon ++ http4s
-  val btcInterpreter: Seq[ModuleID] = lamaCommon ++ postgres
-  val btcService: Seq[ModuleID]     = lamaCommon ++ http4s ++ postgres
+  val btcInterpreter: Seq[ModuleID] = lamaCommon ++ commonProtos
+  val btcService: Seq[ModuleID]     = lamaCommon ++ http4s
 
 }
