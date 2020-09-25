@@ -21,6 +21,17 @@ This will also apply migration on the PostgreSql database through [flyway][flywa
 
 Please have a look on `docker-compose.yml` file for more details on the configuration.
 
+#### In case you account-manager image doesn't work
+
+To get the last version of the docker image for the Account-Manager, you may have to :
+
+```
+$ sbt
+> project accountManager
+> assembly
+> docker
+```
+
 ### Run manually
 
 Please refer to the [getting started][account-manager-getting-started] section of the account manager README.
