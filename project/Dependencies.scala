@@ -35,13 +35,15 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
   val logbackVersion    = "1.2.3"
   val fs2Version        = "2.4.2"
   val fs2GrpcVersion    = "0.7.3"
+  val protobufJava      = "3.12.4"
   val utilities: Seq[ModuleID] = Seq(
     "co.fs2"                %% "fs2-core"          % fs2Version,
     "org.lyranthe.fs2-grpc" %% "java-runtime"      % fs2GrpcVersion,
     "ch.qos.logback"         % "logback-classic"   % logbackVersion,
     "com.github.pureconfig" %% "pureconfig"        % pureconfigVersion,
     "com.github.pureconfig" %% "pureconfig-cats"   % pureconfigVersion,
-    "io.grpc"                % "grpc-netty-shaded" % scalapb.compiler.Version.grpcJavaVersion
+    "io.grpc"                % "grpc-netty-shaded" % scalapb.compiler.Version.grpcJavaVersion,
+    "com.google.protobuf"    % "protobuf-java"     % protobufJava
   )
 
   val fs2RabbitVersion = "2.1.1"

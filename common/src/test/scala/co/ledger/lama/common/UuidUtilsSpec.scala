@@ -1,9 +1,9 @@
-package co.ledger.lama.manager
+package co.ledger.lama.common
 
 import java.util.UUID
 
 import co.ledger.lama.common.models.{AccountIdentifier, Coin, CoinFamily}
-import co.ledger.lama.manager.utils.UuidUtils
+import co.ledger.lama.common.utils.UuidUtils
 import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers

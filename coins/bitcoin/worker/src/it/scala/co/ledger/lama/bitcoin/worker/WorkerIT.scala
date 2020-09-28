@@ -78,10 +78,9 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
             conf.routingKey
           )
 
-          val extendedKey =
-            "xpub6CMDks73kuNu3p827zgf6q6aNfpdeTLHFQsM4ssEBDMYHYJYHJ7tmMuTdZPk5456YZeoTaCRHNnbEK2GK5wkztQQCpVKEHb2tnm9N1gz1ZT"
+          val keychainId = "test"
 
-          val account = AccountIdentifier(extendedKey, CoinFamily.Bitcoin, Coin.Btc)
+          val account = AccountIdentifier(keychainId, CoinFamily.Bitcoin, Coin.Btc)
 
           val syncId = UUID.randomUUID()
 

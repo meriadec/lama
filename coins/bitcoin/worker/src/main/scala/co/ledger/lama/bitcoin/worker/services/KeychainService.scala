@@ -11,9 +11,9 @@ trait KeychainService {
 
   def create(extendedKey: String): IO[Unit]
 
-  def getAddresses(extendedKey: String): Stream[IO, Address]
+  def getAddresses(keychainId: String): Stream[IO, Address]
 
-  def markAddressesAsUsed(extendedKey: String, addresses: List[Address]): IO[Unit]
+  def markAddressesAsUsed(keychainId: String, addresses: List[Address]): IO[Unit]
 
 }
 
@@ -23,7 +23,7 @@ class KeychainServiceMock extends KeychainService {
 
   def create(extendedKey: String): IO[Unit] = IO.unit
 
-  def getAddresses(extendedKey: String): Stream[IO, Address] =
+  def getAddresses(keychainId: String): Stream[IO, Address] =
     Stream.emits(
       List(
         "1MZbRqZGpiSWGRLg8DUdVrDKHwNe1oesUZ",
@@ -64,11 +64,11 @@ class KeychainServiceMock extends KeychainService {
       )
     )
 
-  def markAddressesAsUsed(extendedKey: String, addresses: List[Address]): IO[Unit] =
+  def markAddressesAsUsed(keychainId: String, addresses: List[Address]): IO[Unit] =
     IO.delay {
       usedAddresses.update(
-        extendedKey,
-        usedAddresses.getOrElse(extendedKey, List.empty) ++ addresses
+        keychainId,
+        usedAddresses.getOrElse(keychainId, List.empty) ++ addresses
       )
     }
 

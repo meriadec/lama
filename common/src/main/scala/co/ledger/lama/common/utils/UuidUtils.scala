@@ -1,4 +1,4 @@
-package co.ledger.lama.manager.utils
+package co.ledger.lama.common.utils
 
 import java.nio.ByteBuffer
 import java.util.UUID

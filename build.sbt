@@ -73,9 +73,10 @@ lazy val sharedSettings = assemblySettings ++ dockerSettings ++ Defaults.itSetti
 
 // Common lama library
 lazy val common = (project in file("common"))
+  .configs(IntegrationTest)
   .settings(
     name := "lama-common",
-    libraryDependencies ++= Dependencies.lamaCommon
+    libraryDependencies ++= (Dependencies.lamaCommon ++ Dependencies.test)
   )
 
 lazy val accountManager = (project in file("account-manager"))

@@ -12,12 +12,12 @@ service AccountManagerService {
 }
 
 message RegisterAccountRequest {
-    string extendedKey = 1;
-    CoinFamily coinFamily = 2;
+    string key = 1;
+    CoinFamily coin_family = 2;
     Coin coin = 3;
-    uint64 syncFrequency = 4;
+    uint64 sync_frequency = 4;
     oneof cursor {
-        BlockHeightState blockHeight = 5;
+        BlockHeightState block_height = 5;
     }
 }
 
@@ -26,36 +26,36 @@ message BlockHeightState {
 }
 
 message UnregisterAccountRequest {
-    string extendedKey = 1;
-    CoinFamily coinFamily = 2;
+    string key = 1;
+    CoinFamily coin_family = 2;
     Coin coin = 3;
 }
 
 message RegisterAccountResult {
-    bytes accountId = 1;
-    bytes syncId = 2;
-    uint64 syncFrequency = 4;
+    bytes account_id = 1;
+    bytes sync_id = 2;
+    uint64 sync_frequency = 3;
 }
 
 message UnregisterAccountResult {
-    bytes accountId = 1;
-    bytes syncId = 2;
+    bytes account_id = 1;
+    bytes sync_id = 2;
 }
 
 message AccountInfoRequest {
-    string extendedKey = 1;
-    CoinFamily coinFamily = 2;
+    string key = 1;
+    CoinFamily coin_family = 2;
     Coin coin = 3;
 }
 
 message AccountInfoResult {
-    bytes accountId = 1;
-    uint64 syncFrequency = 4;
-    SyncEvent lastSyncEvent = 5;
+    bytes account_id = 2;
+    uint64 sync_frequency = 3;
+    SyncEvent last_sync_event = 4;
 }
 
 message SyncEvent {
-    bytes syncId = 1;
+    bytes sync_id = 1;
     string status = 2;
     bytes payload = 3;
 }

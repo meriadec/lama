@@ -1,10 +1,8 @@
 package co.ledger.lama.bitcoin.interpreter
 
-import java.nio.charset.Charset
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Timer}
-import co.ledger.lama.bitcoin.interpreter.{FakeInterpreter, Interpreter}
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   Block,
   DeleteTransactionsRequest,
@@ -13,8 +11,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
   SortingOrder,
   Transaction
 }
-import co.ledger.lama.common.utils.IOAssertion
-import com.google.protobuf.ByteString
+import co.ledger.lama.common.utils.{UuidUtils, IOAssertion}
 import io.grpc.Metadata
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -27,7 +24,7 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
   implicit val t: Timer[IO]         = IO.timer(ExecutionContext.global)
 
   val saveTransactionRequest = new SaveTransactionsRequest(
-    accountId = ByteString.copyFrom(UUID.randomUUID.toString, Charset.defaultCharset),
+    accountId = UuidUtils.uuidToBytes(UUID.randomUUID()),
     transactions = Seq(
       new Transaction(
         hash = "7cb3aacc-2aea-4152-8b53-3431f4daece5",

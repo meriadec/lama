@@ -69,6 +69,9 @@ jobs:
       - checkout
       - restore_cache: *restore_docker_cache
       - run:
+          name: Run Common unit tests
+          command: << pipeline.parameters.sbt >> common/test
+      - run:
           name: Run Account Manager unit tests
           command: << pipeline.parameters.sbt >> accountManager/test
       - run:
@@ -77,6 +80,9 @@ jobs:
       - run:
           name: Run Bitcoin Worker unit tests
           command: << pipeline.parameters.sbt >> btcWorker/test
+      - run:
+          name: Run Bitcoin Interpreter unit tests
+          command: << pipeline.parameters.sbt >> btcInterpreter/test
   package:
     docker:
       - image: circleci/openjdk:14.0.2-jdk-buster

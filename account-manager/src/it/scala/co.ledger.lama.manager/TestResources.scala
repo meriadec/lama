@@ -11,12 +11,11 @@ import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
 import org.flywaydb.core.Flyway
-import org.scalatest.{BeforeAndAfterAll, TestSuite}
 import pureconfig.ConfigSource
 
 import scala.concurrent.ExecutionContext
 
-trait TestResources extends TestSuite with BeforeAndAfterAll {
+trait TestResources {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   implicit val t: Timer[IO]         = IO.timer(ExecutionContext.global)
@@ -96,10 +95,6 @@ trait TestResources extends TestSuite with BeforeAndAfterAll {
       deleteQueues *> deleteExchanges
     }
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    val cleanUp = cleanDb() &> cleanRedis() &> cleanRabbit()
-    cleanUp.unsafeRunSync()
-  }
+  def setup(): IO[Unit] = cleanDb() &> cleanRedis() &> cleanRabbit()
 
 }

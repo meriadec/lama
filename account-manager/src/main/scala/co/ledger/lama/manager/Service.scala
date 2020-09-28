@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import cats.effect.{ConcurrentEffect, IO}
 import co.ledger.lama.common.models._
 import co.ledger.lama.common.models.SyncEvent.Payload
+import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.Exceptions.{
   AccountNotFoundException,
   CoinConfigurationException,
@@ -21,7 +22,7 @@ import co.ledger.lama.manager.protobuf.{
   UnregisterAccountRequest,
   UnregisterAccountResult
 }
-import co.ledger.lama.manager.utils.{ProtobufUtils, UuidUtils}
+import co.ledger.lama.manager.utils.ProtobufUtils
 import com.google.protobuf.ByteString
 import doobie.implicits._
 import doobie.util.transactor.Transactor
@@ -105,7 +106,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
   ): IO[UnregisterAccountResult] = {
     val account =
       AccountIdentifier(
-        request.extendedKey,
+        request.key,
         ProtobufUtils.from(request.coinFamily),
         ProtobufUtils.from(request.coin)
       )
@@ -162,17 +163,16 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
   }
 
   def getAccountInfo(request: AccountInfoRequest, ctx: Metadata): IO[AccountInfoResult] = {
-    val accountIdentifier = ProtobufUtils.from(request)
+    val account = ProtobufUtils.from(request)
 
     for {
       accountInfo <-
         Queries
-          .getAccountInfo(accountIdentifier)
+          .getAccountInfo(account)
           .transact(db)
           .flatMap {
-            _.map(IO.pure).getOrElse(IO.raiseError(AccountNotFoundException(accountIdentifier)))
+            _.map(IO.pure).getOrElse(IO.raiseError(AccountNotFoundException(account)))
           }
-
       lastSyncEvent <- Queries.getLastSyncEvent(accountInfo.id).transact(db)
     } yield {
       val lastSyncEventProto = lastSyncEvent.map { se =>

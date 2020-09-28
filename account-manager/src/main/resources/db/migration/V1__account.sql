@@ -18,11 +18,11 @@ CREATE TYPE coin as ENUM(
 
 CREATE TABLE account_info(
     account_id UUID PRIMARY KEY,
-    extended_key VARCHAR NOT NULL,
+    key VARCHAR NOT NULL,
     coin_family coin_family NOT NULL,
     coin coin NOT NULL,
     sync_frequency INTERVAL NOT NULL,
-    UNIQUE (extended_key, coin_family, coin)
+    UNIQUE (key, coin_family, coin)
 );
 
 CREATE TABLE account_sync_event(
@@ -39,7 +39,7 @@ CREATE UNIQUE INDEX account_sync_event_updated_index ON account_sync_event(updat
 CREATE VIEW account_sync_status AS (
     SELECT DISTINCT ON (account_id)
         account_id,
-        extended_key,
+        "key",
         coin_family,
         coin,
         sync_frequency,

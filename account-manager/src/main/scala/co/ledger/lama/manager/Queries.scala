@@ -72,16 +72,16 @@ object Queries {
       accountIdentifier: AccountIdentifier,
       syncFrequency: FiniteDuration
   ): ConnectionIO[AccountInfo] = {
-    val accountId   = accountIdentifier.id
-    val extendedKey = accountIdentifier.extendedKey
-    val coinFamily  = accountIdentifier.coinFamily
-    val coin        = accountIdentifier.coin
+    val accountId  = accountIdentifier.id
+    val key        = accountIdentifier.key
+    val coinFamily = accountIdentifier.coinFamily
+    val coin       = accountIdentifier.coin
 
     val syncFrequencyInterval = new PGInterval()
     syncFrequencyInterval.setSeconds(syncFrequency.toSeconds.toDouble)
 
-    sql"""INSERT INTO account_info(account_id, extended_key, coin_family, coin, sync_frequency)
-          VALUES($accountId, $extendedKey, $coinFamily, $coin, $syncFrequencyInterval)
+    sql"""INSERT INTO account_info(account_id, key, coin_family, coin, sync_frequency)
+          VALUES($accountId, $key, $coinFamily, $coin, $syncFrequencyInterval)
           ON CONFLICT (account_id)
             DO UPDATE SET sync_frequency = $syncFrequencyInterval
           RETURNING account_id, extract(epoch FROM sync_frequency)/60*60

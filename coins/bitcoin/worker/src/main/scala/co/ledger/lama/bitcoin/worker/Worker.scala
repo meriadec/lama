@@ -40,7 +40,7 @@ class Worker(
   def synchronizeAccount(
       workableEvent: WorkableEvent
   )(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): IO[ReportableEvent] = {
-    val extendedKey = workableEvent.payload.account.extendedKey
+    val keychainId = workableEvent.payload.account.key
 
     val blockHashCursor =
       workableEvent.payload.data
@@ -52,7 +52,7 @@ class Worker(
     // TODO: waiting for the paginated get addresses keychain service
     //  to fetch until next range = fresh addresses.
     keychainService
-      .getAddresses(extendedKey)
+      .getAddresses(keychainId)
       // Parallelize fetch and save transactions for each address.
       .parEvalMapUnordered(maxConcurrent) { address =>
         for {
@@ -75,7 +75,7 @@ class Worker(
         // we consider the whole batch of addresses as used if there are transactions on it.
         if (chunkTxs.nonEmpty)
           Stream.eval(
-            keychainService.markAddressesAsUsed(extendedKey, chunkList.map(_.address))
+            keychainService.markAddressesAsUsed(keychainId, chunkList.map(_.address))
           ) >> Stream.emits(chunkTxs)
         else
           Stream.empty

@@ -4,11 +4,11 @@ import java.util.UUID
 
 import cats.effect.{Blocker, ContextShift, IO, Resource}
 import co.ledger.lama.common.models._
-import co.ledger.lama.common.utils.IOAssertion
+import co.ledger.lama.common.utils.{IOAssertion, UuidUtils}
 import co.ledger.lama.manager.Exceptions.AccountNotFoundException
 import co.ledger.lama.manager.config.CoinConfig
 import co.ledger.lama.manager.protobuf.{AccountInfoRequest, BlockHeightState}
-import co.ledger.lama.manager.utils.{ProtobufUtils, UuidUtils}
+import co.ledger.lama.manager.utils.ProtobufUtils
 import co.ledger.lama.manager.{protobuf => pb}
 import com.opentable.db.postgres.embedded.{EmbeddedPostgres, FlywayPreparer}
 import doobie.hikari.HikariTransactor
@@ -49,20 +49,25 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
   var registeredAccountId: UUID = _
   var registeredSyncId: UUID    = _
 
-  val registerBitcoinAccount: pb.RegisterAccountRequest =
-    pb.RegisterAccountRequest("12345", pb.CoinFamily.bitcoin, pb.Coin.btc)
+  val registerBitcoinAccount: pb.RegisterAccountRequest = {
+    pb.RegisterAccountRequest(
+      key = "12345",
+      coinFamily = pb.CoinFamily.bitcoin,
+      coin = pb.Coin.btc
+    )
+  }
 
   val updatedSyncFrequency: Long = 10000L
 
   val bitcoinAccountInfoRequest: pb.AccountInfoRequest =
     pb.AccountInfoRequest(
-      registerBitcoinAccount.extendedKey,
+      registerBitcoinAccount.key,
       registerBitcoinAccount.coinFamily,
       registerBitcoinAccount.coin
     )
 
   val accountIdentifier: AccountIdentifier =
-    AccountIdentifier(registerBitcoinAccount.extendedKey, CoinFamily.Bitcoin, Coin.Btc)
+    AccountIdentifier(registerBitcoinAccount.key, CoinFamily.Bitcoin, Coin.Btc)
 
   it should "register a new account" in IOAssertion {
     transactor.use { db =>
@@ -84,7 +89,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
         // it should be an account uuid from extendKey, coinFamily, coin
         accountId shouldBe
           AccountIdentifier(
-            registerBitcoinAccount.extendedKey,
+            registerBitcoinAccount.key,
             CoinFamily.Bitcoin,
             Coin.Btc
           ).id
@@ -186,7 +191,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
 
   val unregisterAccountRequest: pb.UnregisterAccountRequest =
     pb.UnregisterAccountRequest(
-      registerBitcoinAccount.extendedKey,
+      registerBitcoinAccount.key,
       registerBitcoinAccount.coinFamily,
       registerBitcoinAccount.coin
     )
