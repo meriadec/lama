@@ -12,15 +12,26 @@ enum SortingOrder {
   ASC = 1;
 }
 
+enum ChangeType {
+  INTERNAL = 0;
+  EXTERNAL = 1;
+}
+
 service BitcoinInterpreterService {
   rpc SaveTransactions(SaveTransactionsRequest) returns (google.protobuf.Empty) {}
   rpc DeleteTransactions(DeleteTransactionsRequest) returns (google.protobuf.Empty) {}
   rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResult) {}
 }
 
+message AccountAddress {
+  string account_address = 1;
+  ChangeType change_type = 2;
+}
+
 message SaveTransactionsRequest {
   bytes account_id = 1;
-  repeated Transaction transactions = 2;
+  repeated AccountAddress account_addresses = 2;
+  repeated Transaction transactions = 3;
 }
 
 message DeleteTransactionsRequest {
