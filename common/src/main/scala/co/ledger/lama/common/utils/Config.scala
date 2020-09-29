@@ -1,6 +1,7 @@
 package co.ledger.lama.common.utils
 
 import pureconfig.ConfigReader
+
 import pureconfig.generic.semiauto.deriveReader
 
 case class PostgresConfig(
@@ -20,4 +21,5 @@ case class GrpcServerConfig(port: Int)
 
 object GrpcServerConfig {
   implicit val configReader: ConfigReader[GrpcServerConfig] = deriveReader[GrpcServerConfig]
+
 }

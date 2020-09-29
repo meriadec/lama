@@ -11,8 +11,8 @@ CREATE TABLE block (
 );
 
 CREATE TABLE transaction (
-    hash BYTEA NOT NULL,
     account_id VARCHAR NOT NULL,
+    hash BYTEA NOT NULL,
     block_hash BYTEA NOT NULL,
     fee BIGINT,
 
@@ -21,21 +21,21 @@ CREATE TABLE transaction (
 );
 
 CREATE TABLE input (
-    tx_hash BYTEA NOT NULL,
     account_id VARCHAR NOT NULL,
+    tx_hash BYTEA NOT NULL,
     output_tx_hash VARCHAR NOT NULL,
     output_index INTEGER NOT NULL,
     address VARCHAR NOT NULL,
     amount BIGINT NOT NULL,
-    sequence VARCHAR NOT NULL,
+    sequence BIGINT NOT NULL,
 
     PRIMARY KEY (account_id, tx_hash, output_tx_hash, output_index),
     FOREIGN KEY (account_id, tx_hash) REFERENCES transaction (account_id, hash)
 );
 
 CREATE TABLE output (
-    tx_hash BYTEA NOT NULL,
     account_id VARCHAR NOT NULL,
+    tx_hash BYTEA NOT NULL,
     index INTEGER NOT NULL,
     address VARCHAR NOT NULL,
     amount BIGINT NOT NULL,
@@ -45,8 +45,8 @@ CREATE TABLE output (
 );
 
 CREATE TABLE coinbase_input (
-    tx_hash BYTEA NOT NULL,
     account_id VARCHAR NOT NULL,
+    tx_hash BYTEA NOT NULL,
     address VARCHAR NOT NULL,
     reward BIGINT NOT NULL,
     fee BIGINT NOT NULL,
@@ -56,8 +56,8 @@ CREATE TABLE coinbase_input (
 );
 
 CREATE TABLE operation (
-    tx_hash BYTEA NOT NULL ,
     account_id VARCHAR NOT NULL,
+    tx_hash BYTEA NOT NULL,
     operation_type operation_type NOT NULL,
     amount BIGINT NOT NULL,
     time TIMESTAMP NOT NULL,
