@@ -14,7 +14,7 @@ class Worker(
     syncEventService: SyncEventService,
     keychainService: KeychainServiceMock,
     explorerService: ExplorerService,
-    interpreterService: InterpreterServiceMock,
+    interpreterService: InterpreterService,
     maxConcurrent: Int
 ) {
 
@@ -41,6 +41,7 @@ class Worker(
       workableEvent: WorkableEvent
   )(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): IO[ReportableEvent] = {
     val keychainId = workableEvent.payload.account.key
+    val accountId  = workableEvent.payload.account.id
 
     val blockHashCursor =
       workableEvent.payload.data
@@ -64,7 +65,7 @@ class Worker(
               .toList
 
           // Ask to interpreter to save fetched transactions.
-          _ <- interpreterService.saveTransactions(address, transactions)
+          _ <- interpreterService.saveTransactions(accountId, List(), transactions)
         } yield AddressWithTransactions(address, transactions)
       }
       .chunkLimit(20) // Size of a keychain batch addresses per account.

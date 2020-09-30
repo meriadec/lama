@@ -1,6 +1,7 @@
 package co.ledger.lama.bitcoin.worker
 
 import cats.implicits._
+import co.ledger.lama.common.utils.GrpcClientConfig
 import dev.profunktor.fs2rabbit.config.{Fs2RabbitConfig, Fs2RabbitNodeConfig}
 import dev.profunktor.fs2rabbit.model.{ExchangeName, QueueName, RoutingKey}
 import org.http4s.Uri
@@ -14,6 +15,7 @@ import scala.concurrent.duration.FiniteDuration
 object config {
 
   case class Config(
+      interpreter: GrpcClientConfig,
       workerEventsExchangeName: ExchangeName,
       lamaEventsExchangeName: ExchangeName,
       rabbit: Fs2RabbitConfig,

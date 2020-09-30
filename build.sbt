@@ -103,12 +103,14 @@ lazy val btcCommon = (project in file("coins/bitcoin/common"))
   )
 
 lazy val btcWorker = (project in file("coins/bitcoin/worker"))
-  .enablePlugins(sbtdocker.DockerPlugin)
+  .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
   .configs(IntegrationTest)
   .settings(
     name := "lama-bitcoin-worker",
     sharedSettings,
-    libraryDependencies ++= (Dependencies.btcWorker ++ Dependencies.test)
+    libraryDependencies ++= (Dependencies.btcWorker ++ Dependencies.test),
+    // Proto config
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage
   )
   .dependsOn(common)
 

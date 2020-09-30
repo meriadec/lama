@@ -1,9 +1,16 @@
 package co.ledger.lama.common.utils
 
 import cats.effect.{Async, Blocker, ContextShift, IO, Resource, Timer}
-import io.grpc.{Server, ServerBuilder, ServerServiceDefinition}
+import io.grpc.{
+  ManagedChannel,
+  ManagedChannelBuilder,
+  Server,
+  ServerBuilder,
+  ServerServiceDefinition
+}
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
 import doobie.hikari.HikariTransactor
+
 import scala.concurrent.duration._
 import doobie.ExecutionContexts
 import fs2.{Pure, Stream}
@@ -72,5 +79,10 @@ object ResourceUtils {
         case (builder, service) =>
           builder.addService(service)
       }
+      .resource[IO]
+
+  def grpcManagedChannel(conf: GrpcClientConfig): Resource[IO, ManagedChannel] =
+    ManagedChannelBuilder
+      .forAddress(conf.host, conf.port)
       .resource[IO]
 }

@@ -7,27 +7,17 @@ import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.PayloadData
 import co.ledger.lama.bitcoin.worker.services.{
   ExplorerService,
-  InterpreterServiceMock,
   KeychainServiceMock,
   SyncEventService
 }
-import co.ledger.lama.common.models.{
-  AccountIdentifier,
-  Coin,
-  CoinFamily,
-  ReportableEvent,
-  Status,
-  SyncEvent,
-  WorkableEvent
-}
+import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.{IOAssertion, RabbitUtils}
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.{ExchangeName, ExchangeType, QueueName, RoutingKey}
-import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.matchers.should.Matchers
 import fs2.Stream
 import io.circe.syntax._
-import org.http4s.client.Client
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 
 import scala.concurrent.ExecutionContext
@@ -41,7 +31,7 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
 
   val rabbit: Resource[IO, RabbitClient[IO]] = Clients.rabbit(conf.rabbit)
 
-  val resources: Resource[IO, (RabbitClient[IO], Client[IO])] = for {
+  val resources = for {
     rabbitClient <- rabbit
     httpClient   <- Clients.htt4s
   } yield (rabbitClient, httpClient)
@@ -59,9 +49,9 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
 
           val keychainService = new KeychainServiceMock
 
-          val explorerService = new ExplorerService(httpClient, conf.explorer)
-
           val interpreterService = new InterpreterServiceMock
+
+          val explorerService = new ExplorerService(httpClient, conf.explorer)
 
           val worker = new Worker(
             syncEventService,

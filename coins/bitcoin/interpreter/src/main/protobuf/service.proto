@@ -13,8 +13,8 @@ enum SortingOrder {
 }
 
 enum ChangeType {
-  INTERNAL = 0;
-  EXTERNAL = 1;
+  EXTERNAL = 0;
+  INTERNAL = 1;
 }
 
 service BitcoinInterpreterService {
@@ -56,7 +56,7 @@ message Transaction {
   string id = 1;
   string hash = 2;
   int64 received_at = 3;
-  int32 lock_time = 4;
+  int64 lock_time = 4;
   int64 fees = 5;
   repeated Input inputs = 6;
   repeated Output outputs = 7;
@@ -83,6 +83,6 @@ message Output {
 
 message Block {
   string hash = 1;
-  int32 height = 2;
+  int64 height = 2;
   int64 time = 3;
 }

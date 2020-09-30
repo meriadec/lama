@@ -4,7 +4,7 @@ import co.ledger.lama.bitcoin.worker.models.Keychain.Address
 import co.ledger.lama.bitcoin.worker.models.explorer.{BlockHash, BlockHeight, Transaction}
 import io.circe.generic.extras._
 import io.circe.generic.semiauto._
-import io.circe.{Decoder, Encoder, Json}
+import io.circe.{Decoder, Encoder}
 
 package object models {
 
@@ -50,14 +50,31 @@ package object models {
         deriveDecoder[GetTransactionsResponse]
     }
 
+    @ConfiguredJsonCodec case class Input(
+        outputHash: String,
+        outputIndex: Int,
+        value: Long,
+        address: String,
+        scriptSignature: String,
+        txWitness: Seq[String],
+        sequence: String
+    )
+
+    @ConfiguredJsonCodec case class Output(
+        outputIndex: Int,
+        value: Long,
+        address: String,
+        scriptHex: String
+    )
+
     @ConfiguredJsonCodec case class Transaction(
         id: String,
         hash: String,
         receivedAt: String,
         lockTime: Long,
         fees: BigInt,
-        inputs: Seq[Json],
-        outputs: Seq[Json],
+        inputs: Seq[Input],
+        outputs: Seq[Output],
         block: Block,
         confirmations: Int
     )
