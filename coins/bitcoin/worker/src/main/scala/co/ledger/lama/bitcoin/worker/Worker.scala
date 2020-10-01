@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.{ConcurrentEffect, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.BlockHash
+import co.ledger.lama.bitcoin.common.models.{BlockHash, DefaultInput}
 import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.models.Status.{Registered, Unregistered}
@@ -112,7 +112,11 @@ class Worker(
           // Filter only used addresses.
           usedAddressesInfos = addressInfos.filter { a =>
             transactions.exists { t =>
-              t.inputs.exists(_.address == a.address) || t.outputs.exists(_.address == a.address)
+              val isInputAddress = t.inputs.collectFirst {
+                case i: DefaultInput if i.address == a.address => i
+              }.isDefined
+
+              isInputAddress || t.outputs.exists(_.address == a.address)
             }
           }
 

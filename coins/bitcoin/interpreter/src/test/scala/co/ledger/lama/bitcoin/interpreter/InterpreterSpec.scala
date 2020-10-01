@@ -28,17 +28,17 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
     transactions = Seq(
       new Transaction(
         hash = "7cb3aacc-2aea-4152-8b53-3431f4daece5",
-        fees = 1000,
+        fees = "1000",
         block = Some(Block(height = 0))
       ),
       new Transaction(
         hash = "4c93a655-437a-495b-9c51-926ad90852ba",
-        fees = 2000,
+        fees = "2000",
         block = Some(Block(height = 1))
       ),
       new Transaction(
         hash = "958f7014-4cb7-400a-92cf-1a8540a186bc",
-        fees = 3000,
+        fees = "3000",
         block = Some(Block(height = 2))
       )
     )

@@ -4,6 +4,7 @@ import io.circe.generic.semiauto._
 import io.circe.{Decoder, Encoder}
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import io.circe.generic.extras.{Configuration, ConfiguredJsonCodec}
+import io.circe.syntax.EncoderOps
 
 package object models {
 
@@ -34,56 +35,106 @@ package object models {
       Block(proto.hash, proto.height, proto.time)
   }
 
-  @ConfiguredJsonCodec case class Input(
+  sealed trait Input {
+    def toProto: protobuf.Input
+  }
+
+  @ConfiguredJsonCodec case class DefaultInput(
       outputHash: String,
-      outputIndex: Int,
-      inputIndex: Int,
-      value: Long,
+      outputIndex: Long,
+      inputIndex: Long,
+      value: BigInt,
       address: String,
       scriptSignature: String,
       txinwitness: Seq[String],
-      sequence: Long
-  ) {
+      sequence: BigInt
+  ) extends Input {
     def toProto: protobuf.Input =
       protobuf.Input(
-        outputHash,
-        outputIndex,
-        inputIndex,
-        value,
-        address,
-        scriptSignature,
-        txinwitness,
-        sequence
+        protobuf.Input.Value.Default(
+          protobuf.DefaultInput(
+            outputHash,
+            outputIndex,
+            inputIndex,
+            value.toString,
+            address,
+            scriptSignature,
+            txinwitness,
+            sequence.toString
+          )
+        )
+      )
+  }
+
+  object DefaultInput {
+    def fromProto(proto: protobuf.DefaultInput): DefaultInput =
+      DefaultInput(
+        proto.outputHash,
+        proto.outputIndex,
+        proto.inputIndex,
+        BigInt(proto.value),
+        proto.address,
+        proto.scriptSignature,
+        proto.txinwitness,
+        BigInt(proto.sequence)
+      )
+  }
+
+  @ConfiguredJsonCodec case class CoinbaseInput(
+      coinbase: String,
+      inputIndex: Long,
+      sequence: BigInt
+  ) extends Input {
+    def toProto: protobuf.Input =
+      protobuf.Input(
+        protobuf.Input.Value.Coinbase(
+          protobuf.CoinbaseInput(
+            coinbase,
+            inputIndex,
+            sequence.toString
+          )
+        )
+      )
+  }
+
+  object CoinbaseInput {
+    def fromProto(proto: protobuf.CoinbaseInput): CoinbaseInput =
+      CoinbaseInput(
+        proto.coinbase,
+        proto.inputIndex,
+        BigInt(proto.sequence)
       )
   }
 
   object Input {
-    implicit val encoder: Encoder[Input] = deriveEncoder[Input]
-    implicit val decoder: Decoder[Input] = deriveDecoder[Input]
+    implicit val encoder: Encoder[Input] =
+      Encoder.instance {
+        case defaultInput: DefaultInput   => defaultInput.asJson
+        case coinbaseInput: CoinbaseInput => coinbaseInput.asJson
+      }
+
+    implicit val decoder: Decoder[Input] =
+      Decoder[DefaultInput]
+        .map[Input](identity)
+        .or(Decoder[CoinbaseInput].map[Input](identity))
 
     def fromProto(proto: protobuf.Input): Input =
-      Input(
-        proto.outputHash,
-        proto.outputIndex,
-        proto.inputIndex,
-        proto.value,
-        proto.address,
-        proto.scriptSignature,
-        proto.txinwitness,
-        proto.sequence
-      )
+      if (proto.value.isDefault)
+        DefaultInput.fromProto(proto.getDefault)
+      else
+        CoinbaseInput.fromProto(proto.getCoinbase)
   }
 
   @ConfiguredJsonCodec case class Output(
-      outputIndex: Int,
-      value: Long,
+      outputIndex: Long,
+      value: BigInt,
       address: String,
       scriptHex: String
   ) {
     def toProto: protobuf.Output =
       protobuf.Output(
         outputIndex,
-        value,
+        value.toString,
         address,
         scriptHex
       )
@@ -96,7 +147,7 @@ package object models {
     def fromProto(proto: protobuf.Output): Output =
       Output(
         proto.outputIndex,
-        proto.value,
+        BigInt(proto.value),
         proto.address,
         proto.scriptHex
       )
@@ -107,7 +158,7 @@ package object models {
       hash: String,
       receivedAt: String,
       lockTime: Long,
-      fees: Long,
+      fees: BigInt,
       inputs: Seq[Input],
       outputs: Seq[Output],
       block: Block,
@@ -119,7 +170,7 @@ package object models {
         hash,
         receivedAt,
         lockTime,
-        fees,
+        fees.toString,
         inputs.map(_.toProto),
         outputs.map(_.toProto),
         Some(block.toProto),
@@ -137,7 +188,7 @@ package object models {
         proto.hash,
         proto.receivedAt,
         proto.lockTime,
-        proto.fees,
+        BigInt(proto.fees),
         proto.inputs.map(Input.fromProto),
         proto.outputs.map(Output.fromProto),
         Block.fromProto(proto.block.get),
