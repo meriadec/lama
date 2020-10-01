@@ -19,7 +19,8 @@ object config {
       workerEventsExchangeName: ExchangeName,
       lamaEventsExchangeName: ExchangeName,
       rabbit: Fs2RabbitConfig,
-      explorer: ExplorerConfig
+      explorer: ExplorerConfig,
+      keychain: KeychainConfig
   ) {
     val routingKey: RoutingKey = RoutingKey("bitcoin.btc")
 
@@ -45,6 +46,13 @@ object config {
     implicit val uriReader: ConfigReader[Uri] = ConfigReader[String].emap { s =>
       Uri.fromString(s).leftMap(t => CannotConvert(s, "Uri", t.getMessage))
     }
+  }
+
+  case class KeychainConfig(override val host: String, override val port: Int, lookaheadSize: Int)
+      extends GrpcClientConfig(host, port)
+
+  object KeychainConfig {
+    implicit val configReader: ConfigReader[KeychainConfig] = deriveReader[KeychainConfig]
   }
 
 }

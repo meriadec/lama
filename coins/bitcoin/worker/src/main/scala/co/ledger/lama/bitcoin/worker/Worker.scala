@@ -1,21 +1,26 @@
 package co.ledger.lama.bitcoin.worker
 
+import java.util.UUID
+
 import cats.effect.{ConcurrentEffect, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.worker.models.{AddressWithTransactions, PayloadData}
+import co.ledger.lama.bitcoin.common.models.BlockHash
+import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.models.Status.{Registered, Unregistered}
-import co.ledger.lama.common.models.{ReportableEvent, WorkableEvent}
-import fs2.Stream
+import co.ledger.lama.common.models.{AccountIdentifier, ReportableEvent, WorkableEvent}
+import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.syntax._
 
+import scala.util.Try
+
 class Worker(
     syncEventService: SyncEventService,
-    keychainService: KeychainServiceMock,
+    keychainService: KeychainService,
     explorerService: ExplorerService,
     interpreterService: InterpreterService,
-    maxConcurrent: Int
+    addressesBatchSize: Int
 ) {
 
   def run(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): Stream[IO, Unit] =
@@ -40,8 +45,7 @@ class Worker(
   def synchronizeAccount(
       workableEvent: WorkableEvent
   )(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): IO[ReportableEvent] = {
-    val keychainId = workableEvent.payload.account.key
-    val accountId  = workableEvent.payload.account.id
+    val account = workableEvent.payload.account
 
     val blockHashCursor =
       workableEvent.payload.data
@@ -49,56 +53,83 @@ class Worker(
         .toOption
         .flatMap(_.blockHash)
 
-    // Get addresses from the keychain.
-    // TODO: waiting for the paginated get addresses keychain service
-    //  to fetch until next range = fresh addresses.
-    keychainService
-      .getAddresses(keychainId)
-      // Parallelize fetch and save transactions for each address.
-      .parEvalMapUnordered(maxConcurrent) { address =>
-        for {
-          // Fetch transactions from the explorer.
-          transactions <-
-            explorerService
-              .getTransactions(address, blockHashCursor)
-              .compile
-              .toList
+    // sync the whole account per streamed batch
+    syncAccountBatch(account, blockHashCursor, 0, addressesBatchSize).stream.compile.toList
+      .map { batchResults =>
+        // TODO: pass account addresses to the interpreter when calling interpreter.computeOperations
+        // val addresses = batchResults.flatMap(_.addresses).distinctBy(_.address)
 
-          // Ask to interpreter to save fetched transactions.
-          _ <- interpreterService.saveTransactions(accountId, List(), transactions)
-        } yield AddressWithTransactions(address, transactions)
-      }
-      .chunkLimit(20) // Size of a keychain batch addresses per account.
-      .map { chunk =>
-        val chunkList = chunk.toList
-        val chunkTxs  = chunkList.flatMap(_.txs)
-        // Marked addresses as used:
-        // we consider the whole batch of addresses as used if there are transactions on it.
-        if (chunkTxs.nonEmpty)
-          Stream.eval(
-            keychainService.markAddressesAsUsed(keychainId, chunkList.map(_.address))
-          ) >> Stream.emits(chunkTxs)
-        else
-          Stream.empty
-      }
-      .parJoinUnbounded // race fetch txs streams concurrently
-      .compile
-      .toList
-      .map { txs =>
-        // From all account transactions, get the most recent block.
+        val txs = batchResults.flatMap(_.transactions).distinctBy(_.hash)
+
         val lastBlock = txs.maxBy(_.block.time).block
+        val txsSize   = txs.size
 
         // New cursor state.
         val payloadData = PayloadData(
           blockHeight = Some(lastBlock.height),
           blockHash = Some(lastBlock.hash),
-          txsSize = Some(txs.size)
+          txsSize = Some(txsSize)
         )
 
         // Create the reportable successful event.
         workableEvent.reportSuccess(payloadData.asJson)
       }
   }
+
+  /**
+    * Sync account algorithm:
+    *   - 1) Get addresses per batch from the keychain
+    *   - 2) Get transactions per batch from the explorer
+    *   - 3a) If there are transactions for this batch of addresses:
+    *       - mark addresses as used
+    *       - repeat 1)
+    *   - 3b) Otherwise, stop sync because we consider this batch as fresh addresses
+    */
+  private def syncAccountBatch(
+      account: AccountIdentifier,
+      blockHashCursor: Option[BlockHash],
+      fromAddrIndex: Int,
+      toAddrIndex: Int
+  )(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): Pull[IO, BatchResult, Unit] =
+    Pull
+      .eval {
+        for {
+          keychainId <- IO.fromTry(Try(UUID.fromString(account.key)))
+
+          // Get batch of addresses from the keychain
+          addressInfos <- keychainService.getAddresses(keychainId, fromAddrIndex, toAddrIndex)
+
+          // For this batch of addresses, fetch transactions from the explorer.
+          transactions <-
+            explorerService
+              .getTransactions(addressInfos.map(_.address), blockHashCursor)
+              .compile
+              .toList
+
+          // Ask to interpreter to save transactions.
+          _ <- interpreterService.saveTransactions(account.id, transactions)
+
+          // Filter only used addresses.
+          usedAddressesInfos = addressInfos.filter { a =>
+            transactions.exists { t =>
+              t.inputs.exists(_.address == a.address) || t.outputs.exists(_.address == a.address)
+            }
+          }
+
+          _ <-
+            if (transactions.nonEmpty) {
+              // Mark addresses as used.
+              keychainService.markAddressesAsUsed(keychainId, usedAddressesInfos.map(_.address))
+            } else IO.unit
+        } yield BatchResult(usedAddressesInfos, transactions)
+      }
+      .flatMap { batchResult =>
+        if (batchResult.transactions.nonEmpty)
+          Pull.output(Chunk(batchResult)) >>
+            syncAccountBatch(account, blockHashCursor, toAddrIndex, toAddrIndex + toAddrIndex)
+        else
+          Pull.output(Chunk(batchResult))
+      }
 
   // TODO:
   //  - ask interpreter to delete account

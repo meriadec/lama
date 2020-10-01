@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter
 import java.sql.Timestamp
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models._
+import co.ledger.lama.bitcoin.interpreter.models._
 import co.ledger.lama.common.utils.IOAssertion
 import doobie.implicits._
 import doobie.util.transactor.Transactor

@@ -23,6 +23,18 @@ aliases:
       - ~/.ivy2
       - ~/.sbt
 
+commands:
+  initlama:
+    description: "Checkout lama project with submodules and restore docker cache"
+    steps:
+      - checkout
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update
+      - restore_cache: *restore_docker_cache
+
 parameters:
   sbt:
     type: string
@@ -39,8 +51,7 @@ jobs:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
     steps:
-      - checkout
-      - restore_cache: *restore_docker_cache
+      - initlama
       - run:
           name: Compile
           command: << pipeline.parameters.sbt >> compile test:compile it:compile
@@ -53,8 +64,7 @@ jobs:
           username: $DOCKER_USERNAME
           password: $DOCKER_PASSWORD
     steps:
-      - checkout
-      - restore_cache: *restore_docker_cache
+      - initlama
       - run:
           name: Run scalastyle
           command: << pipeline.parameters.sbt >> scalastyle
@@ -66,8 +76,7 @@ jobs:
           JVM_OPTS: -Xmx3200m
           TERM: dumb
     steps:
-      - checkout
-      - restore_cache: *restore_docker_cache
+      - initlama
       - run:
           name: Run Common unit tests
           command: << pipeline.parameters.sbt >> common/test
@@ -90,8 +99,7 @@ jobs:
           JVM_OPTS: -Xmx3200m
           TERM: dumb
     steps:
-      - checkout
-      - restore_cache: *restore_docker_cache
+      - initlama
       - run:
           name: Package Jar
           command: << pipeline.parameters.sbt >> assembly
@@ -104,10 +112,10 @@ workflows:
       - unit_tests:
           requires:
             - compile
-# FIXME: enable linter compliance
-#     - scala_linter:
-#          requires:
-#            - compile
+      # FIXME: enable linter compliance
+      #     - scala_linter:
+      #          requires:
+      #            - compile
       - docker/build_image:
           context: githubpkg
           docker_build_target: account-manager
@@ -116,7 +124,10 @@ workflows:
           after_checkout:
             - run:
                 name: Assembly
-                command: << pipeline.parameters.sbt >> assembly
+                command: |
+                  git submodule init
+                  git submodule update
+                  << pipeline.parameters.sbt >> assembly
       - docker/publish_image:
           context: githubpkg
           requires:

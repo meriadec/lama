@@ -1,0 +1,3 @@
+[submodule "coins/bitcoin/keychain"]
+	path = coins/bitcoin/keychain
+	url = git@github.com:LedgerHQ/bitcoin-keychain-svc.git

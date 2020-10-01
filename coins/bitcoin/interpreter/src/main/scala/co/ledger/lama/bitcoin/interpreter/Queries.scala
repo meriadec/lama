@@ -1,6 +1,6 @@
 package co.ledger.lama.bitcoin.interpreter
 
-import co.ledger.lama.bitcoin.common.models._
+import co.ledger.lama.bitcoin.interpreter.models._
 import doobie.free.connection.ConnectionIO
 import cats.implicits._
 import doobie.implicits._

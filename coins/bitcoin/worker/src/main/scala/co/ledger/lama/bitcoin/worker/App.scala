@@ -5,8 +5,9 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2G
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
+import co.ledger.protobuf.bitcoin.KeychainServiceFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
-import io.grpc.{ManagedChannel}
+import io.grpc.ManagedChannel
 import org.http4s.client.Client
 import pureconfig.ConfigSource
 
@@ -15,7 +16,8 @@ object App extends IOApp {
   case class WorkerResources(
       rabbitClient: RabbitClient[IO],
       httpClient: Client[IO],
-      managedChannel: ManagedChannel
+      keychainChannel: ManagedChannel,
+      interpreterChannel: ManagedChannel
   )
 
   def run(args: List[String]): IO[ExitCode] = {
@@ -24,36 +26,41 @@ object App extends IOApp {
     val resources = for {
       rabbitClient       <- Clients.rabbit(conf.rabbit)
       httpClient         <- Clients.htt4s
+      keychainChannel    <- grpcManagedChannel(conf.keychain)
       interpreterChannel <- grpcManagedChannel(conf.interpreter)
-    } yield WorkerResources(rabbitClient, httpClient, interpreterChannel)
+    } yield WorkerResources(rabbitClient, httpClient, keychainChannel, interpreterChannel)
 
-    resources.use {
-      case (workerResources: WorkerResources) =>
-        val syncEventService = new SyncEventService(
-          workerResources.rabbitClient,
-          conf.queueName(conf.workerEventsExchangeName),
-          conf.lamaEventsExchangeName,
-          conf.routingKey
-        )
+    resources.use { res =>
+      val syncEventService = new SyncEventService(
+        res.rabbitClient,
+        conf.queueName(conf.workerEventsExchangeName),
+        conf.lamaEventsExchangeName,
+        conf.routingKey
+      )
 
-        val keychainService = new KeychainServiceMock
+      val keychainClient = KeychainServiceFs2Grpc.stub[IO](res.keychainChannel)
 
-        val explorerService = new ExplorerService(workerResources.httpClient, conf.explorer)
+      val keychainService = new KeychainGrpcClientService(
+        keychainClient,
+        conf.keychain.lookaheadSize
+      )
 
-        val grpcInterpreterService =
-          BitcoinInterpreterServiceFs2Grpc.stub[IO](workerResources.managedChannel)
+      val explorerService = new ExplorerService(res.httpClient, conf.explorer)
 
-        val interpreterService = new InterpreterGrpcClientService(grpcInterpreterService)
+      val interpreterClient =
+        BitcoinInterpreterServiceFs2Grpc.stub[IO](res.interpreterChannel)
 
-        val worker = new Worker(
-          syncEventService,
-          keychainService,
-          explorerService,
-          interpreterService,
-          conf.maxConcurrent
-        )
+      val interpreterService = new InterpreterGrpcClientService(interpreterClient)
 
-        worker.run.compile.lastOrError.as(ExitCode.Success)
+      val worker = new Worker(
+        syncEventService,
+        keychainService,
+        explorerService,
+        interpreterService,
+        conf.keychain.lookaheadSize
+      )
+
+      worker.run.compile.lastOrError.as(ExitCode.Success)
     }
   }
 

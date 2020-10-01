@@ -3,11 +3,10 @@ package co.ledger.lama.bitcoin.worker
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.interpreter.protobuf.{AccountAddress, GetTransactionsResult}
-import co.ledger.lama.bitcoin.worker.models.explorer.{BlockHeight, Transaction}
+import co.ledger.lama.bitcoin.interpreter.protobuf.GetTransactionsResult
+import co.ledger.lama.bitcoin.common.models.{BlockHeight, Transaction}
 import co.ledger.lama.bitcoin.worker.services.{InterpreterService, SortingEnum}
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.SortingEnum
-import co.ledger.lama.bitcoin.worker.utils.ProtobufUtils.serializeTransaction
 
 import scala.collection.mutable
 
@@ -17,7 +16,6 @@ class InterpreterServiceMock extends InterpreterService {
 
   def saveTransactions(
       accountId: UUID,
-      addresses: List[AccountAddress],
       txs: List[Transaction]
   ): IO[Unit] =
     IO.delay {
@@ -62,7 +60,7 @@ class InterpreterServiceMock extends InterpreterService {
       val hasMore = filteredTransactions.drop(offset.getOrElse(0) + limit.getOrElse(0)).nonEmpty
 
       new GetTransactionsResult(
-        transactions = slicedTransactions.map(serializeTransaction),
+        transactions = slicedTransactions.map(_.toProto),
         truncated = hasMore
       )
     }

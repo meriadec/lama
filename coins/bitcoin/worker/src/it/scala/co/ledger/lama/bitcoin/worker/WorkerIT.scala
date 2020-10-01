@@ -5,12 +5,16 @@ import java.util.UUID
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.PayloadData
-import co.ledger.lama.bitcoin.worker.services.{
-  ExplorerService,
-  KeychainServiceMock,
-  SyncEventService
+import co.ledger.lama.bitcoin.worker.services.{ExplorerService, SyncEventService}
+import co.ledger.lama.common.models.{
+  AccountIdentifier,
+  Coin,
+  CoinFamily,
+  ReportableEvent,
+  Status,
+  SyncEvent,
+  WorkableEvent
 }
-import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.{IOAssertion, RabbitUtils}
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.{ExchangeName, ExchangeType, QueueName, RoutingKey}
@@ -38,73 +42,77 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
 
   IOAssertion {
     setupRabbit() *>
-      resources.use {
-        case (rabbitClient, httpClient) =>
-          val syncEventService = new SyncEventService(
-            rabbitClient,
-            conf.queueName(conf.workerEventsExchangeName),
-            conf.lamaEventsExchangeName,
-            conf.routingKey
-          )
+      resources
+        .use {
+          case (rabbitClient, httpClient) =>
+            val syncEventService = new SyncEventService(
+              rabbitClient,
+              conf.queueName(conf.workerEventsExchangeName),
+              conf.lamaEventsExchangeName,
+              conf.routingKey
+            )
 
-          val keychainService = new KeychainServiceMock
+            val keychainService = new KeychainServiceMock
 
-          val interpreterService = new InterpreterServiceMock
+            val explorerService = new ExplorerService(httpClient, conf.explorer)
 
-          val explorerService = new ExplorerService(httpClient, conf.explorer)
+            val interpreterService = new InterpreterServiceMock
 
-          val worker = new Worker(
-            syncEventService,
-            keychainService,
-            explorerService,
-            interpreterService,
-            conf.maxConcurrent
-          )
+            val worker = new Worker(
+              syncEventService,
+              keychainService,
+              explorerService,
+              interpreterService,
+              conf.keychain.lookaheadSize
+            )
 
-          val accountManager = new SimpleAccountManager(
-            rabbitClient,
-            conf.queueName(conf.lamaEventsExchangeName),
-            conf.workerEventsExchangeName,
-            conf.routingKey
-          )
+            val accountManager = new SimpleAccountManager(
+              rabbitClient,
+              conf.queueName(conf.lamaEventsExchangeName),
+              conf.workerEventsExchangeName,
+              conf.routingKey
+            )
 
-          val keychainId = "test"
+            val keychainId = UUID.randomUUID()
 
-          val account = AccountIdentifier(keychainId, CoinFamily.Bitcoin, Coin.Btc)
+            val account = AccountIdentifier(keychainId.toString, CoinFamily.Bitcoin, Coin.Btc)
 
-          val syncId = UUID.randomUUID()
+            val syncId = UUID.randomUUID()
 
-          val registeredEvent =
-            WorkableEvent(account.id, syncId, Status.Registered, SyncEvent.Payload(account))
+            val registeredEvent =
+              WorkableEvent(account.id, syncId, Status.Registered, SyncEvent.Payload(account))
 
-          Stream
-            .eval {
-              accountManager.publishWorkableEvent(registeredEvent) *>
-                accountManager.consumeReportableEvent
-            }
-            .concurrently(worker.run)
-            .take(1)
-            .compile
-            .last
-            .map { reportableEvent =>
-              it should "have 35 addresses for the account" in {
-                keychainService.usedAddresses.values.flatten.size shouldBe 35
+            Stream
+              .eval {
+                accountManager.publishWorkableEvent(registeredEvent) *>
+                  accountManager.consumeReportableEvent
               }
+              .concurrently(worker.run)
+              .take(1)
+              .compile
+              .last
+              .map { reportableEvent =>
+                it should "have 35 used addresses for the account" in {
+                  keychainService.usedAddresses.size shouldBe 35
+                }
 
-              it should "have a synchronized reportable event" in {
-                reportableEvent shouldBe Some(
-                  registeredEvent.reportSuccess(
-                    PayloadData(
-                      blockHeight = Some(644553L),
-                      blockHash =
-                        Some("0000000000000000000c44bf26af3b5b3c97e5aed67407fd551a90bc175de5a0"),
-                      txsSize = Some(100)
-                    ).asJson
+                val expectedTxsSize         = 73
+                val expectedLastBlockHeight = 644553
+
+                it should s"have synchronized $expectedTxsSize txs with last blockHeight=$expectedLastBlockHeight" in {
+                  reportableEvent shouldBe Some(
+                    registeredEvent.reportSuccess(
+                      PayloadData(
+                        blockHeight = Some(expectedLastBlockHeight),
+                        blockHash =
+                          Some("0000000000000000000c44bf26af3b5b3c97e5aed67407fd551a90bc175de5a0"),
+                        txsSize = Some(expectedTxsSize)
+                      ).asJson
+                    )
                   )
-                )
+                }
               }
-            }
-      }
+        }
   }
 
   def setupRabbit(): IO[Unit] =

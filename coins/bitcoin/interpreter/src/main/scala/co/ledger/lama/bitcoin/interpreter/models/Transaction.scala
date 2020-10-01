@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.common.models
+package co.ledger.lama.bitcoin.interpreter.models
 
 import java.sql.Timestamp
 

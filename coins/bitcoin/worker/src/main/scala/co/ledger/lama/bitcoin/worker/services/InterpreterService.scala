@@ -4,7 +4,6 @@ import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
-  AccountAddress,
   BitcoinInterpreterServiceFs2Grpc,
   DeleteTransactionsRequest,
   GetTransactionsRequest,
@@ -12,10 +11,8 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
   SaveTransactionsRequest,
   SortingOrder
 }
-import com.google.protobuf.ByteString
-import co.ledger.lama.bitcoin.worker.models.explorer.{BlockHeight, Transaction}
+import co.ledger.lama.bitcoin.common.models.{BlockHeight, Transaction}
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.{Ascending, Descending, SortingEnum}
-import co.ledger.lama.bitcoin.worker.utils.ProtobufUtils
 import co.ledger.lama.common.utils.UuidUtils
 import io.grpc.Metadata
 
@@ -25,11 +22,7 @@ object SortingEnum extends Enumeration {
 }
 
 trait InterpreterService {
-  def saveTransactions(
-      accountId: UUID,
-      addresses: List[AccountAddress],
-      txs: List[Transaction]
-  ): IO[Unit]
+  def saveTransactions(accountId: UUID, txs: List[Transaction]): IO[Unit]
 
   def removeTransactions(accountId: UUID, blockHeightCursor: Option[BlockHeight]): IO[Unit]
 
@@ -42,30 +35,22 @@ trait InterpreterService {
   ): IO[GetTransactionsResult]
 }
 
-class InterpreterGrpcClientService(
-    grpcBtcInterpreter: BitcoinInterpreterServiceFs2Grpc[IO, Metadata]
-) extends InterpreterService {
+class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[IO, Metadata])
+    extends InterpreterService {
 
-  def getByteStringedString(str: String): ByteString = ByteString.copyFromUtf8(str)
-
-  def saveTransactions(
-      accountId: UUID,
-      addresses: List[AccountAddress],
-      txs: List[Transaction]
-  ): IO[Unit] =
-    grpcBtcInterpreter
+  def saveTransactions(accountId: UUID, txs: List[Transaction]): IO[Unit] =
+    grpcClient
       .saveTransactions(
         new SaveTransactionsRequest(
           accountId = UuidUtils uuidToBytes accountId,
-          accountAddresses = addresses,
-          transactions = txs.map(ProtobufUtils.serializeTransaction)
+          transactions = txs.map(_.toProto)
         ),
         new Metadata()
       )
       .void
 
   def removeTransactions(accountId: UUID, blockHeightCursor: Option[BlockHeight]): IO[Unit] =
-    grpcBtcInterpreter
+    grpcClient
       .deleteTransactions(
         new DeleteTransactionsRequest(
           UuidUtils uuidToBytes accountId,
@@ -88,7 +73,7 @@ class InterpreterGrpcClientService(
       case Descending => SortingOrder.DESC
     }
 
-    grpcBtcInterpreter.getTransactions(
+    grpcClient.getTransactions(
       new GetTransactionsRequest(
         UuidUtils uuidToBytes accountId,
         blockHeight.getOrElse(0),

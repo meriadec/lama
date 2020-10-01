@@ -1,8 +1,9 @@
 package co.ledger.lama.bitcoin.worker.services
 
 import cats.effect.{ConcurrentEffect, IO, Timer}
+import co.ledger.lama.bitcoin.common.models._
 import co.ledger.lama.bitcoin.worker.config.ExplorerConfig
-import co.ledger.lama.bitcoin.worker.models.explorer._
+import co.ledger.lama.bitcoin.worker.models.GetTransactionsResponse
 import io.circe.Decoder
 import org.http4s.{Method, Request}
 import org.http4s.client.Client
@@ -23,20 +24,24 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
     httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/$height"))
 
   def getTransactions(
-      address: String,
+      addresses: Seq[String],
       blockHash: Option[BlockHash]
   )(implicit
       ce: ConcurrentEffect[IO],
       t: Timer[IO]
-  ): Stream[IO, Transaction] =
-    fetchPaginatedTransactions(httpClient, address, blockHash).stream
-      .flatMap(res => Stream.emits(res.txs))
-      .timeout(conf.timeout)
+  ): Stream[IO, Transaction] = {
+    if (addresses.nonEmpty)
+      fetchPaginatedTransactions(httpClient, addresses, blockHash).stream
+        .flatMap(res => Stream.emits(res.txs))
+        .timeout(conf.timeout)
+    else
+      Stream.empty
+  }
 
-  private def getTransactionsRequest(address: String, blockHash: Option[BlockHash]) = {
+  private def getTransactionsRequest(addresses: Seq[String], blockHash: Option[BlockHash]) = {
     val baseUri =
       conf.uri
-        .withPath(s"$btcBasePath/addresses/$address/transactions")
+        .withPath(s"$btcBasePath/addresses/${addresses.mkString(",")}/transactions")
         .withQueryParam("no_token", true)
         .withQueryParam("batch_size", conf.txsBatchSize)
 
@@ -52,13 +57,17 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
 
   private def fetchPaginatedTransactions(
       client: Client[IO],
-      address: String,
+      addresses: Seq[String],
       blockHash: Option[BlockHash]
   )(implicit
       decoder: Decoder[GetTransactionsResponse]
   ): Pull[IO, GetTransactionsResponse, Unit] =
     Pull
-      .eval(client.expect[GetTransactionsResponse](getTransactionsRequest(address, blockHash)))
+      .eval(
+        client.expect[GetTransactionsResponse](
+          getTransactionsRequest(addresses, blockHash)
+        )
+      )
       .flatMap { res =>
         if (res.truncated) {
           // The explorer returns batch_size + 1 tx.
@@ -66,7 +75,7 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
           val fixedRes      = res.copy(txs = res.txs.dropRight(1))
           val lastBlockHash = res.txs.lastOption.map(_.block.hash)
           Pull.output(Chunk(fixedRes)) >>
-            fetchPaginatedTransactions(client, address, lastBlockHash)
+            fetchPaginatedTransactions(client, addresses, lastBlockHash)
         } else {
           Pull.output(Chunk(res))
         }
