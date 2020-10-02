@@ -6,12 +6,13 @@ option java_package = "co.ledger.lama.manager.protobuf";
 // Exposes a gRPC interface to manage synchronization of
 // account infos and transactions.
 service AccountManagerService {
-    rpc registerAccount(RegisterAccountRequest) returns (RegisterAccountResult);
-    rpc unregisterAccount(UnregisterAccountRequest) returns (UnregisterAccountResult);
-    rpc getAccountInfo(AccountInfoRequest) returns (AccountInfoResult);
+    rpc RegisterAccount(RegisterAccountRequest) returns (RegisterAccountResult) {}
+    rpc UnregisterAccount(UnregisterAccountRequest) returns (UnregisterAccountResult) {}
+    rpc GetAccountInfo(AccountInfoRequest) returns (AccountInfoResult) {}
 }
 
 message RegisterAccountRequest {
+    // KeychainId for Bitcoin or PublicKey for account based coins
     string key = 1;
     CoinFamily coin_family = 2;
     Coin coin = 3;
@@ -26,9 +27,7 @@ message BlockHeightState {
 }
 
 message UnregisterAccountRequest {
-    string key = 1;
-    CoinFamily coin_family = 2;
-    Coin coin = 3;
+    bytes account_id = 1;
 }
 
 message RegisterAccountResult {
@@ -43,13 +42,12 @@ message UnregisterAccountResult {
 }
 
 message AccountInfoRequest {
-    string key = 1;
-    CoinFamily coin_family = 2;
-    Coin coin = 3;
+    bytes account_id = 1;
 }
 
 message AccountInfoResult {
-    bytes account_id = 2;
+    bytes account_id = 1;
+    string key = 2;
     uint64 sync_frequency = 3;
     SyncEvent last_sync_event = 4;
 }

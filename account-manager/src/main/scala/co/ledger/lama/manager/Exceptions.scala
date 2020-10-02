@@ -1,6 +1,8 @@
 package co.ledger.lama.manager
 
-import co.ledger.lama.common.models.{AccountIdentifier, Coin, CoinFamily}
+import java.util.UUID
+
+import co.ledger.lama.common.models.{Coin, CoinFamily}
 
 object Exceptions {
 
@@ -12,7 +14,7 @@ object Exceptions {
   case class MalformedProtobufException(message: scalapb.GeneratedMessage)
       extends Exception(s"Malformed protobuf: ${message.toProtoString}")
 
-  case class AccountNotFoundException(accountIdentifier: AccountIdentifier)
-      extends Exception(s"Account not found: $accountIdentifier")
+  case class AccountNotFoundException(accountId: UUID)
+      extends Exception(s"Account not found: $accountId")
 
 }

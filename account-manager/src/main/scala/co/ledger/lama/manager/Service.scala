@@ -13,6 +13,7 @@ import co.ledger.lama.manager.Exceptions.{
   MalformedProtobufException
 }
 import co.ledger.lama.manager.config.CoinConfig
+import co.ledger.lama.manager.models.AccountInfo
 import co.ledger.lama.manager.protobuf.{
   AccountInfoRequest,
   AccountInfoResult,
@@ -104,17 +105,16 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       request: UnregisterAccountRequest,
       ctx: Metadata
   ): IO[UnregisterAccountResult] = {
-    val account =
-      AccountIdentifier(
-        request.key,
-        ProtobufUtils.from(request.coinFamily),
-        ProtobufUtils.from(request.coin)
-      )
+    val accountIdOpt = UuidUtils.bytesToUuid(request.accountId)
 
     for {
+      accountId <- IO.fromOption(accountIdOpt)(
+        new Exception(s"${request.accountId} is not a valid UUID")
+      )
+
       existing <-
         Queries
-          .getLastSyncEvent(account.id)
+          .getLastSyncEvent(accountId)
           .transact(db)
           .map(_.filter(e => e.status == Status.Unregistered || e.status == Status.Deleted))
 
@@ -128,23 +128,28 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
           )
 
         case _ =>
-          // Create then insert an unregistered event.
-          val event = WorkableEvent(
-            account.id,
-            UUID.randomUUID(),
-            Status.Unregistered,
-            Payload(account)
-          )
+          for {
+            account <- getAccountInfo(accountId)
 
-          Queries
-            .insertSyncEvent(event)
-            .transact(db)
-            .map(_ =>
-              UnregisterAccountResult(
-                UuidUtils.uuidToBytes(event.accountId),
-                UuidUtils.uuidToBytes(event.syncId)
-              )
+            // Create then insert an unregistered event.
+            event = WorkableEvent(
+              accountId,
+              UUID.randomUUID(),
+              Status.Unregistered,
+              Payload(AccountIdentifier(account.key, account.coinFamily, account.coin))
             )
+
+            result <-
+              Queries
+                .insertSyncEvent(event)
+                .transact(db)
+                .map(_ =>
+                  UnregisterAccountResult(
+                    UuidUtils.uuidToBytes(event.accountId),
+                    UuidUtils.uuidToBytes(event.syncId)
+                  )
+                )
+          } yield result
       }
     } yield result
   }
@@ -163,16 +168,13 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
   }
 
   def getAccountInfo(request: AccountInfoRequest, ctx: Metadata): IO[AccountInfoResult] = {
-    val account = ProtobufUtils.from(request)
+    val accountIdOpt = UuidUtils.bytesToUuid(request.accountId)
 
     for {
-      accountInfo <-
-        Queries
-          .getAccountInfo(account)
-          .transact(db)
-          .flatMap {
-            _.map(IO.pure).getOrElse(IO.raiseError(AccountNotFoundException(account)))
-          }
+      accountId <- IO.fromOption(accountIdOpt)(
+        new Exception(s"${request.accountId} is not a valid UUID")
+      )
+      accountInfo   <- getAccountInfo(accountId)
       lastSyncEvent <- Queries.getLastSyncEvent(accountInfo.id).transact(db)
     } yield {
       val lastSyncEventProto = lastSyncEvent.map { se =>
@@ -185,10 +187,19 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
 
       AccountInfoResult(
         UuidUtils.uuidToBytes(accountInfo.id),
+        accountInfo.key,
         accountInfo.syncFrequency.toSeconds,
         lastSyncEventProto
       )
     }
   }
+
+  private def getAccountInfo(accountId: UUID): IO[AccountInfo] =
+    Queries
+      .getAccountInfo(accountId)
+      .transact(db)
+      .flatMap {
+        IO.fromOption(_)(AccountNotFoundException(accountId))
+      }
 
 }

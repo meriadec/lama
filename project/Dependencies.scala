@@ -75,12 +75,13 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
     "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
   )
 
-  val lamaCommon: Seq[ModuleID]     = circe ++ rabbit ++ utilities ++ postgres
-  val accountManager: Seq[ModuleID] = lamaCommon ++ redis
+  val lamaCommon: Seq[ModuleID] = circe ++ rabbit ++ utilities ++ postgres
 
   val btcCommon: Seq[ModuleID]      = lamaCommon ++ commonProtos
   val btcWorker: Seq[ModuleID]      = btcCommon ++ http4s
   val btcInterpreter: Seq[ModuleID] = btcCommon
   val btcService: Seq[ModuleID]     = lamaCommon ++ http4s
 
+  val accountManager: Seq[ModuleID] = btcCommon ++ redis
+  val service: Seq[ModuleID]        = lamaCommon ++ commonProtos ++ http4s
 }

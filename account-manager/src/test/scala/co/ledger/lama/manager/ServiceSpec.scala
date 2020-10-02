@@ -59,13 +59,6 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
 
   val updatedSyncFrequency: Long = 10000L
 
-  val bitcoinAccountInfoRequest: pb.AccountInfoRequest =
-    pb.AccountInfoRequest(
-      registerBitcoinAccount.key,
-      registerBitcoinAccount.coinFamily,
-      registerBitcoinAccount.coin
-    )
-
   val accountIdentifier: AccountIdentifier =
     AccountIdentifier(registerBitcoinAccount.key, CoinFamily.Bitcoin, Coin.Btc)
 
@@ -81,7 +74,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
         syncId        = UuidUtils.bytesToUuid(response.syncId).get
         syncFrequency = response.syncFrequency
 
-        event <- getLastEvent(service, bitcoinAccountInfoRequest)
+        event <- getLastEvent(service, pb.AccountInfoRequest(response.accountId))
       } yield {
         registeredAccountId = accountId
         registeredSyncId = syncId
@@ -123,7 +116,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
         syncId        = UuidUtils.bytesToUuid(response.syncId).get
         syncFrequency = response.syncFrequency
 
-        event <- getLastEvent(service, bitcoinAccountInfoRequest)
+        event <- getLastEvent(service, pb.AccountInfoRequest(response.accountId))
       } yield {
         // it should be the registered accountId
         accountId shouldBe registeredAccountId
@@ -162,7 +155,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
         accountId = UuidUtils.bytesToUuid(response.accountId).get
         syncId    = UuidUtils.bytesToUuid(response.syncId).get
 
-        event <- getLastEvent(service, bitcoinAccountInfoRequest)
+        event <- getLastEvent(service, pb.AccountInfoRequest(response.accountId))
       } yield {
         // it should be the registered accountId
         accountId shouldBe registeredAccountId
@@ -189,12 +182,8 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
   var unregisteredSyncId: UUID     = _
   var unregisteredEvent: SyncEvent = _
 
-  val unregisterAccountRequest: pb.UnregisterAccountRequest =
-    pb.UnregisterAccountRequest(
-      registerBitcoinAccount.key,
-      registerBitcoinAccount.coinFamily,
-      registerBitcoinAccount.coin
-    )
+  lazy val unregisterAccountRequest: pb.UnregisterAccountRequest =
+    pb.UnregisterAccountRequest(UuidUtils.uuidToBytes(registeredAccountId))
 
   it should "unregister an account" in IOAssertion {
     transactor.use { db =>
@@ -206,7 +195,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
         accountId = UuidUtils.bytesToUuid(response.accountId).get
         syncId    = UuidUtils.bytesToUuid(response.syncId).get
 
-        event <- getLastEvent(service, bitcoinAccountInfoRequest)
+        event <- getLastEvent(service, pb.AccountInfoRequest(response.accountId))
       } yield {
         accountId shouldBe registeredAccountId
         unregisteredSyncId = syncId
@@ -234,7 +223,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
         accountId = UuidUtils.bytesToUuid(response.accountId).get
         syncId    = UuidUtils.bytesToUuid(response.syncId).get
 
-        event <- getLastEvent(service, bitcoinAccountInfoRequest)
+        event <- getLastEvent(service, pb.AccountInfoRequest(response.accountId))
 
       } yield {
         accountId shouldBe registeredAccountId
@@ -248,16 +237,16 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
     transactor.use { db =>
       new Service(db, conf.coins)
         .getAccountInfo(
-          bitcoinAccountInfoRequest,
+          pb.AccountInfoRequest(UuidUtils.uuidToBytes(registeredAccountId)),
           new Metadata()
         )
         .map { response =>
-          val accountId    = UuidUtils.bytesToUuid(response.accountId)
+          val key          = response.key
           val synFrequency = response.syncFrequency
           val lastSyncEvent =
             response.lastSyncEvent.flatMap(ProtobufUtils.from(registeredAccountId, _))
 
-          accountId shouldBe Some(registeredAccountId)
+          key shouldBe registerBitcoinAccount.key
           synFrequency shouldBe updatedSyncFrequency
           lastSyncEvent shouldBe Some(unregisteredEvent)
         }
@@ -269,7 +258,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
       transactor.use { db =>
         new Service(db, conf.coins)
           .getAccountInfo(
-            AccountInfoRequest("unknown", pb.CoinFamily.bitcoin, pb.Coin.btc),
+            AccountInfoRequest(UuidUtils.uuidToBytes(UUID.randomUUID)),
             new Metadata()
           )
       }

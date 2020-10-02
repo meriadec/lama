@@ -84,8 +84,8 @@ jobs:
           name: Run Account Manager unit tests
           command: << pipeline.parameters.sbt >> accountManager/test
       - run:
-          name: Run Bitcoin Service unit tests
-          command: << pipeline.parameters.sbt >> btcService/test
+          name: Run Service unit tests
+          command: << pipeline.parameters.sbt >> service/test
       - run:
           name: Run Bitcoin Worker unit tests
           command: << pipeline.parameters.sbt >> btcWorker/test

@@ -2,19 +2,12 @@ package co.ledger.lama.manager.utils
 
 import java.util.UUID
 
-import co.ledger.lama.manager.protobuf
 import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.UuidUtils
+import co.ledger.lama.manager.protobuf
 import io.circe.parser.parse
 
 object ProtobufUtils {
-
-  def from(pb: protobuf.AccountInfoRequest): AccountIdentifier =
-    AccountIdentifier(
-      pb.key,
-      from(pb.coinFamily),
-      from(pb.coin)
-    )
 
   def from(pb: protobuf.RegisterAccountRequest): AccountIdentifier =
     AccountIdentifier(

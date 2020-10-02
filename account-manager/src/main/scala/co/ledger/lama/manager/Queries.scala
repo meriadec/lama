@@ -60,10 +60,10 @@ object Queries {
       .query[TriggerableEvent]
       .stream
 
-  def getAccountInfo(accountIdentifier: AccountIdentifier): ConnectionIO[Option[AccountInfo]] =
-    sql"""SELECT account_id, extract(epoch FROM sync_frequency)/60*60
+  def getAccountInfo(accountId: UUID): ConnectionIO[Option[AccountInfo]] =
+    sql"""SELECT account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60
           FROM account_info
-          WHERE account_id = ${accountIdentifier.id}
+          WHERE account_id = $accountId
          """
       .query[AccountInfo]
       .option
@@ -84,7 +84,7 @@ object Queries {
           VALUES($accountId, $key, $coinFamily, $coin, $syncFrequencyInterval)
           ON CONFLICT (account_id)
             DO UPDATE SET sync_frequency = $syncFrequencyInterval
-          RETURNING account_id, extract(epoch FROM sync_frequency)/60*60
+          RETURNING account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60
           """
       .query[AccountInfo]
       .unique

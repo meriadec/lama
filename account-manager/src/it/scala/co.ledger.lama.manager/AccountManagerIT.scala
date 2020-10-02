@@ -45,9 +45,7 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
           )
 
           val unregisterAccountRequest = protobuf.UnregisterAccountRequest(
-            accountTest.key,
-            protobuf.CoinFamily.bitcoin,
-            protobuf.Coin.btc
+            UuidUtils.uuidToBytes(accountTest.id)
           )
 
           def runTests(): IO[Unit] =

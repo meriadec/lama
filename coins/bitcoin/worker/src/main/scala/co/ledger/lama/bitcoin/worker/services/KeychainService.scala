@@ -57,5 +57,4 @@ class KeychainGrpcClientService(
         new Metadata()
       )
       .void
-
 }
