@@ -1,8 +1,11 @@
 package co.ledger.lama.bitcoin.common
 
+import java.util.UUID
+
 import io.circe.generic.semiauto._
 import io.circe.{Decoder, Encoder}
 import co.ledger.lama.bitcoin.interpreter.protobuf
+import co.ledger.lama.common.utils.UuidUtils
 import io.circe.generic.extras.{Configuration, ConfiguredJsonCodec}
 import io.circe.syntax.EncoderOps
 
@@ -191,9 +194,81 @@ package object models {
         BigInt(proto.fees),
         proto.inputs.map(Input.fromProto),
         proto.outputs.map(Output.fromProto),
-        Block.fromProto(proto.block.get),
+        Block.fromProto(
+          proto.getBlock
+        ), // block should never be missing, it's because of protobuf cc generator
         proto.confirmations
       )
+  }
+
+  sealed trait OperationType {
+    def toProto: protobuf.OperationType
+  }
+  final case object Send extends OperationType {
+    def toProto: protobuf.OperationType = {
+      protobuf.OperationType.SEND
+    }
+  }
+  final case object Received extends OperationType {
+    def toProto: protobuf.OperationType = {
+      protobuf.OperationType.RECEIVED
+    }
+  }
+
+  object OperationType {
+    implicit val encoder: Encoder[OperationType] = deriveEncoder[OperationType]
+    implicit val decoder: Decoder[OperationType] = deriveDecoder[OperationType]
+
+    def fromKey(key: String): Option[OperationType] = {
+      key match {
+        case "send"     => Some(Send)
+        case "received" => Some(Received)
+        case _          => None
+      }
+    }
+
+    def fromProto(proto: protobuf.OperationType): OperationType = {
+      proto match {
+        case protobuf.OperationType.SEND => Send
+        case _                           => Received
+
+      }
+    }
+  }
+
+  @ConfiguredJsonCodec case class Operation(
+      accountId: UUID,
+      hash: String,
+      operationType: OperationType,
+      value: BigInt,
+      time: String
+  ) {
+    def toProto: protobuf.Operation = {
+      protobuf.Operation(
+        UuidUtils.uuidToBytes(accountId),
+        hash,
+        operationType.toProto,
+        value.toLong,
+        time
+      )
+    }
+  }
+
+  object Operation {
+    implicit val encoder: Encoder[Operation] = deriveEncoder[Operation]
+    implicit val decoder: Decoder[Operation] = deriveDecoder[Operation]
+
+    def fromProto(proto: protobuf.Operation): Operation = {
+      Operation(
+        UuidUtils
+          .bytesToUuid(proto.accountId)
+          .getOrElse(throw UuidUtils.InvalidUUIDException),
+        proto.hash,
+        OperationType.fromProto(proto.operationType),
+        BigInt(proto.value),
+        proto.time
+      )
+    }
   }
 
 }

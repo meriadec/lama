@@ -122,6 +122,7 @@ lazy val btcCommon = (project in file("coins/bitcoin/common"))
     // Proto config
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage
   )
+  .dependsOn(common)
 
 lazy val btcWorker = (project in file("coins/bitcoin/worker"))
   .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)

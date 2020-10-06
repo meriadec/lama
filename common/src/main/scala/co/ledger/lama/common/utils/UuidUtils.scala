@@ -3,9 +3,12 @@ package co.ledger.lama.common.utils
 import java.nio.ByteBuffer
 import java.util.UUID
 
+import cats.effect.IO
 import com.google.protobuf.ByteString
 
 object UuidUtils {
+
+  case object InvalidUUIDException extends Exception
 
   def uuidToBytes(uuid: UUID): ByteString = {
     val buffer = ByteBuffer.allocate(16) // uuid = 16 bits
@@ -20,5 +23,10 @@ object UuidUtils {
     if (buffer.capacity() != 16) None
     else Some(new UUID(buffer.getLong(0), buffer.getLong(8)))
   }
+
+  def bytesToUuidIO(bytes: ByteString): IO[UUID] =
+    IO.fromOption(bytesToUuid(bytes))(
+      InvalidUUIDException
+    )
 
 }

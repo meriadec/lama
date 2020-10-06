@@ -13,7 +13,7 @@ object App extends IOApp {
       db <- postgresTransactor(conf.postgres)
 
       serviceDefinitions = List(
-        new FakeInterpreter().definition
+        new DbInterpreter(db).definition
       )
 
       grpcServer <- grpcServer(conf.grpcServer, serviceDefinitions)

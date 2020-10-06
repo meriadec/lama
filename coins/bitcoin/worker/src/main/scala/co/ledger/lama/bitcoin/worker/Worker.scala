@@ -5,6 +5,8 @@ import java.util.UUID
 import cats.effect.{ConcurrentEffect, IO, Timer}
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.{BlockHash, DefaultInput}
+import co.ledger.lama.bitcoin.interpreter.protobuf.AccountAddress
+import co.ledger.lama.bitcoin.interpreter.protobuf.ChangeType.{EXTERNAL, INTERNAL}
 import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.models.Status.{Registered, Unregistered}
@@ -55,26 +57,35 @@ class Worker(
         .flatMap(_.blockHash)
 
     // sync the whole account per streamed batch
-    syncAccountBatch(account, blockHashCursor, 0, addressesBatchSize).stream.compile.toList
-      .map { batchResults =>
-        // TODO: pass account addresses to the interpreter when calling interpreter.computeOperations
-        // val addresses = batchResults.flatMap(_.addresses).distinctBy(_.address)
 
-        val txs = batchResults.flatMap(_.transactions).distinctBy(_.hash)
+    for {
 
-        val lastBlock = txs.maxBy(_.block.time).block
-        val txsSize   = txs.size
+      batchResults <-
+        syncAccountBatch(account, blockHashCursor, 0, addressesBatchSize).stream.compile.toList
 
-        // New cursor state.
-        val payloadData = PayloadData(
-          blockHeight = Some(lastBlock.height),
-          blockHash = Some(lastBlock.hash),
-          txsSize = Some(txsSize)
-        )
-
-        // Create the reportable successful event.
-        workableEvent.reportSuccess(payloadData.asJson)
+      addresses = batchResults.flatMap(_.addresses).map { a =>
+        AccountAddress(a.address, if (a.change.isChangeExternal) EXTERNAL else INTERNAL)
       }
+
+      _ <- interpreterService.computeOperations(account.id, addresses)
+
+    } yield {
+
+      val txs = batchResults.flatMap(_.transactions).distinctBy(_.hash)
+
+      val lastBlock = txs.maxBy(_.block.time).block
+      val txsSize   = txs.size
+
+      // New cursor state.
+      val payloadData = PayloadData(
+        blockHeight = Some(lastBlock.height),
+        blockHash = Some(lastBlock.hash),
+        txsSize = Some(txsSize)
+      )
+
+      // Create the reportable successful event.
+      workableEvent.reportSuccess(payloadData.asJson)
+    }
   }
 
   /**

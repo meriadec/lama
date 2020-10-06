@@ -2,22 +2,21 @@ package co.ledger.lama.service.utils
 
 import java.util.UUID
 
+import co.ledger.lama.bitcoin.common.models.Operation
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.models.BitcoinNetwork.{MainNet, RegTest, TestNet3, Unspecified}
-import co.ledger.lama.common.models.{Coin, CoinFamily}
 import co.ledger.lama.common.models.Scheme.{Bip44, Bip49, Bip84}
+import co.ledger.lama.common.models.{Coin, CoinFamily}
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.protobuf.{
   AccountInfoRequest,
   AccountInfoResult,
   RegisterAccountResult
 }
-
-import co.ledger.lama.bitcoin.common.models.Transaction
 import co.ledger.lama.service.models.{
   AccountRegistered,
   GetAccountManagerInfoResult,
-  GetTransactionsResult
+  GetOperationsResult
 }
 import co.ledger.lama.service.routes.AccountController.CreationRequest
 import co.ledger.protobuf.bitcoin.{BitcoinNetwork, CreateKeychainRequest, Scheme}
@@ -80,10 +79,10 @@ object ProtobufUtils {
       syncFrequency = ra.syncFrequency
     )
 
-  def fromTransactionListingInfos(txs: protobuf.GetTransactionsResult) =
-    GetTransactionsResult(
+  def fromTransactionListingInfos(txs: protobuf.GetOperationsResult) =
+    GetOperationsResult(
       truncated = txs.truncated,
-      transaction = txs.transactions.map(Transaction.fromProto)
+      operations = txs.operations.map(Operation.fromProto)
     )
 
 }

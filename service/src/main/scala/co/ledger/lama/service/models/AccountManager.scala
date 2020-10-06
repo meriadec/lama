@@ -2,7 +2,7 @@ package co.ledger.lama.service.models
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.Transaction
+import co.ledger.lama.bitcoin.common.models.Operation
 
 case class GetAccountManagerInfoResult(
     accountId: UUID,
@@ -11,9 +11,9 @@ case class GetAccountManagerInfoResult(
     status: Option[String]
 )
 
-case class GetTransactionsResult(
+case class GetOperationsResult(
     truncated: Boolean,
-    transaction: Seq[Transaction]
+    operations: Seq[Operation]
 )
 
 case class AccountRegistered(accountId: UUID, syncId: UUID, syncFrequency: Long)

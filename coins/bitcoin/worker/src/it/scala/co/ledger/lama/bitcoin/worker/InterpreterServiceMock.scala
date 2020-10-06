@@ -3,10 +3,11 @@ package co.ledger.lama.bitcoin.worker
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.interpreter.protobuf.GetTransactionsResult
-import co.ledger.lama.bitcoin.common.models.{BlockHeight, Transaction}
+import co.ledger.lama.bitcoin.interpreter.protobuf.{AccountAddress, GetOperationsResult}
+import co.ledger.lama.bitcoin.common.models.{BlockHeight, Operation, Send, Transaction}
 import co.ledger.lama.bitcoin.worker.services.{InterpreterService, SortingEnum}
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.SortingEnum
+import com.google.protobuf.empty.Empty
 
 import scala.collection.mutable
 
@@ -43,7 +44,7 @@ class InterpreterServiceMock extends InterpreterService {
       limit: Option[Int],
       offset: Option[Int],
       sortingOrder: Option[SortingEnum]
-  ): IO[GetTransactionsResult] =
+  ): IO[GetOperationsResult] =
     IO.delay {
       val filteredTransactions = savedTransactions
         .getOrElse(accountId, List())
@@ -56,12 +57,26 @@ class InterpreterServiceMock extends InterpreterService {
         })
 
       val slicedTransactions =
-        filteredTransactions.slice(offset.getOrElse(0), offset.getOrElse(0) + limit.getOrElse(0))
+        filteredTransactions
+          .slice(offset.getOrElse(0), offset.getOrElse(0) + limit.getOrElse(0))
+          .map(tx =>
+            Operation(
+              accountId,
+              tx.hash,
+              Send,
+              BigInt(0),
+              ""
+            )
+          )
       val hasMore = filteredTransactions.drop(offset.getOrElse(0) + limit.getOrElse(0)).nonEmpty
 
-      new GetTransactionsResult(
-        transactions = slicedTransactions.map(_.toProto),
+      new GetOperationsResult(
+        operations = slicedTransactions.map(_.toProto),
         truncated = hasMore
       )
     }
+
+  def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Unit] = {
+    IO.pure(Empty())
+  }
 }

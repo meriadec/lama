@@ -38,7 +38,7 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
       Stream.empty
   }
 
-  private def getTransactionsRequest(addresses: Seq[String], blockHash: Option[BlockHash]) = {
+  private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[BlockHash]) = {
     val baseUri =
       conf.uri
         .withPath(s"$btcBasePath/addresses/${addresses.mkString(",")}/transactions")
@@ -65,7 +65,7 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
     Pull
       .eval(
         client.expect[GetTransactionsResponse](
-          getTransactionsRequest(addresses, blockHash)
+          GetOperationsRequest(addresses, blockHash)
         )
       )
       .flatMap { res =>

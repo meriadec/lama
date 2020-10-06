@@ -6,12 +6,12 @@ import cats.effect.{ContextShift, IO, Timer}
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   Block,
   DeleteTransactionsRequest,
-  GetTransactionsRequest,
+  GetOperationsRequest,
   SaveTransactionsRequest,
   SortingOrder,
   Transaction
 }
-import co.ledger.lama.common.utils.{UuidUtils, IOAssertion}
+import co.ledger.lama.common.utils.{IOAssertion, UuidUtils}
 import io.grpc.Metadata
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -50,11 +50,11 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
       _ <- interpreter.saveTransactions(saveTransactionRequest, new Metadata())
       transactions <-
         interpreter
-          .getTransactions(
-            new GetTransactionsRequest(saveTransactionRequest.accountId),
+          .getOperations(
+            new GetOperationsRequest(saveTransactionRequest.accountId),
             new Metadata()
           )
-          .map(_.transactions)
+          .map(_.operations)
     } yield {
       transactions should have size 3
     }
@@ -67,11 +67,11 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
       _ <- interpreter.saveTransactions(saveTransactionRequest, new Metadata())
       transactions <-
         interpreter
-          .getTransactions(
-            new GetTransactionsRequest(saveTransactionRequest.accountId),
+          .getOperations(
+            new GetOperationsRequest(saveTransactionRequest.accountId),
             new Metadata()
           )
-          .map(_.transactions)
+          .map(_.operations)
 
       _ <- interpreter.deleteTransactions(
         new DeleteTransactionsRequest(saveTransactionRequest.accountId),
@@ -79,11 +79,11 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
       )
       deletedTransactions <-
         interpreter
-          .getTransactions(
-            new GetTransactionsRequest(saveTransactionRequest.accountId),
+          .getOperations(
+            new GetOperationsRequest(saveTransactionRequest.accountId),
             new Metadata()
           )
-          .map(_.transactions)
+          .map(_.operations)
     } yield (
       transactions should have size 3,
       deletedTransactions should have size 0
@@ -97,11 +97,11 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
       _ <- interpreter.saveTransactions(saveTransactionRequest, new Metadata())
       transactions <-
         interpreter
-          .getTransactions(
-            new GetTransactionsRequest(saveTransactionRequest.accountId, sort = SortingOrder.ASC),
+          .getOperations(
+            new GetOperationsRequest(saveTransactionRequest.accountId, sort = SortingOrder.ASC),
             new Metadata()
           )
-          .map(_.transactions)
+          .map(_.operations)
     } yield transactions.slice(0, 3).map(_.hash) shouldBe List(
       "4c93a655-437a-495b-9c51-926ad90852ba",
       "7cb3aacc-2aea-4152-8b53-3431f4daece5",
@@ -116,11 +116,11 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
       _ <- interpreter.saveTransactions(saveTransactionRequest, new Metadata())
       transactions <-
         interpreter
-          .getTransactions(
-            new GetTransactionsRequest(saveTransactionRequest.accountId, limit = 1),
+          .getOperations(
+            new GetOperationsRequest(saveTransactionRequest.accountId, limit = 1),
             new Metadata()
           )
-          .map(_.transactions)
+          .map(_.operations)
     } yield transactions should have size 1
   }
 
@@ -131,11 +131,11 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
       _ <- interpreter.saveTransactions(saveTransactionRequest, new Metadata())
       transactions <-
         interpreter
-          .getTransactions(
-            new GetTransactionsRequest(saveTransactionRequest.accountId, offset = 1),
+          .getOperations(
+            new GetOperationsRequest(saveTransactionRequest.accountId, offset = 1),
             new Metadata()
           )
-          .map(_.transactions)
+          .map(_.operations)
     } yield transactions should have size 2
   }
 
@@ -146,8 +146,8 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
       _ <- interpreter.saveTransactions(saveTransactionRequest, new Metadata())
       truncated <-
         interpreter
-          .getTransactions(
-            new GetTransactionsRequest(saveTransactionRequest.accountId, limit = 1),
+          .getOperations(
+            new GetOperationsRequest(saveTransactionRequest.accountId, limit = 1),
             new Metadata()
           )
           .map(_.truncated)
@@ -161,8 +161,8 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
       _ <- interpreter.saveTransactions(saveTransactionRequest, new Metadata())
       truncated <-
         interpreter
-          .getTransactions(
-            new GetTransactionsRequest(saveTransactionRequest.accountId),
+          .getOperations(
+            new GetOperationsRequest(saveTransactionRequest.accountId),
             new Metadata()
           )
           .map(_.truncated)

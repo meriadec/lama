@@ -4,10 +4,12 @@ import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
+  AccountAddress,
   BitcoinInterpreterServiceFs2Grpc,
+  ComputeOperationsRequest,
   DeleteTransactionsRequest,
-  GetTransactionsRequest,
-  GetTransactionsResult,
+  GetOperationsRequest,
+  GetOperationsResult,
   SaveTransactionsRequest,
   SortingOrder
 }
@@ -32,7 +34,12 @@ trait InterpreterService {
       limit: Option[Int],
       offset: Option[Int],
       sortingOrder: Option[SortingEnum]
-  ): IO[GetTransactionsResult]
+  ): IO[GetOperationsResult]
+
+  def computeOperations(
+      accountId: UUID,
+      addresses: Seq[AccountAddress]
+  ): IO[Unit]
 }
 
 class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[IO, Metadata])
@@ -66,15 +73,15 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
       limit: Option[Int],
       offset: Option[Int],
       sortingOrder: Option[SortingEnum]
-  ): IO[GetTransactionsResult] = {
+  ): IO[GetOperationsResult] = {
 
     val sort = sortingOrder.getOrElse(SortingEnum.Descending) match {
       case Ascending  => SortingOrder.ASC
       case Descending => SortingOrder.DESC
     }
 
-    grpcClient.getTransactions(
-      new GetTransactionsRequest(
+    grpcClient.getOperations(
+      new GetOperationsRequest(
         UuidUtils uuidToBytes accountId,
         blockHeight.getOrElse(0),
         limit.getOrElse(0),
@@ -84,4 +91,16 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
       new Metadata()
     )
   }
+
+  def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Unit] =
+    grpcClient
+      .computeOperations(
+        new ComputeOperationsRequest(
+          UuidUtils.uuidToBytes(accountId),
+          addresses
+        ),
+        new Metadata()
+      )
+      .void
+
 }

@@ -5,7 +5,7 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   BitcoinInterpreterServiceFs2Grpc,
-  GetTransactionsRequest,
+  GetOperationsRequest,
   SortingOrder
 }
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
@@ -105,8 +105,8 @@ object AccountController extends Http4sDsl[IO] {
           +& OptionalOffsetQueryParamMatcher(offset)
           +& OptionalSortQueryParamMatcher(sort) =>
         interpreterClient
-          .getTransactions(
-            new GetTransactionsRequest(
+          .getOperations(
+            new GetOperationsRequest(
               accountId = UuidUtils.uuidToBytes(accountId),
               blockHeight = blockHeight.getOrElse(0L),
               limit = limit.getOrElse(0),
