@@ -2,11 +2,11 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
-import cats.implicits._
 import co.ledger.lama.bitcoin.common.models._
-import doobie._
 import doobie.free.connection.ConnectionIO
+import cats.implicits._
 import doobie.implicits._
+import doobie._
 import doobie.postgres.implicits._
 
 object Queries {
@@ -22,7 +22,7 @@ object Queries {
     sql"""SELECT id, hash, received_at, lock_time, fees, block_hash, confirmations
           FROM transaction
           WHERE hash = $hash
-          AND account_id = ${accountId.toString}
+          AND account_id = $accountId
           """
       .query[(String, String, String, Long, Long, String, Int)]
       .map {
@@ -48,7 +48,7 @@ object Queries {
           FROM transaction
             LEFT JOIN operation 
               ON operation.hash IS NULL
-              AND account_id = ${accountId.toString}
+              AND account_id = $accountId
           """
       .query[(String, String, String, Long, Long, String, Int)]
       .map {
@@ -100,7 +100,7 @@ object Queries {
   ): fs2.Stream[doobie.ConnectionIO, DefaultInput] = {
     sql"""SELECT output_hash, output_index, input_index, value, address, script_signature, sequence
           FROM input
-          WHERE account_id = ${accountId.toString}
+          WHERE account_id = $accountId
           AND hash = $hash
           """
       .query[(String, Int, Int, Long, String, String, Long)]
@@ -134,7 +134,7 @@ object Queries {
   ): fs2.Stream[doobie.ConnectionIO, Output] =
     sql"""SELECT output_index, value, address, script_hex
           FROM output
-          WHERE account_id = ${accountId.toString}
+          WHERE account_id = $accountId
           AND hash = $hash
           """
       .query[(Int, Long, String, String)]
@@ -151,14 +151,14 @@ object Queries {
   ): fs2.Stream[doobie.ConnectionIO, Operation] =
     sql"""SELECT account_id, hash, operation_type, amount, time
           FROM operation
-          WHERE account_id = ${accountId.toString}
+          WHERE account_id = $accountId
           LIMIT $limit 
           OFFSET $offset
           """
-      .query[(String, String, OperationType, Long, String)]
+      .query[(UUID, String, OperationType, Long, String)]
       .map {
         case (accountId, hash, operationType, value, time) =>
-          Operation(UUID.fromString(accountId), hash, None, operationType, value, time)
+          Operation(accountId, hash, None, operationType, value, time)
       }
       .stream
 
@@ -201,7 +201,7 @@ object Queries {
     sql"""INSERT INTO operation (
             account_id, hash, operation_type, amount, time
           ) VALUES (
-            ${operation.accountId.toString},
+            ${operation.accountId},
             ${operation.hash},
             ${operation.operationType},
             ${operation.value},
@@ -216,7 +216,7 @@ object Queries {
   ) = sql"""INSERT INTO input (
             account_id, hash, output_hash, output_index, input_index, value, address, script_signature, txinwitness, sequence
           ) VALUES (
-            ${accountId.toString},
+            $accountId,
             $txHash,
             ${input.outputHash},
             ${input.outputIndex},
@@ -236,7 +236,7 @@ object Queries {
   ) = sql"""INSERT INTO output (
             account_id, hash, output_index, value, address, script_hex
           ) VALUES (
-            ${accountId.toString},
+            $accountId,
             $txHash,
             ${output.outputIndex},
             ${output.value},

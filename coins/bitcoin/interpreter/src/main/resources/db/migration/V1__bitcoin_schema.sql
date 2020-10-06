@@ -11,7 +11,7 @@ CREATE TABLE block (
 );
 
 CREATE TABLE transaction (
-    account_id VARCHAR NOT NULL,
+    account_id UUID NOT NULL,
     id VARCHAR NOT NULL,
     hash VARCHAR NOT NULL,
     block_hash VARCHAR NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE transaction (
 );
 
 CREATE TABLE input (
-    account_id VARCHAR NOT NULL,
+    account_id UUID NOT NULL,
     hash VARCHAR NOT NULL,
     output_hash VARCHAR NOT NULL,
     output_index INTEGER NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE input (
 );
 
 CREATE TABLE output (
-    account_id VARCHAR NOT NULL,
+    account_id UUID NOT NULL,
     hash VARCHAR NOT NULL,
     output_index INTEGER NOT NULL,
     value BIGINT NOT NULL,
@@ -53,7 +53,7 @@ CREATE TABLE output (
 );
 
 CREATE TABLE operation (
-    account_id VARCHAR NOT NULL,
+    account_id UUID NOT NULL,
     hash VARCHAR NOT NULL,
     operation_type operation_type NOT NULL,
     amount BIGINT NOT NULL,
