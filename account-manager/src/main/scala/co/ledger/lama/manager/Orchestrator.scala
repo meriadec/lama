@@ -1,12 +1,9 @@
 package co.ledger.lama.manager
 
 import cats.effect.{Concurrent, ContextShift, IO, Timer}
-import cats.implicits._
-import co.ledger.lama.common.utils.RabbitUtils
-import co.ledger.lama.manager.config.{CoinConfig, OrchestratorConfig}
+import co.ledger.lama.manager.config.OrchestratorConfig
 import com.redis.RedisClient
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
-import dev.profunktor.fs2rabbit.model.ExchangeType
 import doobie.util.transactor.Transactor
 import fs2.Stream
 
@@ -27,12 +24,12 @@ trait Orchestrator {
       .map { task =>
         val publishPipeline = task.publishEvents(awakeEvery, stopAtNbTick)
         val reportPipeline  = task.reportEvents
-        val triggerPipelune = task.trigger(awakeEvery)
+        val triggerPipeline = task.trigger(awakeEvery)
 
         // Race all inner streams simultaneously.
         publishPipeline
           .concurrently(reportPipeline)
-          .concurrently(triggerPipelune)
+          .concurrently(triggerPipeline)
       }
       .parJoinUnbounded
 
@@ -43,35 +40,10 @@ class CoinOrchestrator(
     val db: Transactor[IO],
     val rabbit: RabbitClient[IO],
     val redis: RedisClient
-)(implicit cs: ContextShift[IO], t: Timer[IO])
+)(implicit cs: ContextShift[IO])
     extends Orchestrator {
 
-  // Declare rabbitmq exchanges and bindings used by workers and the orchestrator.
-  private def declareExchangesBindings(coinConf: CoinConfig): IO[Unit] = {
-    val workerExchangeName = conf.workerEventsExchangeName
-    val eventsExchangeName = conf.lamaEventsExchangeName
-
-    val exchanges = List(
-      (workerExchangeName, ExchangeType.Topic),
-      (eventsExchangeName, ExchangeType.Topic)
-    )
-
-    val bindings = List(
-      (eventsExchangeName, coinConf.routingKey, coinConf.queueName(eventsExchangeName)),
-      (workerExchangeName, coinConf.routingKey, coinConf.queueName(workerExchangeName))
-    )
-
-    RabbitUtils.declareExchanges(rabbit, exchanges) *>
-      RabbitUtils.declareBindings(rabbit, bindings)
-  }
-
-  val tasks: List[CoinSyncEventTask] = {
-    // Declare exchanges and bindings immediately.
-    conf.coins
-      .map(declareExchangesBindings)
-      .parSequence
-      .unsafeRunSync()
-
+  val tasks: List[CoinSyncEventTask] =
     conf.coins
       .map { coinConf =>
         new CoinSyncEventTask(
@@ -83,6 +55,5 @@ class CoinOrchestrator(
           redis
         )
       }
-  }
 
 }

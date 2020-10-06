@@ -82,7 +82,13 @@ object ResourceUtils {
       .resource[IO]
 
   def grpcManagedChannel(conf: GrpcClientConfig): Resource[IO, ManagedChannel] =
-    ManagedChannelBuilder
-      .forAddress(conf.host, conf.port)
-      .resource[IO]
+    if (conf.ssl)
+      ManagedChannelBuilder
+        .forAddress(conf.host, conf.port)
+        .resource[IO]
+    else
+      ManagedChannelBuilder
+        .forAddress(conf.host, conf.port)
+        .usePlaintext()
+        .resource[IO]
 }

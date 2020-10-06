@@ -17,7 +17,7 @@ object PostgresConfig {
   implicit val configReader: ConfigReader[PostgresConfig] = deriveReader[PostgresConfig]
 }
 
-class GrpcClientConfig(val host: String, val port: Int)
+class GrpcClientConfig(val host: String, val port: Int, val ssl: Boolean)
 
 object GrpcClientConfig {
   implicit val configReader: ConfigReader[GrpcClientConfig] = deriveReader[GrpcClientConfig]

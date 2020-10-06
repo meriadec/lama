@@ -4,6 +4,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import cats.effect.{ConcurrentEffect, IO}
+import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.models._
 import co.ledger.lama.common.models.SyncEvent.Payload
 import co.ledger.lama.common.utils.UuidUtils
@@ -104,13 +105,10 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
   def unregisterAccount(
       request: UnregisterAccountRequest,
       ctx: Metadata
-  ): IO[UnregisterAccountResult] = {
-    val accountIdOpt = UuidUtils.bytesToUuid(request.accountId)
-
+  ): IO[UnregisterAccountResult] =
     for {
-      accountId <- IO.fromOption(accountIdOpt)(
-        new Exception(s"${request.accountId} is not a valid UUID")
-      )
+      accountId <-
+        IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(MalformedProtobufUuidException)
 
       existing <-
         Queries
@@ -152,7 +150,6 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
           } yield result
       }
     } yield result
-  }
 
   private def cursorToJson(request: protobuf.RegisterAccountRequest): Json = {
     if (request.cursor.isBlockHeight)
@@ -167,13 +164,10 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       Json.obj()
   }
 
-  def getAccountInfo(request: AccountInfoRequest, ctx: Metadata): IO[AccountInfoResult] = {
-    val accountIdOpt = UuidUtils.bytesToUuid(request.accountId)
-
+  def getAccountInfo(request: AccountInfoRequest, ctx: Metadata): IO[AccountInfoResult] =
     for {
-      accountId <- IO.fromOption(accountIdOpt)(
-        new Exception(s"${request.accountId} is not a valid UUID")
-      )
+      accountId <-
+        IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(MalformedProtobufUuidException)
       accountInfo   <- getAccountInfo(accountId)
       lastSyncEvent <- Queries.getLastSyncEvent(accountInfo.id).transact(db)
     } yield {
@@ -192,7 +186,6 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         lastSyncEventProto
       )
     }
-  }
 
   private def getAccountInfo(accountId: UUID): IO[AccountInfo] =
     Queries

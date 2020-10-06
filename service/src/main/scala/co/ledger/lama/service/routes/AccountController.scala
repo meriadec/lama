@@ -8,6 +8,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
   GetTransactionsRequest,
   SortingOrder
 }
+import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.models.{BitcoinNetwork, Coin, CoinFamily, Scheme, Sort}
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.protobuf.{
@@ -55,9 +56,12 @@ object AccountController extends Http4sDsl[IO] {
           creationRequest <- req.as[CreationRequest]
           createdKeychain <-
             keychainClient.createKeychain(toCreateKeychainRequest(creationRequest), new Metadata)
+          keychainId <- IO.fromOption(
+            UuidUtils.bytesToUuid(createdKeychain.keychainId)
+          )(MalformedProtobufUuidException)
           registeredAccount <- accountManagerClient.registerAccount(
             new RegisterAccountRequest(
-              key = createdKeychain.keychainId.toStringUtf8,
+              key = keychainId.toString,
               coinFamily = toCoinFamily(creationRequest.coinFamily),
               coin = toCoin(creationRequest.coin),
               syncFrequency = creationRequest.syncFrequency.getOrElse(0L)

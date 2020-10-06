@@ -22,17 +22,23 @@ object RabbitUtils {
 
   def createClient(
       conf: Fs2RabbitConfig
-  )(implicit cs: ContextShift[IO]): Resource[IO, RabbitClient[IO]] =
-    Resource
-      .make(IO(Executors.newCachedThreadPool()))(es => IO(es.shutdown()))
-      .map(Blocker.liftExecutorService)
-      .evalMap(blocker => RabbitClient[IO](conf, blocker))
+  )(implicit cs: ContextShift[IO], t: Timer[IO]): Resource[IO, RabbitClient[IO]] = {
+    for {
+      client <-
+        Resource
+          .make(IO(Executors.newCachedThreadPool()))(es => IO(es.shutdown()))
+          .map(Blocker.liftExecutorService)
+          .evalMap(blocker => RabbitClient[IO](conf, blocker))
+      _ <-
+        retriableResource(client.createConnectionChannel, ResourceUtils.RetryPolicy.exponential())
+    } yield client
+  }
 
   def declareExchanges(
       R: RabbitClient[IO],
       exchanges: List[(ExchangeName, ExchangeType)]
-  )(implicit t: Timer[IO]): IO[Unit] =
-    retriableResource(R.createConnectionChannel, ResourceUtils.RetryPolicy.exponential())
+  ): IO[Unit] =
+    R.createConnectionChannel
       .use { implicit channel =>
         exchanges
           .map {
@@ -116,6 +122,23 @@ object RabbitUtils {
         val parsed = parse(message.payload).flatMap(_.as[A])
         IO.fromEither(parsed)
       }
+
+  def createConsumer[A](R: RabbitClient[IO], queueName: QueueName)(implicit
+      d: Decoder[A]
+  ): Stream[IO, (AckResult => IO[Unit], A)] = {
+    Stream
+      .resource(R.createConnectionChannel)
+      .evalMap { implicit channel =>
+        R.createAckerConsumer[String](queueName)
+      }
+      .flatMap {
+        case (acker, consumer) =>
+          consumer.evalMap { message =>
+            val parsed = parse(message.payload).flatMap(_.as[A])
+            IO.fromEither(parsed.map((acker, _)))
+          }
+      }
+  }
 
   def createPublisher[A](
       R: RabbitClient[IO],

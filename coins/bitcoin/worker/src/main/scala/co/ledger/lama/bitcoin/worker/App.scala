@@ -4,9 +4,11 @@ import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services._
+import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.protobuf.bitcoin.KeychainServiceFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
+import dev.profunktor.fs2rabbit.model.ExchangeType
 import io.grpc.ManagedChannel
 import org.http4s.client.Client
 import pureconfig.ConfigSource
@@ -24,10 +26,10 @@ object App extends IOApp {
     val conf = ConfigSource.default.loadOrThrow[Config]
 
     val resources = for {
-      rabbitClient       <- Clients.rabbit(conf.rabbit)
       httpClient         <- Clients.htt4s
       keychainChannel    <- grpcManagedChannel(conf.keychain)
       interpreterChannel <- grpcManagedChannel(conf.interpreter)
+      rabbitClient       <- Clients.rabbit(conf.rabbit)
     } yield WorkerResources(rabbitClient, httpClient, keychainChannel, interpreterChannel)
 
     resources.use { res =>
@@ -60,7 +62,32 @@ object App extends IOApp {
         conf.keychain.lookaheadSize
       )
 
-      worker.run.compile.lastOrError.as(ExitCode.Success)
+      for {
+        _ <- RabbitUtils.declareExchanges(
+          res.rabbitClient,
+          List(
+            (conf.workerEventsExchangeName, ExchangeType.Topic),
+            (conf.lamaEventsExchangeName, ExchangeType.Topic)
+          )
+        )
+        _ <- RabbitUtils.declareBindings(
+          res.rabbitClient,
+          List(
+            (
+              conf.workerEventsExchangeName,
+              conf.routingKey,
+              conf.queueName(conf.workerEventsExchangeName)
+            ),
+            (
+              conf.lamaEventsExchangeName,
+              conf.routingKey,
+              conf.queueName(conf.lamaEventsExchangeName)
+            )
+          )
+        )
+
+        res <- worker.run.compile.lastOrError.as(ExitCode.Success)
+      } yield res
     }
   }
 

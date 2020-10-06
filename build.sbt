@@ -98,6 +98,22 @@ lazy val accountManager = (project in file("account-manager"))
   )
   .dependsOn(common)
 
+lazy val service = (project in file("service"))
+  .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
+  .settings(
+    name := "lama-service",
+    libraryDependencies ++= Dependencies.service,
+    sharedSettings,
+    // Proto config
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    PB.protoSources in Compile := Seq(
+      file("account-manager/src/main/protobuf"),
+      file("coins/bitcoin/keychain/pb/keychain"),
+      file("coins/bitcoin/common/src/main/protobuf")
+    )
+  )
+  .dependsOn(accountManager, btcCommon, common)
+
 lazy val btcCommon = (project in file("coins/bitcoin/common"))
   .enablePlugins(Fs2Grpc)
   .settings(
@@ -134,19 +150,3 @@ lazy val btcInterpreter = (project in file("coins/bitcoin/interpreter"))
     flywayPassword := "serge"
   )
   .dependsOn(common, btcCommon)
-
-lazy val service = (project in file("service"))
-  .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
-  .settings(
-    name := "lama-service",
-    libraryDependencies ++= Dependencies.service,
-    sharedSettings,
-    // Proto config
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    PB.protoSources in Compile := Seq(
-      file("account-manager/src/main/protobuf"),
-      file("coins/bitcoin/keychain/pb/keychain"),
-      file("coins/bitcoin/common/src/main/protobuf")
-    )
-  )
-  .dependsOn(accountManager, btcCommon, common)

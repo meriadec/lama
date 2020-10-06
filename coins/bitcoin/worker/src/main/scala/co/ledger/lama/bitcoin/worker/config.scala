@@ -48,8 +48,12 @@ object config {
     }
   }
 
-  case class KeychainConfig(override val host: String, override val port: Int, lookaheadSize: Int)
-      extends GrpcClientConfig(host, port)
+  case class KeychainConfig(
+      override val host: String,
+      override val port: Int,
+      override val ssl: Boolean,
+      lookaheadSize: Int
+  ) extends GrpcClientConfig(host, port, ssl)
 
   object KeychainConfig {
     implicit val configReader: ConfigReader[KeychainConfig] = deriveReader[KeychainConfig]

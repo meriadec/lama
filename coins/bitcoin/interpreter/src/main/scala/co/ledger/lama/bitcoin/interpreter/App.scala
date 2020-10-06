@@ -21,6 +21,7 @@ object App extends IOApp {
 
     resources
       .use(server => IO(server.start()))
+      .flatMap(_ => IO.never)
       .as(ExitCode.Success)
   }
 }

@@ -1,36 +1,61 @@
 version: '3.8'
 
 services:
-  lama-account-manager:
+  account-manager:
     image: ledgerhq/lama-account-manager:${LAMA_ACCOUNT_MANAGER_VERSION:-latest}
     environment:
-      GRPC_SERVER_PORT: ${GRPC_SERVER_PORT:-9999}
-      JDBC_URL: ${JDBC_URL:-jdbc:postgresql://lama-postgres:5432/lama}
+      ACCOUNT_MANAGER_PORT: ${ACCOUNT_MANAGER_PORT:-9999}
+      JDBC_URL: ${JDBC_URL:-jdbc:postgresql://postgres:5432/lama}
       DB_USER: ${DB_USER:-lama}
       DB_PASSWORD: ${DB_PASSWORD:-serge}
       WORKER_EVENTS_EXCHANGE_NAME: ${WORKER_EVENTS_EXCHANGE_NAME:-worker.events}
       LAMA_EVENTS_EXCHANGE_NAME: ${LAMA_EVENTS_EXCHANGE_NAME:-lama.events}
-      RABBIT_HOST: ${RABBIT_HOST:-lama-rabbitmq}
-      RABBIT_PORT: ${RABBI_PORT:-5672}
+      RABBIT_HOST: ${RABBIT_HOST:-rabbitmq}
+      RABBIT_PORT: ${RABBIT_PORT:-5672}
       RABBIT_VIRTUAL_HOST: ${RABBIT_VIRTUAL_HOST:-/}
       RABBIT_CONNECTION_TIMEOUT: ${RABBIT_CONNECTION_TIMEOUT:-3}
       RABBIT_SSL: ${RABBIT_SSL:-false}
       RABBIT_USERNAME: ${RABBIT_USERNAME:-lama}
       RABBIT_PASSWORD: ${RABBIT_PASSWORD:-serge}
-      REDIS_HOST: ${REDIS_HOST:-lama-redis}
+      REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       BITCOIN_SYNC_FREQUENCY: ${BITCOIN_SYNC_FREQUENCY:-600s}
+    ports:
+      - "9999:9999"
     depends_on:
-      - lama-postgres
-      - lama-flyway
-      - lama-rabbitmq
+      - postgres
+      - rabbitmq
+      - flyway-account-manager
 
-  lama-postgres:
+  service:
+    image: ledgerhq/lama-service:${LAMA_SERVICE_VERSION:-latest}
+    environment:
+      SERVICE_HOST: ${SERVICE_HOST:-0.0.0.0}
+      SERVICE_PORT: ${SERVICE_PORT:-8080}
+      ACCOUNT_MANAGER_HOST: ${ACCOUNT_MANAGER_HOST:-account-manager}
+      ACCOUNT_MANAGER_PORT: ${ACCOUNT_MANAGER_PORT:-9999}
+      ACCOUNT_MANAGER_SSL: ${ACCOUNT_MANAGER_SSL:-false}
+      BITCOIN_KEYCHAIN_HOST: ${BITCOIN_KEYCHAIN_HOST:-bitcoin-keychain-svc}
+      BITCOIN_KEYCHAIN_PORT: ${BITCOIN_KEYCHAIN_PORT:-50052}
+      BITCOIN_KEYCHAIN_SSL: ${BITCOIN_KEYCHAIN_SSL:-false}
+      BICOIN_INTERPRETER_HOST: ${BICOIN_INTERPRETER_HOST:-localhost}
+      BITCOIN_INTERPRETER_PORT: ${BITCOIN_INTERPRETER_PORT:-9998}
+      BITCOIN_INTERPRETER_SSL: ${BITCOIN_INTERPRETER_SSL:-false}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - account-manager
+      - bitcoin-keychain-svc
+      - bitcoin-interpreter
+
+  postgres:
     image: postgres:${POSTGRES_VERSION:-12}
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-lama}
       POSTGRES_USER: ${POSTGRES_USER:-lama}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-serge}
+    volumes:
+      - "./tooling/postgres:/docker-entrypoint-initdb.d"
     ports:
       - "5432:5432"
     healthcheck:
@@ -39,7 +64,7 @@ services:
       timeout: 5s
       retries: 5
 
-  lama-rabbitmq:
+  rabbitmq:
     image: rabbitmq:${RABBITMQ_VERSION:-3.8.5-management}
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBIT_USERNAME:-lama}
@@ -54,38 +79,76 @@ services:
       timeout: 15s
       retries: 10
 
-  lama-redis:
+  redis:
     image: redis:${REDIS_VERSION:-6.0.6-alpine}
     ports:
       - "6379:6379"
 
-  lama-flyway:
+  flyway-account-manager:
     image: flyway/flyway:${FLYWAY_VERSION:-6.5.1}
-    command: -url=${JDBC_URL:-jdbc:postgresql://lama-postgres:5432/lama} -user=${DB_USER:-lama} -password=${DB_PASSWORD:-serge} -connectRetries=60 migrate
+    command: -url="jdbc:postgresql://postgres:5432/lama" -user=${DB_USER:-lama} -password=${DB_PASSWORD:-serge} -connectRetries=60 migrate
     volumes:
       - "./account-manager/src/main/resources/db/migration:/flyway/sql"
     depends_on:
-      - lama-postgres
+      - postgres
 
-  lama-btc-postgres:
-    image: postgres:${POSTGRES_VERSION:-12}
-    environment:
-      POSTGRES_DB: ${POSTGRES_BTC_DB:-lama_btc}
-      POSTGRES_USER: ${POSTGRES_BTC_USER:-lama}
-      POSTGRES_PASSWORD: ${POSTGRES_BTC_PASSWORD:-serge}
-    ports:
-      - "5433:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_BTC_USER:-lama} ${POSTGRES_BTC_DB:-lama_btc}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  lama-btc-flyway:
+  flyway-bitcoin-interpreter:
     image: flyway/flyway:${FLYWAY_VERSION:-6.5.1}
-    command: -url=${JDBC_URL:-jdbc:postgresql://lama-btc-postgres:5432/lama_btc} -user=${DB_BTC_USER:-lama} -password=${DB_BTC_PASSWORD:-serge} -connectRetries=60 migrate
+    command: -url="jdbc:postgresql://postgres:5432/lama_btc" -user=${DB_USER:-lama} -password=${DB_PASSWORD:-serge} -connectRetries=60 migrate
     volumes:
       - "./coins/bitcoin/interpreter/src/main/resources/db/migration:/flyway/sql"
     depends_on:
-      - lama-btc-postgres
+      - postgres
 
+  bitcoin-svc:
+    image: ledgerhq/bitcoin-svc:${BITCOIN_SERVICE:-latest}
+    ports:
+      - "50051:50051"
+
+  bitcoin-keychain-svc:
+    image: ledgerhq/bitcoin-keychain-svc:${KEYCHAIN_VERSION:-latest}
+    environment:
+      BITCOIN_HOST: ${BITCOIN_HOST:-bitcoin-svc}
+      BITCOIN_PORT: ${BITCOIN_PORT:-50051}
+    ports:
+      - "50052:50052"
+    depends_on:
+      - bitcoin-svc
+
+  bitcoin-interpreter:
+    image: ledgerhq/lama-bitcoin-interpreter:${LAMA_BITCOIN_INTERPRETER_VERSION:-latest}
+    environment:
+      JDBC_URL: ${JDBC_URL:-jdbc:postgresql://postgres:5432/lama}
+      DB_USER: ${DB_USER:-lama}
+      DB_PASSWORD: ${DB_PASSWORD:-serge}
+    ports:
+      - "9998:9998"
+    depends_on:
+      - postgres
+      - flyway-bitcoin-interpreter
+
+  bitcoin-worker:
+    image: ledgerhq/lama-bitcoin-worker:${LAMA_BITCOIN_WORKER_VERSION:-latest}
+    environment:
+      WORKER_EVENTS_EXCHANGE_NAME: ${WORKER_EVENTS_EXCHANGE_NAME:-worker.events}
+      LAMA_EVENTS_EXCHANGE_NAME: ${LAMA_EVENTS_EXCHANGE_NAME:-lama.events}
+      RABBIT_HOST: ${RABBIT_HOST:-rabbitmq}
+      RABBIT_PORT: ${RABBIT_PORT:-5672}
+      RABBIT_VIRTUAL_HOST: ${RABBIT_VIRTUAL_HOST:-/}
+      RABBIT_CONNECTION_TIMEOUT: ${RABBIT_CONNECTION_TIMEOUT:-3}
+      RABBIT_SSL: ${RABBIT_SSL:-false}
+      RABBIT_USERNAME: ${RABBIT_USERNAME:-lama}
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD:-serge}
+      BITCOIN_KEYCHAIN_HOST: ${BITCOIN_KEYCHAIN_HOST:-bitcoin-keychain-svc}
+      BITCOIN_KEYCHAIN_PORT: ${BITCOIN_KEYCHAIN_PORT:-50052}
+      BITCOIN_KEYCHAIN_SSL: ${BITCOIN_KEYCHAIN_SSL:-false}
+      BITCOIN_EXPLORER_URI: ${BITCOIN_EXPLORER_URI:-http://explorers.api-01.vault.ledger-stg.com}
+      BITCOIN_EXPLORER_TXS_BATCH_SIZE: ${BITCOIN_EXPLORER_TXS_BATCH_SIZE:-1000}
+      BITCOIN_EXPLORER_TIMEOUT: ${BITCOIN_EXPLORER_TIMEOUT:-5 minutes}
+      BITCOIN_INTERPRETER_HOST: ${BITCOIN_INTERPRETER_HOST:-bitcoin-interpreter}
+      BITCOIN_INTERPRETER_PORT: ${BITCOIN_INTERPRETER_PORT:-9998}
+      BITCOIN_INTERPRETER_SSL: ${BITCOIN_INTERPRETER_SSL:-false}
+    depends_on:
+      - rabbitmq
+      - bitcoin-keychain-svc
+      - bitcoin-interpreter

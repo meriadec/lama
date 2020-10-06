@@ -34,6 +34,7 @@ class Worker(
         // In case of error, fallback to a reportable failed event.
         reportableEvent
           .handleErrorWith { error =>
+            error.printStackTrace() // TODO: logging
             val payloadData = PayloadData(errorMessage = Some(error.getMessage))
             val failedEvent = workableEvent.reportFailure(payloadData.asJson)
             IO.pure(failedEvent)
