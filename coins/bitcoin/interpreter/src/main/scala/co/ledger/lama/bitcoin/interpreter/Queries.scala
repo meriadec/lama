@@ -15,84 +15,68 @@ object Queries {
   implicit val meta: Meta[OperationType] =
     pgEnumStringOpt("operation_type", OperationType.fromKey, _.toString.toLowerCase())
 
-  def fetchTx(
-      accountId: UUID,
-      hash: String
-  ): ConnectionIO[Option[Transaction]] =
-    sql"""SELECT id, hash, received_at, lock_time, fees, block_hash, confirmations
-          FROM transaction
-          WHERE hash = $hash
-          AND account_id = $accountId
-          """
-      .query[(String, String, String, Long, Long, String, Int)]
-      .map {
-        case (id, hash, receivedAt, lockTime, fees, blockHash, confirmations) =>
-          Transaction(
-            id = id,
-            hash = hash,
-            receivedAt = receivedAt,
-            lockTime = lockTime,
-            fees = fees,
-            inputs = Seq(),
-            outputs = Seq(),
-            block = Block(blockHash, 0, "", None),
-            confirmations = confirmations
-          )
-      }
-      .option
-
-  def fetchUncomputedTxs(
-      accountId: UUID
-  ): fs2.Stream[doobie.ConnectionIO, Transaction] =
-    sql"""SELECT id, hash, received_at, lock_time, fees, block_hash, confirmations
-          FROM transaction
-            LEFT JOIN operation 
-              ON operation.hash IS NULL
-              AND account_id = $accountId
-          """
-      .query[(String, String, String, Long, Long, String, Int)]
-      .map {
-        case (id, hash, receivedAt, lockTime, fees, block_hash, confirmations) =>
-          Transaction(
-            id = id,
-            hash = hash,
-            receivedAt = receivedAt,
-            lockTime = lockTime,
-            fees = fees,
-            inputs = Seq(),
-            outputs = Seq(),
-            block = Block(block_hash, 0, "", None),
-            confirmations = confirmations
-          )
-      }
-      .stream
-
-  def populateTx(tx: Transaction, accountId: UUID): ConnectionIO[Transaction] = {
+  def fetchTx(accountId: UUID, hash: String) = {
     for {
-      block   <- fetchBlock(tx.block.hash)
-      inputs  <- fetchInputs(accountId, tx.hash).compile.toList
-      outputs <- fetchOutputs(accountId, tx.hash).compile.toList
+      tx      <- fetchTxAndBlock(accountId, hash)
+      inputs  <- fetchInputs(accountId, hash).compile.toList
+      outputs <- fetchOutputs(accountId, hash).compile.toList
     } yield {
-      tx.copy(
-        block = block,
-        inputs = inputs,
-        outputs = outputs
+      tx.map(
+        _.copy(
+          inputs = inputs,
+          outputs = outputs
+        )
       )
     }
   }
 
-  private def fetchBlock(hash: String): doobie.ConnectionIO[Block] = {
-    sql"""SELECT hash, height, time
-          FROM block
-          WHERE hash = $hash
+  def fetchTxsWithoutOperations(
+      accountId: UUID
+  ): fs2.Stream[doobie.ConnectionIO, String] =
+    sql"""SELECT tx.hash
+          FROM transaction tx
+            LEFT JOIN operation op
+              ON op.hash IS NULL
+              AND tx.account_id = ${accountId.toString}
           """
-      .query[(String, Long, String)]
+      .query[String]
+      .stream
+
+  private def fetchTxAndBlock(
+      accountId: UUID,
+      hash: String
+  ): ConnectionIO[Option[Transaction]] =
+    sql"""SELECT tx.id, tx.hash, tx.received_at, tx.lock_time, tx.fees, tx.block_hash, tx.confirmations, bk.height, bk.time
+          FROM transaction tx INNER JOIN block bk ON tx.block_hash = bk.hash
+          WHERE tx.hash = $hash
+          AND tx.account_id = $accountId
+          """
+      .query[(String, String, String, Long, Long, String, Int, Long, String)]
       .map {
-        case (hash, height, time) =>
-          Block(hash = hash, height = height, time = time)
+        case (
+              id,
+              hash,
+              receivedAt,
+              lockTime,
+              fees,
+              blockHash,
+              confirmations,
+              blockHeight,
+              blockTime
+            ) =>
+          Transaction(
+            id = id,
+            hash = hash,
+            receivedAt = receivedAt,
+            lockTime = lockTime,
+            fees = fees,
+            inputs = Seq(),
+            outputs = Seq(),
+            block = Block(blockHash, blockHeight, blockTime, None),
+            confirmations = confirmations
+          )
       }
-      .unique
-  }
+      .option
 
   private def fetchInputs(
       accountId: UUID,

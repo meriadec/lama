@@ -53,25 +53,26 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     setup() *>
       appResources.use { db =>
         for {
-          _           <- saveBlock(db, block)
-          _           <- saveBlock(db, block)                       // check upsert (shouldn't throw error)
-          _           <- saveTx(db, transactionToInsert, accountId)
-          _           <- saveTx(db, transactionToInsert, accountId) // check upsert
-          tx          <- fetchTx(db, accountId, transactionToInsert.hash)
-          transaction <- Queries.populateTx(tx.get, accountId).transact(db)
+          _   <- saveBlock(db, block)
+          _   <- saveBlock(db, block)                       // check upsert (shouldn't throw error)
+          _   <- saveTx(db, transactionToInsert, accountId)
+          _   <- saveTx(db, transactionToInsert, accountId) // check upsert
+          txO <- fetchTx(db, accountId, transactionToInsert.hash)
         } yield {
 
-          transaction.id shouldBe transactionToInsert.id
-          transaction.hash shouldBe transactionToInsert.hash
+          val tx = txO.get
 
-          transaction.inputs should have size 1
-          transaction.inputs.head match {
+          tx.id shouldBe transactionToInsert.id
+          tx.hash shouldBe transactionToInsert.hash
+
+          tx.inputs should have size 1
+          tx.inputs.head match {
             case input: DefaultInput => input.value shouldBe 80000
             case _                   => fail("input should be DefaultInput")
           }
 
-          transaction.outputs should have size 2
-          transaction.outputs.filter(_.outputIndex == 0).head.value shouldBe 50000
+          tx.outputs should have size 2
+          tx.outputs.filter(_.outputIndex == 0).head.value shouldBe 50000
 
         }
       }

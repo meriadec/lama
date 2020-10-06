@@ -82,21 +82,25 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter {
 
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
 
-      txs <-
+      hashs <-
         Queries
-          .fetchUncomputedTxs(accountId)
+          .fetchTxsWithoutOperations(accountId)
           .transact(db)
           .compile
           .toList
 
-      fullTxs <- txs.traverse { tx =>
+      txsO <- hashs.traverse { hash =>
         Queries
-          .populateTx(tx, accountId)
+          .fetchTx(accountId, hash)
           .transact(db)
       }
 
+      txs <- IO.pure(txsO collect {
+        case Some(tx) => tx
+      })
+
       _ <-
-        fullTxs
+        txs
           .flatMap { transaction =>
             OperationComputer.compute(transaction, accountId, request.addresses.toList)
           }
