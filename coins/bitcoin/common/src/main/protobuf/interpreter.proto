@@ -65,9 +65,10 @@ enum OperationType {
 message Operation {
   bytes account_id = 1;
   string hash = 2;
-  OperationType operation_type = 3;
-  int64 value = 4;
-  string time = 5;
+  Transaction transaction = 3;
+  OperationType operation_type = 4;
+  int64 value = 5;
+  string time = 6;
 }
 
 message Transaction {

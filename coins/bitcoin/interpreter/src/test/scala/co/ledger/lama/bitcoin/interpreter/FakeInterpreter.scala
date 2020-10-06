@@ -57,6 +57,7 @@ class FakeInterpreter extends Interpreter {
         Operation(
           accountId = request.accountId,
           hash = transaction.hash,
+          Some(transaction),
           OperationType.SEND,
           0L,
           transaction.block.get.time

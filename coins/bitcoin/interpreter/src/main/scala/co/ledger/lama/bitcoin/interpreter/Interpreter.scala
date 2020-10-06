@@ -50,16 +50,24 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
 
       // We fetch limit + 1 operations to know if there's more to fetch.
-      operations <-
+      ops <-
         Queries
           .fetchOperations(accountId, limit + 1, offset)
           .transact(db)
           .compile
           .toList
 
-      truncated = operations.size > limit
+      // We fetch the transaction for each operation
+      opsWithTx <- ops.traverse(op =>
+        Queries
+          .fetchTx(op.accountId, op.hash)
+          .transact(db)
+          .map(tx => op.copy(transaction = tx))
+      )
+
+      truncated = opsWithTx.size > limit
     } yield {
-      val protoOperations = operations.slice(0, limit).map(_.toProto)
+      val protoOperations = opsWithTx.slice(0, limit).map(_.toProto)
       GetOperationsResult(protoOperations, truncated)
     }
 

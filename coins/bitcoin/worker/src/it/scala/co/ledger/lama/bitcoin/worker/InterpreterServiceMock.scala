@@ -63,6 +63,7 @@ class InterpreterServiceMock extends InterpreterService {
             Operation(
               accountId,
               tx.hash,
+              Some(tx),
               Send,
               BigInt(0),
               ""

@@ -2,11 +2,11 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models._
-import doobie.free.connection.ConnectionIO
 import cats.implicits._
-import doobie.implicits._
+import co.ledger.lama.bitcoin.common.models._
 import doobie._
+import doobie.free.connection.ConnectionIO
+import doobie.implicits._
 import doobie.postgres.implicits._
 
 object Queries {
@@ -158,7 +158,7 @@ object Queries {
       .query[(String, String, OperationType, Long, String)]
       .map {
         case (accountId, hash, operationType, value, time) =>
-          Operation(UUID.fromString(accountId), hash, operationType, value, time)
+          Operation(UUID.fromString(accountId), hash, None, operationType, value, time)
       }
       .stream
 

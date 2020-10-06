@@ -80,6 +80,7 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
   val operation: Operation = Operation(
     accountId,
     transactionToInsert.hash,
+    None,
     Send,
     transactionToInsert.inputs.collect {
       case i: DefaultInput => i.value

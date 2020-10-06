@@ -30,6 +30,7 @@ object OperationComputer {
     val sendOperation = Operation(
       accountId = accountId,
       hash = tx.hash,
+      Some(tx),
       operationType = Send,
       value = sendAmount,
       time = tx.block.time
@@ -38,6 +39,7 @@ object OperationComputer {
     val receivedOperation = Operation(
       accountId = accountId,
       hash = tx.hash,
+      Some(tx),
       operationType = Received,
       value = receivedAmount,
       time = tx.block.time

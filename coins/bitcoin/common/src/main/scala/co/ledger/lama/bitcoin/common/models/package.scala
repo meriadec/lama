@@ -239,6 +239,7 @@ package object models {
   @ConfiguredJsonCodec case class Operation(
       accountId: UUID,
       hash: String,
+      transaction: Option[Transaction],
       operationType: OperationType,
       value: BigInt,
       time: String
@@ -247,6 +248,7 @@ package object models {
       protobuf.Operation(
         UuidUtils.uuidToBytes(accountId),
         hash,
+        transaction.map(_.toProto),
         operationType.toProto,
         value.toLong,
         time
@@ -264,6 +266,7 @@ package object models {
           .bytesToUuid(proto.accountId)
           .getOrElse(throw UuidUtils.InvalidUUIDException),
         proto.hash,
+        proto.transaction.map(Transaction.fromProto),
         OperationType.fromProto(proto.operationType),
         BigInt(proto.value),
         proto.time
