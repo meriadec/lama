@@ -88,10 +88,10 @@ jobs:
           command: << pipeline.parameters.sbt >> service/test
       - run:
           name: Run Bitcoin Worker unit tests
-          command: << pipeline.parameters.sbt >> btcWorker/test
+          command: << pipeline.parameters.sbt >> bitcoinWorker/test
       - run:
           name: Run Bitcoin Interpreter unit tests
-          command: << pipeline.parameters.sbt >> btcInterpreter/test
+          command: << pipeline.parameters.sbt >> bitcoinInterpreter/test
   package:
     docker:
       - image: circleci/openjdk:14.0.2-jdk-buster

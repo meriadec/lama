@@ -13,7 +13,8 @@ case class GetAccountManagerInfoResult(
 
 case class GetOperationsResult(
     truncated: Boolean,
-    operations: Seq[Operation]
+    operations: Seq[Operation],
+    size: Int
 )
 
 case class AccountRegistered(accountId: UUID, syncId: UUID, syncFrequency: Long)

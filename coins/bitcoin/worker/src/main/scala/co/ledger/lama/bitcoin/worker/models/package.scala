@@ -1,6 +1,6 @@
 package co.ledger.lama.bitcoin.worker
 
-import co.ledger.lama.bitcoin.common.models.{BlockHash, BlockHeight, Transaction}
+import co.ledger.lama.bitcoin.common.models.{Block, Transaction}
 import co.ledger.protobuf.bitcoin.AddressInfo
 import io.circe.generic.semiauto._
 import io.circe.{Decoder, Encoder}
@@ -17,9 +17,8 @@ package object models {
   }
 
   case class PayloadData(
-      blockHeight: Option[BlockHeight] = None,
-      blockHash: Option[BlockHash] = None,
-      txsSize: Option[Int] = None,
+      lastBlock: Option[Block] = None,
+      fetchedTxsSize: Option[Int] = None,
       errorMessage: Option[String] = None
   )
 
@@ -28,6 +27,10 @@ package object models {
     implicit val decoder: Decoder[PayloadData] = deriveDecoder[PayloadData]
   }
 
-  case class BatchResult(addresses: Seq[AddressInfo], transactions: Seq[Transaction])
+  case class BatchResult(
+      addresses: Seq[AddressInfo],
+      transactions: Seq[Transaction],
+      continue: Boolean
+  )
 
 }

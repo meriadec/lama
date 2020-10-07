@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.worker
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
+import co.ledger.lama.bitcoin.common.models.Block
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.PayloadData
 import co.ledger.lama.bitcoin.worker.services.{ExplorerService, SyncEventService}
@@ -62,8 +63,7 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
               syncEventService,
               keychainService,
               explorerService,
-              interpreterService,
-              conf.keychain.lookaheadSize
+              interpreterService
             )
 
             val accountManager = new SimpleAccountManager(
@@ -97,16 +97,20 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
                 }
 
                 val expectedTxsSize         = 73
-                val expectedLastBlockHeight = 644553
+                val expectedLastBlockHeight = 644553L
 
                 it should s"have synchronized $expectedTxsSize txs with last blockHeight=$expectedLastBlockHeight" in {
                   reportableEvent shouldBe Some(
                     registeredEvent.reportSuccess(
                       PayloadData(
-                        blockHeight = Some(expectedLastBlockHeight),
-                        blockHash =
-                          Some("0000000000000000000c44bf26af3b5b3c97e5aed67407fd551a90bc175de5a0"),
-                        txsSize = Some(expectedTxsSize)
+                        lastBlock = Some(
+                          Block(
+                            "0000000000000000000c44bf26af3b5b3c97e5aed67407fd551a90bc175de5a0",
+                            expectedLastBlockHeight,
+                            "2020-08-20T13:01:16Z"
+                          )
+                        ),
+                        fetchedTxsSize = Some(expectedTxsSize)
                       ).asJson
                     )
                   )

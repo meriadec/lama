@@ -51,8 +51,16 @@ class KeychainServiceMock extends KeychainService {
     AddressInfo("1Aj3Gi1j5UsvZh4ccjaqdnogPMWy54Z5ii")
   ) ++ (1 to 20).map(i => AddressInfo(s"unused$i"))
 
-  def create(extendedPublicKey: String, scheme: Scheme, network: BitcoinNetwork): IO[KeychainInfo] =
+  def create(
+      extendedPublicKey: String,
+      scheme: Scheme,
+      lookaheadSize: Int,
+      network: BitcoinNetwork
+  ): IO[KeychainInfo] =
     IO.delay(KeychainInfo(keychainId = UuidUtils.uuidToBytes(UUID.randomUUID())))
+
+  def getKeychainInfo(keychainId: UUID): IO[KeychainInfo] =
+    IO.pure(KeychainInfo(lookaheadSize = 20))
 
   def getAddresses(keychainId: UUID, fromIndex: Int, toIndex: Int): IO[Seq[AddressInfo]] =
     IO.delay(derivedAddresses.slice(fromIndex, toIndex))
@@ -61,5 +69,4 @@ class KeychainServiceMock extends KeychainService {
     IO.delay {
       usedAddresses = usedAddresses ++ addresses
     }
-
 }

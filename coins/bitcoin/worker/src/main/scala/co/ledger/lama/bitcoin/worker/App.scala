@@ -42,10 +42,7 @@ object App extends IOApp {
 
       val keychainClient = KeychainServiceFs2Grpc.stub[IO](res.keychainChannel)
 
-      val keychainService = new KeychainGrpcClientService(
-        keychainClient,
-        conf.keychain.lookaheadSize
-      )
+      val keychainService = new KeychainGrpcClientService(keychainClient)
 
       val explorerService = new ExplorerService(res.httpClient, conf.explorer)
 
@@ -58,8 +55,7 @@ object App extends IOApp {
         syncEventService,
         keychainService,
         explorerService,
-        interpreterService,
-        conf.keychain.lookaheadSize
+        interpreterService
       )
 
       for {

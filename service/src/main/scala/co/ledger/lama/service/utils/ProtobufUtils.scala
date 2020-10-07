@@ -82,7 +82,8 @@ object ProtobufUtils {
   def fromTransactionListingInfos(txs: protobuf.GetOperationsResult) =
     GetOperationsResult(
       truncated = txs.truncated,
-      operations = txs.operations.map(Operation.fromProto)
+      operations = txs.operations.map(Operation.fromProto),
+      size = txs.operations.size
     )
 
 }

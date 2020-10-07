@@ -36,8 +36,9 @@ object Queries {
     sql"""SELECT tx.hash
           FROM transaction tx
             LEFT JOIN operation op
-              ON op.hash IS NULL
-              AND tx.account_id = ${accountId.toString}
+              ON op.hash = tx.hash
+              WHERE op.hash IS NULL
+              AND tx.account_id = $accountId
           """
       .query[String]
       .stream
@@ -190,7 +191,7 @@ object Queries {
             ${operation.operationType},
             ${operation.value},
             ${operation.time}
-          )
+          ) ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
         """.update.run
 
   private def prepareInputInsert(

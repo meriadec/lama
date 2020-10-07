@@ -42,16 +42,15 @@ object AccountController extends Http4sDsl[IO] {
       keychainClient: KeychainServiceFs2Grpc[IO, Metadata],
       accountManagerClient: AccountManagerServiceFs2Grpc[IO, Metadata],
       interpreterClient: BitcoinInterpreterServiceFs2Grpc[IO, Metadata]
-  ): HttpRoutes[IO] = {
-
+  ): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
-      case GET -> Root / "account" / UUIDVar(accountId) =>
+      case GET -> Root / "accounts" / UUIDVar(accountId) =>
         accountManagerClient
           .getAccountInfo(toAccountInfoRequest(accountId), new Metadata)
           .map(fromAccountInfoResult)
           .flatMap(Ok(_))
 
-      case req @ POST -> Root / "account" =>
+      case req @ POST -> Root / "accounts" =>
         val ra = for {
           creationRequest <- req.as[CreationRequest]
           createdKeychain <-
@@ -74,7 +73,7 @@ object AccountController extends Http4sDsl[IO] {
           .map(fromRegisterAccount)
           .flatMap(Ok(_))
 
-      case DELETE -> Root / "account" / UUIDVar(accountId) =>
+      case DELETE -> Root / "accounts" / UUIDVar(accountId) =>
         val r = for {
           ai <- accountManagerClient.getAccountInfo(
             new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
@@ -98,9 +97,9 @@ object AccountController extends Http4sDsl[IO] {
 
         r.flatMap(_ => Ok())
 
-      case GET -> Root / "account" / UUIDVar(
+      case GET -> Root / "accounts" / UUIDVar(
             accountId
-          ) / "utxo" :? OptionalBlockHeightQueryParamMatcher(blockHeight)
+          ) / "operations" :? OptionalBlockHeightQueryParamMatcher(blockHeight)
           +& OptionalLimitQueryParamMatcher(limit)
           +& OptionalOffsetQueryParamMatcher(offset)
           +& OptionalSortQueryParamMatcher(sort) =>
@@ -121,5 +120,4 @@ object AccountController extends Http4sDsl[IO] {
           .map(fromTransactionListingInfos)
           .flatMap(Ok(_))
     }
-  }
 }

@@ -7,6 +7,7 @@ import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.manager.config.Config
 import com.redis.RedisClient
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
+import dev.profunktor.fs2rabbit.model.ExchangeType
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
@@ -92,7 +93,31 @@ trait TestResources {
       val deleteExchanges =
         RabbitUtils.deleteExchanges(client, List(workerEventsExchangeName, lamaEventsExchangeName))
 
-      deleteQueues *> deleteExchanges
+      val exchanges = List(
+        (workerEventsExchangeName, ExchangeType.Topic),
+        (lamaEventsExchangeName, ExchangeType.Topic)
+      )
+
+      val bindings = coinConfs
+        .flatMap { coinConf =>
+          List(
+            (
+              lamaEventsExchangeName,
+              coinConf.routingKey,
+              coinConf.queueName(lamaEventsExchangeName)
+            ),
+            (
+              workerEventsExchangeName,
+              coinConf.routingKey,
+              coinConf.queueName(workerEventsExchangeName)
+            )
+          )
+        }
+
+      deleteQueues *>
+        deleteExchanges *>
+        RabbitUtils.declareExchanges(client, exchanges) *>
+        RabbitUtils.declareBindings(client, bindings)
     }
 
   def setup(): IO[Unit] = cleanDb() &> cleanRedis() &> cleanRabbit()

@@ -10,7 +10,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.ChangeType.{EXTERNAL, INTERNA
 import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.models.Status.{Registered, Unregistered}
-import co.ledger.lama.common.models.{AccountIdentifier, ReportableEvent, WorkableEvent}
+import co.ledger.lama.common.models.{ReportableEvent, WorkableEvent}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.syntax._
@@ -21,10 +21,8 @@ class Worker(
     syncEventService: SyncEventService,
     keychainService: KeychainService,
     explorerService: ExplorerService,
-    interpreterService: InterpreterService,
-    addressesBatchSize: Int
+    interpreterService: InterpreterService
 ) {
-
   def run(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): Stream[IO, Unit] =
     syncEventService.consumeWorkableEvents
       .evalMap { workableEvent =>
@@ -37,8 +35,19 @@ class Worker(
         reportableEvent
           .handleErrorWith { error =>
             error.printStackTrace() // TODO: logging
-            val payloadData = PayloadData(errorMessage = Some(error.getMessage))
+
+            val previousState =
+              workableEvent.payload.data
+                .as[PayloadData]
+                .toOption
+
+            val payloadData = PayloadData(
+              lastBlock = previousState.flatMap(_.lastBlock),
+              errorMessage = Some(error.getMessage)
+            )
+
             val failedEvent = workableEvent.reportFailure(payloadData.asJson)
+
             IO.pure(failedEvent)
           }
           // Always report the event at the end.
@@ -50,37 +59,44 @@ class Worker(
   )(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): IO[ReportableEvent] = {
     val account = workableEvent.payload.account
 
-    val blockHashCursor =
+    val previousState =
       workableEvent.payload.data
         .as[PayloadData]
         .toOption
-        .flatMap(_.blockHash)
 
     // sync the whole account per streamed batch
-
     for {
+      keychainId <- IO.fromTry(Try(UUID.fromString(account.key)))
 
-      batchResults <-
-        syncAccountBatch(account, blockHashCursor, 0, addressesBatchSize).stream.compile.toList
+      keychainInfo <- keychainService.getKeychainInfo(keychainId)
+
+      batchResults <- syncAccountBatch(
+        account.id,
+        keychainId,
+        keychainInfo.lookaheadSize,
+        previousState.flatMap(_.lastBlock.map(_.hash)),
+        0,
+        keychainInfo.lookaheadSize
+      ).stream.compile.toList
 
       addresses = batchResults.flatMap(_.addresses).map { a =>
         AccountAddress(a.address, if (a.change.isChangeExternal) EXTERNAL else INTERNAL)
       }
 
       _ <- interpreterService.computeOperations(account.id, addresses)
-
     } yield {
-
       val txs = batchResults.flatMap(_.transactions).distinctBy(_.hash)
 
-      val lastBlock = txs.maxBy(_.block.time).block
-      val txsSize   = txs.size
+      val txsSize = txs.size
+
+      val lastBlock =
+        if (txsSize == 0) previousState.flatMap(_.lastBlock)
+        else Some(txs.maxBy(_.block.time).block)
 
       // New cursor state.
       val payloadData = PayloadData(
-        blockHeight = Some(lastBlock.height),
-        blockHash = Some(lastBlock.hash),
-        txsSize = Some(txsSize)
+        lastBlock = lastBlock,
+        fetchedTxsSize = Some(txsSize)
       )
 
       // Create the reportable successful event.
@@ -98,7 +114,9 @@ class Worker(
     *   - 3b) Otherwise, stop sync because we consider this batch as fresh addresses
     */
   private def syncAccountBatch(
-      account: AccountIdentifier,
+      accountId: UUID,
+      keychainId: UUID,
+      lookaheadSize: Int,
       blockHashCursor: Option[BlockHash],
       fromAddrIndex: Int,
       toAddrIndex: Int
@@ -106,8 +124,6 @@ class Worker(
     Pull
       .eval {
         for {
-          keychainId <- IO.fromTry(Try(UUID.fromString(account.key)))
-
           // Get batch of addresses from the keychain
           addressInfos <- keychainService.getAddresses(keychainId, fromAddrIndex, toAddrIndex)
 
@@ -119,7 +135,7 @@ class Worker(
               .toList
 
           // Ask to interpreter to save transactions.
-          _ <- interpreterService.saveTransactions(account.id, transactions)
+          _ <- interpreterService.saveTransactions(accountId, transactions)
 
           // Filter only used addresses.
           usedAddressesInfos = addressInfos.filter { a =>
@@ -137,12 +153,26 @@ class Worker(
               // Mark addresses as used.
               keychainService.markAddressesAsUsed(keychainId, usedAddressesInfos.map(_.address))
             } else IO.unit
-        } yield BatchResult(usedAddressesInfos, transactions)
+
+          // Flag to know if we continue or not to discover addresses
+          nextAddresses <-
+            keychainService
+              .getAddresses(keychainId, toAddrIndex, toAddrIndex + lookaheadSize)
+          continue = nextAddresses.nonEmpty
+
+        } yield BatchResult(usedAddressesInfos, transactions, continue)
       }
       .flatMap { batchResult =>
-        if (batchResult.transactions.nonEmpty)
+        if (batchResult.continue)
           Pull.output(Chunk(batchResult)) >>
-            syncAccountBatch(account, blockHashCursor, toAddrIndex, toAddrIndex + toAddrIndex)
+            syncAccountBatch(
+              accountId,
+              keychainId,
+              lookaheadSize,
+              blockHashCursor,
+              toAddrIndex,
+              toAddrIndex + lookaheadSize
+            )
         else
           Pull.output(Chunk(batchResult))
       }

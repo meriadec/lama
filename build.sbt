@@ -112,9 +112,9 @@ lazy val service = (project in file("service"))
       file("coins/bitcoin/common/src/main/protobuf")
     )
   )
-  .dependsOn(accountManager, btcCommon, common)
+  .dependsOn(accountManager, bitcoinCommon, common)
 
-lazy val btcCommon = (project in file("coins/bitcoin/common"))
+lazy val bitcoinCommon = (project in file("coins/bitcoin/common"))
   .enablePlugins(Fs2Grpc)
   .settings(
     name := "lama-bitcoin-common",
@@ -124,7 +124,7 @@ lazy val btcCommon = (project in file("coins/bitcoin/common"))
   )
   .dependsOn(common)
 
-lazy val btcWorker = (project in file("coins/bitcoin/worker"))
+lazy val bitcoinWorker = (project in file("coins/bitcoin/worker"))
   .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
   .configs(IntegrationTest)
   .settings(
@@ -135,9 +135,9 @@ lazy val btcWorker = (project in file("coins/bitcoin/worker"))
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     PB.protoSources in Compile += file("coins/bitcoin/keychain/pb/keychain")
   )
-  .dependsOn(common, btcCommon)
+  .dependsOn(common, bitcoinCommon)
 
-lazy val btcInterpreter = (project in file("coins/bitcoin/interpreter"))
+lazy val bitcoinInterpreter = (project in file("coins/bitcoin/interpreter"))
   .enablePlugins(FlywayPlugin, sbtdocker.DockerPlugin)
   .configs(IntegrationTest)
   .settings(
@@ -150,4 +150,4 @@ lazy val btcInterpreter = (project in file("coins/bitcoin/interpreter"))
     flywayUser := "lama",
     flywayPassword := "serge"
   )
-  .dependsOn(common, btcCommon)
+  .dependsOn(common, bitcoinCommon)

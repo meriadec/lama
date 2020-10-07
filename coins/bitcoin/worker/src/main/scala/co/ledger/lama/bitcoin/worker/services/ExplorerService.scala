@@ -31,9 +31,15 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
       t: Timer[IO]
   ): Stream[IO, Transaction] = {
     if (addresses.nonEmpty)
-      fetchPaginatedTransactions(httpClient, addresses, blockHash).stream
-        .flatMap(res => Stream.emits(res.txs))
-        .timeout(conf.timeout)
+      Stream
+        .emits(addresses)
+        .chunkLimit(conf.addressesSize)
+        .map { chunk =>
+          fetchPaginatedTransactions(httpClient, chunk.toList, blockHash).stream
+            .flatMap(res => Stream.emits(res.txs))
+            .timeout(conf.timeout)
+        }
+        .parJoinUnbounded
     else
       Stream.empty
   }

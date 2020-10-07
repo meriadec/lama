@@ -15,12 +15,12 @@ import scala.concurrent.duration.FiniteDuration
 object config {
 
   case class Config(
-      interpreter: GrpcClientConfig,
       workerEventsExchangeName: ExchangeName,
       lamaEventsExchangeName: ExchangeName,
       rabbit: Fs2RabbitConfig,
       explorer: ExplorerConfig,
-      keychain: KeychainConfig
+      keychain: GrpcClientConfig,
+      interpreter: GrpcClientConfig
   ) {
     val routingKey: RoutingKey = RoutingKey("bitcoin.btc")
 
@@ -39,7 +39,12 @@ object config {
     implicit val rabbitConfigReader: ConfigReader[Fs2RabbitConfig] = deriveReader[Fs2RabbitConfig]
   }
 
-  case class ExplorerConfig(uri: Uri, txsBatchSize: Int, timeout: FiniteDuration)
+  case class ExplorerConfig(
+      uri: Uri,
+      addressesSize: Int,
+      txsBatchSize: Int,
+      timeout: FiniteDuration
+  )
 
   object ExplorerConfig {
     implicit val configReader: ConfigReader[ExplorerConfig] = deriveReader[ExplorerConfig]
@@ -47,16 +52,4 @@ object config {
       Uri.fromString(s).leftMap(t => CannotConvert(s, "Uri", t.getMessage))
     }
   }
-
-  case class KeychainConfig(
-      override val host: String,
-      override val port: Int,
-      override val ssl: Boolean,
-      lookaheadSize: Int
-  ) extends GrpcClientConfig(host, port, ssl)
-
-  object KeychainConfig {
-    implicit val configReader: ConfigReader[KeychainConfig] = deriveReader[KeychainConfig]
-  }
-
 }

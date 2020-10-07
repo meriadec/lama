@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.interpreter
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import pureconfig.ConfigSource
+import fs2.Stream
 
 object App extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
@@ -19,9 +20,13 @@ object App extends IOApp {
       grpcServer <- grpcServer(conf.grpcServer, serviceDefinitions)
     } yield grpcServer
 
-    resources
-      .use(server => IO(server.start()))
-      .flatMap(_ => IO.never)
+    Stream
+      .resource(resources)
+      .evalMap(server => IO(server.start())) // start server
+      .evalMap(_ => IO.never)
+      .compile
+      .drain
       .as(ExitCode.Success)
+
   }
 }
