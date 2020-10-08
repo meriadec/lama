@@ -100,9 +100,10 @@ lazy val accountManager = (project in file("account-manager"))
 
 lazy val service = (project in file("service"))
   .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
+  .configs(IntegrationTest)
   .settings(
     name := "lama-service",
-    libraryDependencies ++= Dependencies.service,
+    libraryDependencies ++= (Dependencies.service ++ Dependencies.test),
     sharedSettings,
     // Proto config
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,

@@ -20,7 +20,9 @@ import co.ledger.lama.manager.protobuf.{
 import co.ledger.lama.service.utils.ProtobufUtils._
 import co.ledger.lama.service.utils.RouterUtils._
 import co.ledger.protobuf.bitcoin.{DeleteKeychainRequest, KeychainServiceFs2Grpc}
+import io.circe.{Decoder, Encoder}
 import io.circe.generic.auto._
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.grpc.Metadata
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec._
@@ -37,6 +39,11 @@ object AccountController extends Http4sDsl[IO] {
       coin: Coin,
       syncFrequency: Option[Long]
   )
+
+  object CreationRequest {
+    implicit val encoder: Encoder[CreationRequest] = deriveEncoder[CreationRequest]
+    implicit val decoder: Decoder[CreationRequest] = deriveDecoder[CreationRequest]
+  }
 
   def routes(
       keychainClient: KeychainServiceFs2Grpc[IO, Metadata],

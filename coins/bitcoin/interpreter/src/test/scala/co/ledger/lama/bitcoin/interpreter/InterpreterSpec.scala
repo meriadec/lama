@@ -29,7 +29,7 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
       new Transaction(
         hash = "7cb3aacc-2aea-4152-8b53-3431f4daece5",
         fees = "1000",
-        block = Some(Block(height = 0))
+        block = Some(Block())
       ),
       new Transaction(
         hash = "4c93a655-437a-495b-9c51-926ad90852ba",
