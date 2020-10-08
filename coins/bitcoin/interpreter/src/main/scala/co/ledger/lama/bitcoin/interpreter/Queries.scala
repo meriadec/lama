@@ -37,8 +37,9 @@ object Queries {
           FROM transaction tx
             LEFT JOIN operation op
               ON op.hash = tx.hash
-              WHERE op.hash IS NULL
-              AND tx.account_id = $accountId
+              AND op.account_id = tx.account_id
+          WHERE op.hash IS NULL
+          AND tx.account_id = $accountId
           """
       .query[String]
       .stream

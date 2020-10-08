@@ -155,10 +155,10 @@ class Worker(
             } else IO.unit
 
           // Flag to know if we continue or not to discover addresses
-          nextAddresses <-
+          continue <-
             keychainService
               .getAddresses(keychainId, toAddrIndex, toAddrIndex + lookaheadSize)
-          continue = nextAddresses.nonEmpty
+              .map(_.nonEmpty)
 
         } yield BatchResult(usedAddressesInfos, transactions, continue)
       }
