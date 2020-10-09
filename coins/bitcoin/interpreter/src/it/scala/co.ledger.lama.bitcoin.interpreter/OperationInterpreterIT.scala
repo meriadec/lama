@@ -63,34 +63,34 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
   )
 
   "operation saved in db" should "be fetched" in IOAssertion {
-    //setup() *>
-    appResources.use { db =>
-      val operationInterpreter = new OperationInterpreter(db)
+    setup() *>
+      appResources.use { db =>
+        val operationInterpreter = new OperationInterpreter(db)
 
-      for {
-        _   <- QueryUtils.saveBlock(db, block)
-        _   <- QueryUtils.saveTx(db, insertTx, accountId)
-        _   <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
-        res <- operationInterpreter.getOperations(accountId, 20, 0)
-        (ops, trunc) = res
-      } yield {
-        ops should have size 1
-        trunc shouldBe false
+        for {
+          _   <- QueryUtils.saveBlock(db, block)
+          _   <- QueryUtils.saveTx(db, insertTx, accountId)
+          _   <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
+          res <- operationInterpreter.getOperations(accountId, 20, 0)
+          (ops, trunc) = res
+        } yield {
+          ops should have size 1
+          trunc shouldBe false
 
-        val op = ops.head
-        val tx = op.transaction.get
+          val op = ops.head
+          val tx = op.transaction.get
 
-        op.accountId shouldBe accountId
-        op.hash shouldBe insertTx.hash
-        op.operationType shouldBe Sent
+          op.accountId shouldBe accountId
+          op.hash shouldBe insertTx.hash
+          op.operationType shouldBe Sent
 
-        tx.fees shouldBe insertTx.fees
+          tx.fees shouldBe insertTx.fees
 
-        tx.inputs.find(_.belongs).get.address shouldBe inputAddress.accountAddress
-        tx.outputs.find(_.belongs).get.address shouldBe outputAddress2.accountAddress
-        tx.outputs.find(_.belongs).get.changeType shouldBe Some(Internal)
+          tx.inputs.find(_.belongs).get.address shouldBe inputAddress.accountAddress
+          tx.outputs.find(_.belongs).get.address shouldBe outputAddress2.accountAddress
+          tx.outputs.find(_.belongs).get.changeType shouldBe Some(Internal)
+        }
       }
-    }
   }
 
 }

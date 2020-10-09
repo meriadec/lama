@@ -149,6 +149,7 @@ lazy val bitcoinInterpreter = (project in file("coins/bitcoin/interpreter"))
     flywayLocations += "db/migration",
     flywayUrl := "jdbc:postgresql://localhost:5433/lama_btc",
     flywayUser := "lama",
-    flywayPassword := "serge"
+    flywayPassword := "serge",
+    parallelExecution in IntegrationTest := false
   )
   .dependsOn(common, bitcoinCommon)
