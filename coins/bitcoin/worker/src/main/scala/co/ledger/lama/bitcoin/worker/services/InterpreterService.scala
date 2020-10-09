@@ -13,7 +13,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
   SaveTransactionsRequest,
   SortingOrder
 }
-import co.ledger.lama.bitcoin.common.models.{BlockHeight, Transaction}
+import co.ledger.lama.bitcoin.common.models.Explorer.Transaction
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.{Ascending, Descending, SortingEnum}
 import co.ledger.lama.common.utils.UuidUtils
 import io.grpc.Metadata
@@ -26,11 +26,11 @@ object SortingEnum extends Enumeration {
 trait InterpreterService {
   def saveTransactions(accountId: UUID, txs: List[Transaction]): IO[Unit]
 
-  def removeTransactions(accountId: UUID, blockHeightCursor: Option[BlockHeight]): IO[Unit]
+  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Unit]
 
   def getTransactions(
       accountId: UUID,
-      blockHeight: Option[BlockHeight],
+      blockHeight: Option[Long],
       limit: Option[Int],
       offset: Option[Int],
       sortingOrder: Option[SortingEnum]
@@ -56,7 +56,7 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
       )
       .void
 
-  def removeTransactions(accountId: UUID, blockHeightCursor: Option[BlockHeight]): IO[Unit] =
+  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Unit] =
     grpcClient
       .deleteTransactions(
         new DeleteTransactionsRequest(
@@ -69,7 +69,7 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
 
   def getTransactions(
       accountId: UUID,
-      blockHeight: Option[BlockHeight],
+      blockHeight: Option[Long],
       limit: Option[Int],
       offset: Option[Int],
       sortingOrder: Option[SortingEnum]

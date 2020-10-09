@@ -4,12 +4,16 @@ import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf._
+import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import io.grpc.Metadata
 
 import scala.collection.mutable
 
 class FakeInterpreter extends Interpreter {
+
+  def bytesToUUID(bytes: ByteString): UUID = UUID.nameUUIDFromBytes(bytes.toByteArray)
+
   var transactions: mutable.Map[UUID, Seq[Transaction]] = mutable.Map[UUID, Seq[Transaction]]()
 
   def saveTransactions(request: SaveTransactionsRequest, ctx: Metadata): IO[Empty] =
@@ -57,8 +61,8 @@ class FakeInterpreter extends Interpreter {
         Operation(
           accountId = request.accountId,
           hash = transaction.hash,
-          Some(transaction),
-          OperationType.SEND,
+          None,
+          OperationType.SENT,
           0L,
           transaction.block.get.time
         )

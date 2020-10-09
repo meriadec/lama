@@ -2,20 +2,23 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models._
-import doobie.free.connection.ConnectionIO
-import cats.implicits._
+import cats.data.NonEmptyList
+import co.ledger.lama.bitcoin.common.models.Service._
 import doobie.implicits._
-import doobie._
 import doobie.postgres.implicits._
+import doobie._
 
-object Queries {
+object OperationQueries {
 
   implicit val bigIntType: Meta[BigInt] = Meta.Advanced.other[BigInt]("bigint")
-  implicit val meta: Meta[OperationType] =
+
+  implicit val operationTypeMeta: Meta[OperationType] =
     pgEnumStringOpt("operation_type", OperationType.fromKey, _.toString.toLowerCase())
 
-  def fetchTx(accountId: UUID, hash: String) = {
+  implicit val changeTypeMeta: Meta[ChangeType] =
+    pgEnumStringOpt("change_type", ChangeType.fromKey, _.toString.toLowerCase())
+
+  def fetchTx(accountId: UUID, hash: String) =
     for {
       tx      <- fetchTxAndBlock(accountId, hash)
       inputs  <- fetchInputs(accountId, hash).compile.toList
@@ -28,7 +31,6 @@ object Queries {
         )
       )
     }
-  }
 
   def fetchTxsWithoutOperations(
       accountId: UUID
@@ -47,7 +49,7 @@ object Queries {
   private def fetchTxAndBlock(
       accountId: UUID,
       hash: String
-  ): ConnectionIO[Option[Transaction]] =
+  ): ConnectionIO[Option[TransactionView]] =
     sql"""SELECT tx.id, tx.hash, tx.received_at, tx.lock_time, tx.fees, tx.block_hash, tx.confirmations, bk.height, bk.time
           FROM transaction tx INNER JOIN block bk ON tx.block_hash = bk.hash
           WHERE tx.hash = $hash
@@ -66,7 +68,7 @@ object Queries {
               blockHeight,
               blockTime
             ) =>
-          Transaction(
+          TransactionView(
             id = id,
             hash = hash,
             receivedAt = receivedAt,
@@ -74,7 +76,7 @@ object Queries {
             fees = fees,
             inputs = Seq(),
             outputs = Seq(),
-            block = Block(blockHash, blockHeight, blockTime, None),
+            block = BlockView(blockHash, blockHeight, blockTime, None),
             confirmations = confirmations
           )
       }
@@ -83,13 +85,13 @@ object Queries {
   private def fetchInputs(
       accountId: UUID,
       hash: String
-  ): fs2.Stream[doobie.ConnectionIO, DefaultInput] = {
-    sql"""SELECT output_hash, output_index, input_index, value, address, script_signature, sequence
+  ): fs2.Stream[doobie.ConnectionIO, InputView] = {
+    sql"""SELECT output_hash, output_index, input_index, value, address, script_signature, sequence, belongs
           FROM input
           WHERE account_id = $accountId
           AND hash = $hash
           """
-      .query[(String, Int, Int, Long, String, String, Long)]
+      .query[(String, Int, Int, Long, String, String, Long, Boolean)]
       .map {
         case (
               outputHash,
@@ -98,9 +100,10 @@ object Queries {
               value,
               address,
               scriptSignature,
-              sequence
+              sequence,
+              belongs
             ) =>
-          DefaultInput(
+          InputView(
             outputHash = outputHash,
             outputIndex = outputIndex,
             inputIndex = inputIndex,
@@ -108,7 +111,8 @@ object Queries {
             address = address,
             scriptSignature = scriptSignature,
             txinwitness = Seq(),
-            sequence = sequence
+            sequence = sequence,
+            belongs = belongs
           )
       }
       .stream
@@ -117,16 +121,23 @@ object Queries {
   private def fetchOutputs(
       accountId: UUID,
       hash: String
-  ): fs2.Stream[doobie.ConnectionIO, Output] =
-    sql"""SELECT output_index, value, address, script_hex
+  ): fs2.Stream[doobie.ConnectionIO, OutputView] =
+    sql"""SELECT output_index, value, address, script_hex, belongs, change_type
           FROM output
           WHERE account_id = $accountId
           AND hash = $hash
           """
-      .query[(Int, Long, String, String)]
+      .query[(Int, Long, String, String, Boolean, Option[ChangeType])]
       .map {
-        case (outputIndex, value, address, scriptHex) =>
-          Output(outputIndex = outputIndex, value = value, address = address, scriptHex = scriptHex)
+        case (outputIndex, value, address, scriptHex, belongs, changeType) =>
+          OutputView(
+            outputIndex = outputIndex,
+            value = value,
+            address = address,
+            scriptHex = scriptHex,
+            belongs = belongs,
+            changeType = changeType
+          )
       }
       .stream
 
@@ -135,7 +146,7 @@ object Queries {
       limit: Int = 20,
       offset: Int = 0
   ): fs2.Stream[doobie.ConnectionIO, Operation] =
-    sql"""SELECT account_id, hash, operation_type, amount, time
+    sql"""SELECT account_id, hash, operation_type, value, time
           FROM operation
           WHERE account_id = $accountId
           LIMIT $limit 
@@ -148,44 +159,9 @@ object Queries {
       }
       .stream
 
-  def upsertBlock(block: Block): ConnectionIO[Int] =
-    sql"""INSERT INTO block (
-            hash, height, time
-          ) VALUES (
-            ${block.hash}, ${block.height}, ${block.time}
-          )
-          ON CONFLICT ON CONSTRAINT block_pkey DO NOTHING;
-        """.update.run
-
-  def saveTransaction(tx: Transaction, accountId: UUID): ConnectionIO[Int] =
-    for {
-
-      txStatement <- sql"""INSERT INTO transaction (
-            account_id, id, hash, received_at, lock_time, fees, block_hash, confirmations
-          ) VALUES (
-            $accountId, 
-            ${tx.id}, 
-            ${tx.hash}, 
-            ${tx.receivedAt}, 
-            ${tx.lockTime}, 
-            ${tx.fees}, 
-            ${tx.block.hash}, 
-            ${tx.confirmations}
-          ) ON CONFLICT ON CONSTRAINT transaction_pkey DO NOTHING
-        """.update.run
-
-      _ <- tx.inputs.toList.collect {
-        case input: DefaultInput => prepareInputInsert(accountId, tx.hash, input).update.run
-      }.sequence
-      _ <- tx.outputs.toList.traverse(prepareOutputInsert(accountId, tx.hash, _).update.run)
-
-    } yield {
-      txStatement
-    }
-
   def saveOperation(operation: Operation): doobie.ConnectionIO[Int] =
     sql"""INSERT INTO operation (
-            account_id, hash, operation_type, amount, time
+            account_id, hash, operation_type, value, time
           ) VALUES (
             ${operation.accountId},
             ${operation.hash},
@@ -195,40 +171,22 @@ object Queries {
           ) ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
         """.update.run
 
-  private def prepareInputInsert(
-      accountId: UUID,
-      txHash: String,
-      input: DefaultInput
-  ) = sql"""INSERT INTO input (
-            account_id, hash, output_hash, output_index, input_index, value, address, script_signature, txinwitness, sequence
-          ) VALUES (
-            $accountId,
-            $txHash,
-            ${input.outputHash},
-            ${input.outputIndex},
-            ${input.inputIndex},
-            ${input.value},
-            ${input.address},
-            ${input.scriptSignature},
-            NULL,
-            ${input.sequence}
-          ) ON CONFLICT ON CONSTRAINT input_pkey DO NOTHING
-        """
+  def flagInputs(accountId: UUID, addresses: List[String]) = {
+    val query = sql"""UPDATE input 
+          SET belongs = true
+          WHERE account_id = $accountId
+          AND belongs = false
+          AND """ ++ Fragments.in(fr"address", NonEmptyList.fromListUnsafe(addresses))
+    query.update.run
+  }
 
-  private def prepareOutputInsert(
-      accountId: UUID,
-      txHash: String,
-      output: Output
-  ) = sql"""INSERT INTO output (
-            account_id, hash, output_index, value, address, script_hex
-          ) VALUES (
-            $accountId,
-            $txHash,
-            ${output.outputIndex},
-            ${output.value},
-            ${output.address},
-            ${output.scriptHex}
-          ) ON CONFLICT ON CONSTRAINT output_pkey DO NOTHING
-        """
+  def flagOutputsForAddress(accountId: UUID, address: AccountAddress) = {
+    sql"""UPDATE output 
+          SET belongs = true, change_type = ${address.changeType}
+          WHERE account_id = $accountId
+          AND belongs = false
+          AND address = ${address.accountAddress}
+       """.update.run
+  }
 
 }

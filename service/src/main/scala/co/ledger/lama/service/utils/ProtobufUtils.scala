@@ -2,7 +2,7 @@ package co.ledger.lama.service.utils
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.Operation
+import co.ledger.lama.bitcoin.common.models.Service.Operation
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.models.BitcoinNetwork.{MainNet, RegTest, TestNet3, Unspecified}
 import co.ledger.lama.common.models.Scheme.{Bip44, Bip49, Bip84}

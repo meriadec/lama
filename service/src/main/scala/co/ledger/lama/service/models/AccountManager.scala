@@ -2,9 +2,9 @@ package co.ledger.lama.service.models
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.Operation
 import io.circe.Decoder
 import io.circe.generic.semiauto.deriveDecoder
+import co.ledger.lama.bitcoin.common.models.Service.Operation
 
 case class GetAccountManagerInfoResult(
     accountId: UUID,

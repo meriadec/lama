@@ -2,11 +2,9 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
-import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models._
+import co.ledger.lama.bitcoin.common.models.Explorer._
+import co.ledger.lama.bitcoin.common.models.Service._
 import co.ledger.lama.common.utils.IOAssertion
-import doobie.implicits._
-import doobie.util.transactor.Transactor
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -53,11 +51,11 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     setup() *>
       appResources.use { db =>
         for {
-          _   <- saveBlock(db, block)
-          _   <- saveBlock(db, block)                       // check upsert (shouldn't throw error)
-          _   <- saveTx(db, transactionToInsert, accountId)
-          _   <- saveTx(db, transactionToInsert, accountId) // check upsert
-          txO <- fetchTx(db, accountId, transactionToInsert.hash)
+          _   <- QueryUtils.saveBlock(db, block)
+          _   <- QueryUtils.saveBlock(db, block)                       // check upsert (shouldn't throw error)
+          _   <- QueryUtils.saveTx(db, transactionToInsert, accountId)
+          _   <- QueryUtils.saveTx(db, transactionToInsert, accountId) // check upsert
+          txO <- QueryUtils.fetchTx(db, accountId, transactionToInsert.hash)
         } yield {
 
           val tx = txO.get
@@ -66,10 +64,7 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
           tx.hash shouldBe transactionToInsert.hash
 
           tx.inputs should have size 1
-          tx.inputs.head match {
-            case input: DefaultInput => input.value shouldBe 80000
-            case _                   => fail("input should be DefaultInput")
-          }
+          tx.inputs.head.value shouldBe 80000
 
           tx.outputs should have size 2
           tx.outputs.filter(_.outputIndex == 0).head.value shouldBe 50000
@@ -82,7 +77,7 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     accountId,
     transactionToInsert.hash,
     None,
-    Send,
+    Sent,
     transactionToInsert.inputs.collect {
       case i: DefaultInput => i.value
     }.sum,
@@ -93,49 +88,15 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     setup() *>
       appResources.use { db =>
         for {
-          _  <- saveBlock(db, block)
-          _  <- saveTx(db, transactionToInsert, accountId)
-          _  <- saveOp(db, operation)
-          op <- fetchOp(db, accountId)
+          _  <- QueryUtils.saveBlock(db, block)
+          _  <- QueryUtils.saveTx(db, transactionToInsert, accountId)
+          _  <- QueryUtils.saveOp(db, operation)
+          op <- QueryUtils.fetchOps(db, accountId)
         } yield {
           op should have size 1
           op.head should be(operation)
         }
       }
-  }
-
-  private def saveBlock(db: Transactor[IO], block: Block) = {
-    Queries
-      .upsertBlock(block)
-      .transact(db)
-  }
-
-  private def fetchTx(db: Transactor[IO], accountId: UUID, hash: String) = {
-    Queries
-      .fetchTx(accountId, hash)
-      .transact(db)
-  }
-
-  private def saveTx(db: Transactor[IO], transaction: Transaction, accountId: UUID) = {
-    Queries
-      .saveTransaction(transaction, accountId)
-      .transact(db)
-      .void
-  }
-
-  private def fetchOp(db: Transactor[IO], accountId: UUID) = {
-    Queries
-      .fetchOperations(accountId)
-      .transact(db)
-      .compile
-      .toList
-  }
-
-  private def saveOp(db: Transactor[IO], operation: Operation) = {
-    Queries
-      .saveOperation(operation)
-      .transact(db)
-      .void
   }
 
 }

@@ -4,7 +4,8 @@ import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf.{AccountAddress, GetOperationsResult}
-import co.ledger.lama.bitcoin.common.models.{BlockHeight, Operation, Send, Transaction}
+import co.ledger.lama.bitcoin.common.models.Explorer.Transaction
+import co.ledger.lama.bitcoin.common.models.Service.{Operation, Sent}
 import co.ledger.lama.bitcoin.worker.services.{InterpreterService, SortingEnum}
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.SortingEnum
 import com.google.protobuf.empty.Empty
@@ -26,7 +27,7 @@ class InterpreterServiceMock extends InterpreterService {
       )
     }
 
-  def removeTransactions(accountId: UUID, blockHeightCursor: Option[BlockHeight]): IO[Unit] =
+  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Unit] =
     blockHeightCursor match {
       case Some(blockHeight) =>
         IO.delay {
@@ -38,9 +39,10 @@ class InterpreterServiceMock extends InterpreterService {
       case None => IO.delay(savedTransactions.remove(accountId))
     }
 
+  //TODO useless in worker it test but needed in service it test.
   def getTransactions(
       accountId: UUID,
-      blockHeight: Option[BlockHeight],
+      blockHeight: Option[Long],
       limit: Option[Int],
       offset: Option[Int],
       sortingOrder: Option[SortingEnum]
@@ -63,8 +65,8 @@ class InterpreterServiceMock extends InterpreterService {
             Operation(
               accountId,
               tx.hash,
-              Some(tx),
-              Send,
+              None,
+              Sent,
               BigInt(0),
               ""
             )

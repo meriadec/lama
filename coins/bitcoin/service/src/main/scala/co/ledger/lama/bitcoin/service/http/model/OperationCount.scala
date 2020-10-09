@@ -6,5 +6,5 @@ package co.ledger.lama.bitcoin.service.http.model
   */
 case class OperationCount(
     RECEIVE: Int,
-    SEND: Int
+    SENT: Int
 )

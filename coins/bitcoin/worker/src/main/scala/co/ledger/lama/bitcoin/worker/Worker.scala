@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.{ConcurrentEffect, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.{BlockHash, DefaultInput}
+import co.ledger.lama.bitcoin.common.models.Explorer.DefaultInput
 import co.ledger.lama.bitcoin.interpreter.protobuf.AccountAddress
 import co.ledger.lama.bitcoin.interpreter.protobuf.ChangeType.{EXTERNAL, INTERNAL}
 import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
@@ -117,7 +117,7 @@ class Worker(
       accountId: UUID,
       keychainId: UUID,
       lookaheadSize: Int,
-      blockHashCursor: Option[BlockHash],
+      blockHashCursor: Option[String],
       fromAddrIndex: Int,
       toAddrIndex: Int
   )(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): Pull[IO, BatchResult, Unit] =

@@ -2,14 +2,12 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models._
-import co.ledger.lama.bitcoin.interpreter.protobuf.ChangeType._
-import co.ledger.lama.bitcoin.interpreter.protobuf.AccountAddress
+import co.ledger.lama.bitcoin.common.models.Service._
 
 object OperationComputer {
 
   def compute(
-      tx: Transaction,
+      tx: TransactionView,
       accountId: UUID,
       addresses: List[AccountAddress]
   ): List[Operation] = {
@@ -18,7 +16,7 @@ object OperationComputer {
     val outputAmount = extractOutputAmount(tx, addresses)
     val changeAmount = extractChangeAmount(tx, addresses)
 
-    val (sendAmount, receivedAmount) = {
+    val (sentAmount, receivedAmount) = {
       // in case the account is not the sender but change was received,
       // consider it a normal output.
       if (inputAmount <= 0L && changeAmount > 0L)
@@ -27,12 +25,12 @@ object OperationComputer {
         (inputAmount - changeAmount, outputAmount)
     }
 
-    val sendOperation = Operation(
+    val sentOperation = Operation(
       accountId = accountId,
       hash = tx.hash,
       Some(tx),
-      operationType = Send,
-      value = sendAmount,
+      operationType = Sent,
+      value = sentAmount,
       time = tx.block.time
     )
 
@@ -46,32 +44,32 @@ object OperationComputer {
     )
 
     // Both send and remove operations are created so we remove useless operation with value 0
-    List(sendOperation, receivedOperation).filter(_.value > 0L)
+    List(sentOperation, receivedOperation).filter(_.value > 0L)
 
   }
 
-  private def extractChangeAmount(tx: Transaction, addresses: List[AccountAddress]) = {
+  private def extractChangeAmount(tx: TransactionView, addresses: List[AccountAddress]) = {
     tx.outputs.collect {
       case output
           if addresses
-            .exists(a => a.changeType == INTERNAL && a.accountAddress == output.address) =>
+            .exists(a => a.changeType == Internal && a.accountAddress == output.address) =>
         output.value
     }.sum
   }
 
-  private def extractOutputAmount(tx: Transaction, addresses: List[AccountAddress]) = {
+  private def extractOutputAmount(tx: TransactionView, addresses: List[AccountAddress]) = {
     tx.outputs.collect {
       case output
           if addresses
-            .exists(a => a.changeType == EXTERNAL && a.accountAddress == output.address) =>
+            .exists(a => a.changeType == External && a.accountAddress == output.address) =>
         output.value
     }.sum
 
   }
 
-  private def extractInputAmount(tx: Transaction, addresses: List[AccountAddress]) = {
+  private def extractInputAmount(tx: TransactionView, addresses: List[AccountAddress]) = {
     tx.inputs.collect {
-      case input: DefaultInput if addresses.exists(ad => ad.accountAddress == input.address) =>
+      case input if addresses.exists(ad => ad.accountAddress == input.address) =>
         input.value
     }.sum
   }

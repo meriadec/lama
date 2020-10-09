@@ -1,7 +1,7 @@
 package co.ledger.lama.bitcoin.worker.services
 
 import cats.effect.{ConcurrentEffect, IO, Timer}
-import co.ledger.lama.bitcoin.common.models._
+import co.ledger.lama.bitcoin.common.models.Explorer._
 import co.ledger.lama.bitcoin.worker.config.ExplorerConfig
 import co.ledger.lama.bitcoin.worker.models.GetTransactionsResponse
 import io.circe.Decoder
@@ -17,15 +17,15 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
   def getCurrentBlock: IO[Block] =
     httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/current"))
 
-  def getBlock(hash: BlockHash): IO[Block] =
+  def getBlock(hash: String): IO[Block] =
     httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/$hash"))
 
-  def getBlock(height: BlockHeight): IO[Block] =
+  def getBlock(height: Long): IO[Block] =
     httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/$height"))
 
   def getTransactions(
       addresses: Seq[String],
-      blockHash: Option[BlockHash]
+      blockHash: Option[String]
   )(implicit
       ce: ConcurrentEffect[IO],
       t: Timer[IO]
@@ -44,7 +44,7 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
       Stream.empty
   }
 
-  private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[BlockHash]) = {
+  private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[String]) = {
     val baseUri =
       conf.uri
         .withPath(s"$btcBasePath/addresses/${addresses.mkString(",")}/transactions")
@@ -64,7 +64,7 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
   private def fetchPaginatedTransactions(
       client: Client[IO],
       addresses: Seq[String],
-      blockHash: Option[BlockHash]
+      blockHash: Option[String]
   )(implicit
       decoder: Decoder[GetTransactionsResponse]
   ): Pull[IO, GetTransactionsResponse, Unit] =
