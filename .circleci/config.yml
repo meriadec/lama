@@ -9,25 +9,33 @@ orbs:
   codecov: codecov/codecov@1.0.2
 
 aliases:
-  - &filter_all_tags
+  - &filters_docker_build_and_publish
+    branches:
+      only:
+        - master
     tags:
       only: /.*/
   - &restore_docker_cache
     keys:
-      - lama-cache-docker-{{ .Branch }}-{{ checksum "build.sbt" }}
-      - lama-cache-docker-{{ .Branch }}
-      - lama-cache-docker
+      - lama-docker-cache-{{ .Branch }}-{{ checksum "build.sbt" }}
+      - lama-docker-cache-{{ .Branch }}
+      - lama-docker-cache-
   - &save_docker_cache
-    key: lama-cache-docker-{{ .Branch }}-{{ checksum "build.sbt" }}
+    key: lama-docker-cache-{{ .Branch }}-{{ checksum "build.sbt" }}
     paths:
-      - ~/.ivy2
-      - ~/.sbt
+      - .ivy2
+      - .sbt
+      - project/target
+      - account-manager/target
+      - service/target
+      - coins/bitcoin/common/target
+      - coins/bitcoin/worker/target
+      - coins/bitcoin/interpreter/target
 
 commands:
-  initlama:
-    description: "Checkout lama project with submodules and restore docker cache"
+  after_checkout_lama:
+    description: "Checkout submodules and restore docker cache"
     steps:
-      - checkout
       - run:
           name: "Pull Submodules"
           command: |
@@ -47,27 +55,24 @@ jobs:
         environment:
           JVM_OPTS: -Xmx3200m
           TERM: dumb
-        auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
     steps:
-      - initlama
+      - checkout
+      - after_checkout_lama
       - run:
           name: Compile
           command: << pipeline.parameters.sbt >> compile test:compile it:compile
       - save_cache: *save_docker_cache
 
-  scala_linter:
-    docker:
-      - image: circleci/openjdk:14.0.2-jdk-buster
-        auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
-    steps:
-      - initlama
-      - run:
-          name: Run scalastyle
-          command: << pipeline.parameters.sbt >> scalastyle
+# FIXME: add linter compliance
+#  scala_linter:
+#    docker:
+#      - image: circleci/openjdk:14.0.2-jdk-buster
+#    steps:
+#      - checkout
+#      - after_checkout_lama
+#      - run:
+#          name: Run scalastyle
+#          command: << pipeline.parameters.sbt >> scalastyle
 
   unit_tests:
     docker:
@@ -76,7 +81,8 @@ jobs:
           JVM_OPTS: -Xmx3200m
           TERM: dumb
     steps:
-      - initlama
+      - checkout
+      - after_checkout_lama
       - run:
           name: Run Common unit tests
           command: << pipeline.parameters.sbt >> common/test
@@ -92,45 +98,180 @@ jobs:
       - run:
           name: Run Bitcoin Interpreter unit tests
           command: << pipeline.parameters.sbt >> bitcoinInterpreter/test
-  package:
+
+  it_tests:
+    environment:
+      POSTGRES_DB: lama
+      POSTGRES_USER: lama
+      POSTGRES_PASSWORD: serge
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      BITCOIN_SVC_VERSION: latest
+      BITCOIN_SVC_HOST: localhost
+      BITCOIN_SVC_PORT: 50051
+      BITCOIN_KEYCHAIN_VERSION: latest
+      BITCOIN_KEYCHAIN_HOST: localhost
+      BITCOIN_KEYCHAIN_PORT: 50052
+      BITCOIN_KEYCHAIN_SSL: false
+      ACCOUNT_MANAGER_JDBC_URL: jdbc:postgresql:test_lama
+      BITCOIN_INTERPRETER_JDBC_URL: jdbc:postgresql:test_lama_btc
     docker:
       - image: circleci/openjdk:14.0.2-jdk-buster
         environment:
           JVM_OPTS: -Xmx3200m
           TERM: dumb
+      - image: circleci/postgres:12
+        environment:
+          POSTGRES_DB: lama
+          POSTGRES_USER: lama
+          POSTGRES_PASSWORD: serge
+      - image: circleci/redis:6.0.6-alpine
+      - image: rabbitmq:3.8.5
+        environment:
+          RABBITMQ_DEFAULT_USER: lama
+          RABBITMQ_DEFAULT_PASS: serge
+#      - image: ledgerhq/bitcoin-svc:$BITCOIN_SVC_VERSION
+#        environment:
+#          BITCOIN_HOST: $BITCOIN_SVC_HOST
+#          BITCOIN_PORT: $BITCOIN_SVC_PORT
+#      - image: ledgerhq/bitcoin-keychain-svc:$BITCOIN_KEYCHAIN_VERSION
+#        environment:
+#          BITCOIN_KEYCHAIN_HOST: $BITCOIN_KEYCHAIN_HOST
+#          BITCOIN_KEYCHAIN_PORT: $BITCOIN_KEYCHAIN_PORT
+#          BITCOIN_HOST: $BITCOIN_SVC_HOST
+#          BITCOIN_PORT: $BITCOIN_SVC_PORT
+#          REDIS_HOST: $REDIS_HOST
+#          REDIS_PORT: $REDIS_PORT
+#          REDIS_DB: 1
     steps:
-      - initlama
+      - checkout
+      - after_checkout_lama
       - run:
-          name: Package Jar
-          command: << pipeline.parameters.sbt >> assembly
+          name: Install postgresql-client
+          command: sudo apt update && sudo apt install -y postgresql-client
+      - run:
+          name: Create dbs
+          command: |
+            createdb -h localhost -p 5432 -w -U $POSTGRES_USER lama_btc
+            createdb -h localhost -p 5432 -w -U $POSTGRES_USER test_lama
+            createdb -h localhost -p 5432 -w -U $POSTGRES_USER test_lama_btc
+      - run:
+          name: Run account manager it tests
+          command: << pipeline.parameters.sbt >> accountManager/it:test
+      - run:
+          name: Run bitcoin interpreter it tests
+          command: << pipeline.parameters.sbt >> bitcoinInterpreter/it:test
+      - run:
+          name: Run bitcoin worker it tests
+          command: << pipeline.parameters.sbt >> bitcoinWorker/it:test
+#      - run:
+#          name: Run service it tests
+#          command: |
+#            << pipeline.parameters.sbt >> accountManager/run
+#            << pipeline.parameters.sbt >> bitcoinInterpreter/run
+#            << pipeline.parameters.sbt >> bitcoinWorker/run
+#            << pipeline.parameters.sbt >> service/run
+#            << pipeline.parameters.sbt >> service/it:test
 
 workflows:
   version: 2.1
-  build_and_test:
+  build_test_and_publish:
     jobs:
       - compile
       - unit_tests:
           requires:
             - compile
-      # FIXME: enable linter compliance
-      #     - scala_linter:
-      #          requires:
-      #            - compile
-      - docker/build_image:
-          context: githubpkg
-          docker_build_target: account-manager
+      - it_tests:
           requires:
             - compile
-          after_checkout:
-            - run:
-                name: Assembly
-                command: |
-                  git submodule init
-                  git submodule update
-                  << pipeline.parameters.sbt >> assembly
-      - docker/publish_image:
-          context: githubpkg
+      - docker/build_image:
+          name: build-lama-account-manager-image
           requires:
-            - docker/build_image
             - unit_tests
-# FIXME:    - scala_linter
+            - it_tests
+          docker_build_target: account-manager/target/docker
+          docker_project_name: lama-account-manager
+          after_checkout:
+            - after_checkout_lama
+            - run:
+                command: |
+                  << pipeline.parameters.sbt >> accountManager/assembly
+                  << pipeline.parameters.sbt >> accountManager/docker
+          filters:
+            *filters_docker_build_and_publish
+      - docker/publish_image:
+          name: publish-lama-account-manager-image
+          requires:
+            - build-lama-account-manager-image
+          docker_project_name: lama-account-manager
+          filters:
+            *filters_docker_build_and_publish
+
+      - docker/build_image:
+          name: build-lama-service-image
+          requires:
+            - unit_tests
+            - it_tests
+          docker_build_target: service/target/docker
+          docker_project_name: lama-service
+          after_checkout:
+            - after_checkout_lama
+            - run:
+                command: |
+                  << pipeline.parameters.sbt >> service/assembly
+                  << pipeline.parameters.sbt >> service/docker
+          filters:
+            *filters_docker_build_and_publish
+      - docker/publish_image:
+          name: publish-lama-service-image
+          requires:
+            - build-lama-service-image
+          docker_project_name: lama-service
+          filters:
+            *filters_docker_build_and_publish
+
+      - docker/build_image:
+          name: build-lama-bitcoin-worker-image
+          requires:
+            - unit_tests
+            - it_tests
+          docker_build_target: coins/bitcoin/worker/target/docker
+          docker_project_name: lama-bitcoin-worker
+          after_checkout:
+            - after_checkout_lama
+            - run:
+                command: |
+                  << pipeline.parameters.sbt >> bitcoinWorker/assembly
+                  << pipeline.parameters.sbt >> bitcoinWorker/docker
+          filters:
+            *filters_docker_build_and_publish
+      - docker/publish_image:
+          name: publish-lama-bitcoin-worker-image
+          requires:
+            - build-lama-bitcoin-worker-image
+          docker_project_name: lama-bitcoin-worker
+          filters:
+            *filters_docker_build_and_publish
+
+      - docker/build_image:
+          name: build-lama-bitcoin-interpreter-image
+          requires:
+            - unit_tests
+            - it_tests
+          docker_build_target: coins/bitcoin/interpreter/target/docker
+          docker_project_name: lama-bitcoin-interpreter
+          after_checkout:
+            - after_checkout_lama
+            - run:
+                command: |
+                  << pipeline.parameters.sbt >> bitcoinInterpreter/assembly
+                  << pipeline.parameters.sbt >> bitcoinInterpreter/docker
+          filters:
+            *filters_docker_build_and_publish
+      - docker/publish_image:
+          name: publish-lama-bitcoin-interpreter-image
+          requires:
+            - build-lama-bitcoin-interpreter-image
+          docker_project_name: lama-bitcoin-interpreter
+          filters:
+            *filters_docker_build_and_publish
