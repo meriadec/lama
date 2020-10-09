@@ -2,6 +2,7 @@ package co.ledger.lama.service
 
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import co.ledger.lama.service.Config.Config
@@ -13,7 +14,7 @@ import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
 import pureconfig.ConfigSource
 
-object App extends IOApp {
+object App extends IOApp with IOLogging {
 
   case class ServiceResources(
       grpcAccountClient: AccountManagerServiceFs2Grpc[IO, Metadata],
@@ -23,21 +24,31 @@ object App extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
     val conf = ConfigSource.default.loadOrThrow[Config]
-
+    log.info("Instantiating resources")
     val resources = for {
-      grpcAccountManagedClient <-
+      grpcAccountManagerClient <-
         grpcManagedChannel(conf.accountManager).map(AccountManagerServiceFs2Grpc.stub[IO](_))
-      grpcKeychainManagedClient <-
+
+      _ = log.info("Account Manager GRPC client instantiated")
+
+      grpcKeychainClient <-
         grpcManagedChannel(conf.bitcoin.keychain).map(KeychainServiceFs2Grpc.stub[IO](_))
-      grpdBitcoinInterpreterManagedClient <- grpcManagedChannel(conf.bitcoin.interpreter)
+
+      _ = log.info("Keychain GRPC client instantiated")
+
+      grpdBitcoinInterpreterClient <- grpcManagedChannel(conf.bitcoin.interpreter)
         .map(BitcoinInterpreterServiceFs2Grpc.stub[IO](_))
+
+      _ = log.info("Bitcoin GRPC client instantiated")
     } yield ServiceResources(
-      grpcAccountManagedClient,
-      grpcKeychainManagedClient,
-      grpdBitcoinInterpreterManagedClient
+      grpcAccountManagerClient,
+      grpcKeychainClient,
+      grpdBitcoinInterpreterClient
     )
 
     resources.use { serviceResources =>
+      log.info("Instantiating routes")
+
       val httpRoutes = Router[IO](
         "/" -> AccountController.routes(
           serviceResources.grpcKeychainClient,
@@ -45,6 +56,8 @@ object App extends IOApp {
           serviceResources.grpcBitcoinInterpreterClient
         )
       ).orNotFound
+
+      log.info("Instantiating server")
 
       BlazeServerBuilder[IO]
         .bindHttp(conf.server.port, conf.server.host)

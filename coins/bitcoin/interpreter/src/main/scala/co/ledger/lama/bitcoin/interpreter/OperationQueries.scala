@@ -4,11 +4,12 @@ import java.util.UUID
 
 import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.Service._
+import co.ledger.lama.common.logging.IOLogging
 import doobie.implicits._
 import doobie.postgres.implicits._
 import doobie._
 
-object OperationQueries {
+object OperationQueries extends IOLogging {
 
   implicit val bigIntType: Meta[BigInt] = Meta.Advanced.other[BigInt]("bigint")
 
@@ -18,11 +19,16 @@ object OperationQueries {
   implicit val changeTypeMeta: Meta[ChangeType] =
     pgEnumStringOpt("change_type", ChangeType.fromKey, _.toString.toLowerCase())
 
-  def fetchTx(accountId: UUID, hash: String) =
+  def fetchTx(accountId: UUID, hash: String) = {
+    log.info(s"Fetching transaction for accountId $accountId and hash $hash")
+
     for {
-      tx      <- fetchTxAndBlock(accountId, hash)
-      inputs  <- fetchInputs(accountId, hash).compile.toList
+      tx <- fetchTxAndBlock(accountId, hash)
+      _ = log.debug(s"Transaction $tx")
+      inputs <- fetchInputs(accountId, hash).compile.toList
+      _ = log.debug(s"Inputs $inputs")
       outputs <- fetchOutputs(accountId, hash).compile.toList
+      _ = log.debug(s"Outputs $outputs")
     } yield {
       tx.map(
         _.copy(
@@ -31,6 +37,7 @@ object OperationQueries {
         )
       )
     }
+  }
 
   def fetchTxsWithoutOperations(
       accountId: UUID

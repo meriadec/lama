@@ -24,7 +24,7 @@ import org.http4s.client.Client
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.global
 
-class ServiceSpec extends AnyFlatSpecLike with Matchers {
+class ServiceIT extends AnyFlatSpecLike with Matchers {
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   implicit val t: Timer[IO]         = IO.timer(ExecutionContext.global)
 
@@ -44,8 +44,9 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers {
     def getOperationsRequest(accountId: UUID, offset: Int, limit: Int) =
       Request[IO](
         method = Method.GET,
-        uri =
-          Uri.unsafeFromString(s"$serverUrl/accounts/$accountId/utxo?limit=$limit&offset=$offset")
+        uri = Uri.unsafeFromString(
+          s"$serverUrl/accounts/$accountId/operations?limit=$limit&offset=$offset"
+        )
       )
 
     def removeAccountRequest(accountId: UUID) =
@@ -80,7 +81,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers {
     def getOperations(io: IO[GetOperationsResult]): IO[GetOperationsResult] = {
       Stream
         .eval(io.flatMap { res =>
-          if (res.operations.nonEmpty)
+          if (res.operations.isEmpty)
             IO.raiseError(new Exception())
           else IO.pure(res)
         })

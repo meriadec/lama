@@ -9,6 +9,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
   SortingOrder
 }
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.{BitcoinNetwork, Coin, CoinFamily, Scheme, Sort}
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.protobuf.{
@@ -28,7 +29,7 @@ import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.Http4sDsl
 
-object AccountController extends Http4sDsl[IO] {
+object AccountController extends Http4sDsl[IO] with IOLogging {
 
   case class CreationRequest(
       extendedPublicKey: String,
@@ -60,11 +61,14 @@ object AccountController extends Http4sDsl[IO] {
       case req @ POST -> Root / "accounts" =>
         val ra = for {
           creationRequest <- req.as[CreationRequest]
+          _               <- log.info(s"Creating keychain with arguments: ${creationRequest}")
           createdKeychain <-
             keychainClient.createKeychain(toCreateKeychainRequest(creationRequest), new Metadata)
           keychainId <- IO.fromOption(
             UuidUtils.bytesToUuid(createdKeychain.keychainId)
           )(MalformedProtobufUuidException)
+          _ = log.debug(s"Keychain created with id: $keychainId")
+          _ = log.info("Registering account")
           registeredAccount <- accountManagerClient.registerAccount(
             new RegisterAccountRequest(
               key = keychainId.toString,
@@ -74,6 +78,9 @@ object AccountController extends Http4sDsl[IO] {
             ),
             new Metadata
           )
+          _ = log.debug(
+            s"Account registered with id: ${UuidUtils.bytesToUuid(registeredAccount.accountId).getOrElse("")}"
+          )
         } yield registeredAccount
 
         ra
@@ -81,11 +88,14 @@ object AccountController extends Http4sDsl[IO] {
           .flatMap(Ok(_))
 
       case DELETE -> Root / "accounts" / UUIDVar(accountId) =>
+        log.info(s"Fetching account informations for id: ${accountId}")
         val r = for {
           ai <- accountManagerClient.getAccountInfo(
             new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
             new Metadata
           )
+
+          _ = log.info("Deleting keychain")
 
           _ <- keychainClient.deleteKeychain(
             new DeleteKeychainRequest(
@@ -94,12 +104,16 @@ object AccountController extends Http4sDsl[IO] {
             new Metadata
           )
 
+          _ = log.info("Keychain deleted")
+          _ = log.info("Unregistering account")
+
           _ <- accountManagerClient.unregisterAccount(
             new UnregisterAccountRequest(
               UuidUtils.uuidToBytes(accountId)
             ),
             new Metadata
           )
+          _ = log.info("Account unregistered")
         } yield ()
 
         r.flatMap(_ => Ok())
@@ -110,6 +124,7 @@ object AccountController extends Http4sDsl[IO] {
           +& OptionalLimitQueryParamMatcher(limit)
           +& OptionalOffsetQueryParamMatcher(offset)
           +& OptionalSortQueryParamMatcher(sort) =>
+        log.info(s"Fetching UTXOs for account: $accountId")
         interpreterClient
           .getOperations(
             new GetOperationsRequest(

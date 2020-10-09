@@ -2,9 +2,10 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.bitcoin.common.models.Service._
 
-object OperationComputer {
+object OperationComputer extends IOLogging {
 
   def compute(
       tx: TransactionView,
@@ -12,9 +13,19 @@ object OperationComputer {
       addresses: List[AccountAddress]
   ): List[Operation] = {
 
-    val inputAmount  = extractInputAmount(tx, addresses)
+    log.debug(s"Computing $tx")
+
+    val inputAmount = extractInputAmount(tx, addresses)
+
+    log.debug(s"Input amount: $inputAmount")
+
     val outputAmount = extractOutputAmount(tx, addresses)
+
+    log.debug(s"Output amount: $outputAmount")
+
     val changeAmount = extractChangeAmount(tx, addresses)
+
+    log.debug(s"Change amount: $changeAmount")
 
     val (sentAmount, receivedAmount) = {
       // in case the account is not the sender but change was received,
@@ -25,6 +36,9 @@ object OperationComputer {
         (inputAmount - changeAmount, outputAmount)
     }
 
+    log.debug(s"Sent amount: $sentAmount")
+    log.debug(s"Received amount: $receivedAmount")
+
     val sentOperation = Operation(
       accountId = accountId,
       hash = tx.hash,
@@ -34,6 +48,8 @@ object OperationComputer {
       time = tx.block.time
     )
 
+    log.debug(s"Sent operation: $sentOperation")
+
     val receivedOperation = Operation(
       accountId = accountId,
       hash = tx.hash,
@@ -42,6 +58,8 @@ object OperationComputer {
       value = receivedAmount,
       time = tx.block.time
     )
+
+    log.debug(s"Received operation: $receivedOperation")
 
     // Both send and remove operations are created so we remove useless operation with value 0
     List(sentOperation, receivedOperation).filter(_.value > 0L)
