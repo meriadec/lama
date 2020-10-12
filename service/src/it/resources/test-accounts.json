@@ -1,0 +1,30 @@
+[
+  {
+    "registerRequest": {
+      "extendedPublicKey": "xpub6DDeKs272C9xQyta6cxqz4JwVLFsVSHhv6dbj89ZptN7pt2QHtGt119YtXTKdfA5Hk2TD4F35FuyzXCEQujSDRowuVMnPfY57cnqmk2AKVX",
+      "scheme": "BIP49",
+      "lookaheadSize": 20,
+      "network": "MainNet",
+      "coinFamily": "bitcoin",
+      "coin": "btc"
+    },
+    "expected": {
+      "opsSize": 6,
+      "lastTxHash": "87c56939aafe72cd9dafa23379444c5c771f9e02ea014da79748a6b5cc320ba9"
+    }
+  },
+  {
+    "registerRequest": {
+      "extendedPublicKey": "xpub6CMDks73kuNu3p827zgf6q6aNfpdeTLHFQsM4ssEBDMYHYJYHJ7tmMuTdZPk5456YZeoTaCRHNnbEK2GK5wkztQQCpVKEHb2tnm9N1gz1ZT",
+      "scheme": "BIP44",
+      "lookaheadSize": 20,
+      "network": "MainNet",
+      "coinFamily": "bitcoin",
+      "coin": "btc"
+    },
+    "expected": {
+      "opsSize": 129,
+      "lastTxHash": "b0c0dc176eaf463a5cecf15f1f55af99a41edfd6e01685068c0db3cc779861c8"
+    }
+  }
+]

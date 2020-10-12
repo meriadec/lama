@@ -1,13 +1,11 @@
 package co.ledger.lama.service
 
-import co.ledger.lama.service.routes.AccountController.CreationRequest
 import pureconfig.ConfigReader
 import pureconfig.generic.semiauto.deriveReader
 
 object ConfigSpec {
   case class ConfigSpec(
-      server: ServerConfig,
-      accounts: List[CreationRequest]
+      server: ServerConfig
   )
 
   case class ServerConfig(
@@ -16,8 +14,6 @@ object ConfigSpec {
   )
 
   object ConfigSpec {
-    implicit val creationRequestReader: ConfigReader[CreationRequest] =
-      deriveReader[CreationRequest]
     implicit val serverConfigReader: ConfigReader[ServerConfig] = deriveReader[ServerConfig]
     implicit val configReader: ConfigReader[ConfigSpec]         = deriveReader[ConfigSpec]
   }

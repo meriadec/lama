@@ -247,8 +247,8 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
             }
 
           coinOrchestrator
-            .run(stopAtNbTick = Some(nbEvents))    // run the orchestrator
-            .concurrently(Stream.eval(runTests())) // and run tests at the same time
+            .run(stopAtNbTick = Some(nbEvents + 1)) // run the orchestrator
+            .concurrently(Stream.eval(runTests()))  // and run tests at the same time
             .timeout(5.minutes)
             .compile
             .drain
