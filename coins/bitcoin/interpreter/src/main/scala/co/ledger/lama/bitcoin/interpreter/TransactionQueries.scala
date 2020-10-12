@@ -4,14 +4,12 @@ import java.util.UUID
 
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.Explorer._
-import doobie.Meta
+import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.postgres.implicits._
 
 object TransactionQueries {
-
-  implicit val bigIntType: Meta[BigInt] = Meta.Advanced.other[BigInt]("bigint")
 
   def upsertBlock(block: Block): ConnectionIO[Int] =
     sql"""INSERT INTO block (

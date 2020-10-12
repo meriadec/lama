@@ -8,16 +8,9 @@ import co.ledger.lama.common.logging.IOLogging
 import doobie.implicits._
 import doobie.postgres.implicits._
 import doobie._
+import co.ledger.lama.bitcoin.interpreter.models.implicits._
 
 object OperationQueries extends IOLogging {
-
-  implicit val bigIntType: Meta[BigInt] = Meta.Advanced.other[BigInt]("bigint")
-
-  implicit val operationTypeMeta: Meta[OperationType] =
-    pgEnumStringOpt("operation_type", OperationType.fromKey, _.toString.toLowerCase())
-
-  implicit val changeTypeMeta: Meta[ChangeType] =
-    pgEnumStringOpt("change_type", ChangeType.fromKey, _.toString.toLowerCase())
 
   def fetchTx(accountId: UUID, hash: String) = {
     log.info(s"Fetching transaction for accountId $accountId and hash $hash")
@@ -62,31 +55,7 @@ object OperationQueries extends IOLogging {
           WHERE tx.hash = $hash
           AND tx.account_id = $accountId
           """
-      .query[(String, String, String, Long, Long, String, Int, Long, String)]
-      .map {
-        case (
-              id,
-              hash,
-              receivedAt,
-              lockTime,
-              fees,
-              blockHash,
-              confirmations,
-              blockHeight,
-              blockTime
-            ) =>
-          TransactionView(
-            id = id,
-            hash = hash,
-            receivedAt = receivedAt,
-            lockTime = lockTime,
-            fees = fees,
-            inputs = Seq(),
-            outputs = Seq(),
-            block = BlockView(blockHash, blockHeight, blockTime, None),
-            confirmations = confirmations
-          )
-      }
+      .query[TransactionView]
       .option
 
   private def fetchInputs(
@@ -98,30 +67,7 @@ object OperationQueries extends IOLogging {
           WHERE account_id = $accountId
           AND hash = $hash
           """
-      .query[(String, Int, Int, Long, String, String, Long, Boolean)]
-      .map {
-        case (
-              outputHash,
-              outputIndex,
-              inputIndex,
-              value,
-              address,
-              scriptSignature,
-              sequence,
-              belongs
-            ) =>
-          InputView(
-            outputHash = outputHash,
-            outputIndex = outputIndex,
-            inputIndex = inputIndex,
-            value = value,
-            address = address,
-            scriptSignature = scriptSignature,
-            txinwitness = Seq(),
-            sequence = sequence,
-            belongs = belongs
-          )
-      }
+      .query[InputView]
       .stream
   }
 
@@ -134,18 +80,7 @@ object OperationQueries extends IOLogging {
           WHERE account_id = $accountId
           AND hash = $hash
           """
-      .query[(Int, Long, String, String, Boolean, Option[ChangeType])]
-      .map {
-        case (outputIndex, value, address, scriptHex, belongs, changeType) =>
-          OutputView(
-            outputIndex = outputIndex,
-            value = value,
-            address = address,
-            scriptHex = scriptHex,
-            belongs = belongs,
-            changeType = changeType
-          )
-      }
+      .query[OutputView]
       .stream
 
   def fetchOperations(
@@ -159,11 +94,7 @@ object OperationQueries extends IOLogging {
           LIMIT $limit 
           OFFSET $offset
           """
-      .query[(UUID, String, OperationType, Long, String)]
-      .map {
-        case (accountId, hash, operationType, value, time) =>
-          Operation(accountId, hash, None, operationType, value, time)
-      }
+      .query[Operation]
       .stream
 
   def saveOperation(operation: Operation): doobie.ConnectionIO[Int] =

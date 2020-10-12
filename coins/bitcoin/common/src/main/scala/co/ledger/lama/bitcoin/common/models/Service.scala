@@ -15,8 +15,7 @@ object Service {
   @ConfiguredJsonCodec case class BlockView(
       hash: String,
       height: Long,
-      time: String,
-      txs: Option[Seq[String]] = None
+      time: String
   ) {
     def toProto: protobuf.BlockView =
       protobuf.BlockView(
