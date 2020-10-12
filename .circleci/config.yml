@@ -7,6 +7,7 @@ version: 2.1
 orbs:
   docker: ledger/docker@volatile
   codecov: codecov/codecov@1.0.2
+  slack: circleci/slack@4.0.0
 
 aliases:
   - &filters_docker_build_and_publish
@@ -42,6 +43,117 @@ commands:
             git submodule init
             git submodule update
       - restore_cache: *restore_docker_cache
+
+  slack_notify_on_fail:
+    description: "Notify Slack when a job has failed"
+    steps:
+      - slack/notify:
+          event: fail
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Your job *${CIRCLE_JOB}* has failed ⚠️ "
+                  },
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commiter*:\\n${CIRCLE_USERNAME}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*BRANCH*:\\n${CIRCLE_BRANCH}"
+                    }
+                  ],
+                  "accessory": {
+                    "type": "image",
+                    "image_url": "https://i.pinimg.com/originals/2a/3f/b7/2a3fb7f5906b0f8d0538507de476c482.jpg",
+                    "alt_text": "A sad llama"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Job"
+                      },
+                      "url": "${CIRCLE_BUILD_URL}"
+                    },
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View PR"
+                      },
+                      "url": "${CIRCLE_PULL_REQUEST}"
+                    }
+                  ]
+                }
+              ]
+            }
+
+  slack_notify_on_pass:
+    description: "Notify Slack when a job has passed"
+    parameters:
+      image:
+        type: string
+    steps:
+      - slack/notify:
+          event: pass
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Your job *${CIRCLE_JOB}* passed :tada:"
+                  },
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commiter*:\\n${CIRCLE_USERNAME}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*BRANCH*:\\n${CIRCLE_BRANCH}"
+                    }
+                  ],
+                  "accessory": {
+                    "type": "image",
+                    "image_url": "<< parameters.image >>",
+                    "alt_text": "Swag Lama"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Job"
+                      },
+                      "url": "${CIRCLE_BUILD_URL}"
+                    },
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View PR"
+                      },
+                      "url": "${CIRCLE_PULL_REQUEST}"
+                    }
+                  ]
+                }
+              ]
+            }
 
 parameters:
   sbt:
@@ -98,6 +210,9 @@ jobs:
       - run:
           name: Run Bitcoin Interpreter unit tests
           command: << pipeline.parameters.sbt >> bitcoinInterpreter/test
+      - slack_notify_on_fail
+      - slack_notify_on_pass:
+          image: "https://i.ytimg.com/vi/5mQO6tCZp6g/hqdefault.jpg"
 
   it_tests:
     environment:
@@ -164,6 +279,10 @@ jobs:
       - run:
           name: Run bitcoin worker it tests
           command: << pipeline.parameters.sbt >> bitcoinWorker/it:test
+      - slack_notify_on_fail
+      - slack_notify_on_pass:
+          image: "https://steamuserimages-a.akamaihd.net/ugc/424818087605857300/CF9AF70E0CD2812635DF40B32061A02AE339C218/"
+
 #      - run:
 #          name: Run service it tests
 #          command: |
