@@ -6,13 +6,11 @@ import cats.effect.IO
 import doobie.Transactor
 import doobie.implicits._
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.Explorer.Transaction
+import co.ledger.lama.bitcoin.common.models.explorer.Transaction
 
 class TransactionInterpreter(db: Transactor[IO]) {
 
-  def saveTransactions(accountId: UUID, transactions: List[Transaction]) = {
-
-    //TODO reorg : remove all blocks with height >= minimum transactions block height
+  def saveTransactions(accountId: UUID, transactions: List[Transaction]): IO[Int] =
     for {
       res <-
         transactions
@@ -24,6 +22,5 @@ class TransactionInterpreter(db: Transactor[IO]) {
           )
 
     } yield res.sum
-  }
 
 }

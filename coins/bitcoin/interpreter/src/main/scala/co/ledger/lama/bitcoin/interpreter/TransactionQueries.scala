@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.Explorer._
+import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
@@ -42,13 +42,13 @@ object TransactionQueries {
     sql"""INSERT INTO transaction (
             account_id, id, hash, received_at, lock_time, fees, block_hash, confirmations
           ) VALUES (
-            $accountId, 
-            ${tx.id}, 
-            ${tx.hash}, 
-            ${tx.receivedAt}, 
-            ${tx.lockTime}, 
-            ${tx.fees}, 
-            ${tx.block.hash}, 
+            $accountId,
+            ${tx.id},
+            ${tx.hash},
+            ${tx.receivedAt},
+            ${tx.lockTime},
+            ${tx.fees},
+            ${tx.block.hash},
             ${tx.confirmations}
           ) ON CONFLICT ON CONSTRAINT transaction_pkey DO NOTHING
         """

@@ -1,7 +1,7 @@
 package co.ledger.lama.bitcoin.worker.services
 
 import cats.effect.{ConcurrentEffect, IO, Timer}
-import co.ledger.lama.bitcoin.common.models.Explorer._
+import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.worker.config.ExplorerConfig
 import co.ledger.lama.bitcoin.worker.models.GetTransactionsResponse
 import io.circe.Decoder

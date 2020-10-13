@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.worker
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
-import co.ledger.lama.bitcoin.common.models.Explorer.Block
+import co.ledger.lama.bitcoin.common.models.explorer.Block
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.PayloadData
 import co.ledger.lama.bitcoin.worker.services.{ExplorerService, SyncEventService}

@@ -13,7 +13,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
   SaveTransactionsRequest,
   SortingOrder
 }
-import co.ledger.lama.bitcoin.common.models.Explorer.Transaction
+import co.ledger.lama.bitcoin.common.models.explorer.Transaction
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.{Ascending, Descending, SortingEnum}
 import co.ledger.lama.common.utils.UuidUtils
 import io.grpc.Metadata

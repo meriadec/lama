@@ -30,14 +30,15 @@ import doobie.implicits._
 import doobie.util.transactor.Transactor
 import io.circe.Json
 import io.circe.syntax._
-import io.grpc.Metadata
+import io.grpc.{Metadata, ServerServiceDefinition}
 
 import scala.concurrent.duration.FiniteDuration
 
 class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
     extends AccountManagerServiceFs2Grpc[IO, Metadata] {
 
-  def definition(implicit ce: ConcurrentEffect[IO]) = AccountManagerServiceFs2Grpc.bindService(this)
+  def definition(implicit ce: ConcurrentEffect[IO]): ServerServiceDefinition =
+    AccountManagerServiceFs2Grpc.bindService(this)
 
   def registerAccount(
       request: RegisterAccountRequest,
@@ -49,10 +50,8 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
     val cursor     = cursorToJson(request)
 
     val syncFrequencyFromRequest =
-      if (request.syncFrequency > 0L)
-        Some(FiniteDuration(request.syncFrequency, TimeUnit.SECONDS))
-      else
-        None
+      if (request.syncFrequency > 0L) Some(FiniteDuration(request.syncFrequency, TimeUnit.SECONDS))
+      else None
 
     for {
       // Get the sync frequency from the request
@@ -152,7 +151,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
     } yield result
 
   private def cursorToJson(request: protobuf.RegisterAccountRequest): Json = {
-    if (request.cursor.isBlockHeight)
+    if (request.cursor.isBlockHeight) {
       Json.obj(
         "blockHeight" -> Json.fromLong(
           request.cursor.blockHeight
@@ -160,8 +159,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
             .getOrElse(throw MalformedProtobufException(request))
         )
       )
-    else
-      Json.obj()
+    } else Json.obj()
   }
 
   def getAccountInfo(request: AccountInfoRequest, ctx: Metadata): IO[AccountInfoResult] =

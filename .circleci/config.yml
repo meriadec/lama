@@ -174,17 +174,18 @@ jobs:
           name: Compile
           command: << pipeline.parameters.sbt >> compile test:compile it:compile
       - save_cache: *save_docker_cache
+      - slack_notify_on_fail
 
-# FIXME: add linter compliance
-#  scala_linter:
-#    docker:
-#      - image: circleci/openjdk:14.0.2-jdk-buster
-#    steps:
-#      - checkout
-#      - after_checkout_lama
-#      - run:
-#          name: Run scalastyle
-#          command: << pipeline.parameters.sbt >> scalastyle
+  scala_linter:
+    docker:
+      - image: circleci/openjdk:14.0.2-jdk-buster
+    steps:
+      - checkout
+      - after_checkout_lama
+      - run:
+          name: Run scalastyle
+          command: << pipeline.parameters.sbt >> scalastyle
+      - slack_notify_on_fail
 
   unit_tests:
     docker:
@@ -295,16 +296,20 @@ workflows:
   build_test_and_publish:
     jobs:
       - compile
+      - scala_linter
 
       - unit_tests:
           requires:
             - compile
+            - scala_linter
       - it_tests:
           requires:
             - compile
+            - scala_linter
       - e2e_tests:
           requires:
             - compile
+            - scala_linter
 
       - docker/build_image:
           name: build-lama-account-manager-image

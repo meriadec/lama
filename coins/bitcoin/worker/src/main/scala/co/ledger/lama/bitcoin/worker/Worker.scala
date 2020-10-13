@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.{ConcurrentEffect, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.Explorer.DefaultInput
+import co.ledger.lama.bitcoin.common.models.explorer.DefaultInput
 import co.ledger.lama.bitcoin.interpreter.protobuf.AccountAddress
 import co.ledger.lama.bitcoin.interpreter.protobuf.ChangeType.{EXTERNAL, INTERNAL}
 import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}

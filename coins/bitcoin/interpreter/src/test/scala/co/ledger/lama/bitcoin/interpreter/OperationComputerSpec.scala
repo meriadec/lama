@@ -2,7 +2,7 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.Service._
+import co.ledger.lama.bitcoin.common.models.service._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 

@@ -8,7 +8,7 @@ import io.circe.generic.extras.{Configuration, ConfiguredJsonCodec}
 import io.circe.generic.semiauto._
 import io.circe.{Decoder, Encoder}
 
-object Service {
+object service {
 
   implicit val config: Configuration = Configuration.default.withSnakeCaseMemberNames
 
@@ -273,7 +273,7 @@ object Service {
     implicit val encoder: Encoder[AccountAddress] = deriveEncoder[AccountAddress]
     implicit val decoder: Decoder[AccountAddress] = deriveDecoder[AccountAddress]
 
-    def fromProto(proto: protobuf.AccountAddress) = {
+    def fromProto(proto: protobuf.AccountAddress): AccountAddress = {
       AccountAddress(
         proto.accountAddress,
         ChangeType.fromProto(proto.changeType)

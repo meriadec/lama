@@ -3,8 +3,8 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.Explorer.{Block, Transaction}
-import co.ledger.lama.bitcoin.common.models.Service.Operation
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, Transaction}
+import co.ledger.lama.bitcoin.common.models.service.Operation
 import doobie.util.transactor.Transactor
 import doobie.implicits._
 

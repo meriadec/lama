@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.IO
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.Service.{AccountAddress, Operation}
+import co.ledger.lama.bitcoin.common.models.service.{AccountAddress, Operation}
 import doobie.Transactor
 import doobie.implicits._
 
@@ -36,7 +36,7 @@ class OperationInterpreter(db: Transactor[IO]) {
       (protoOperations, truncated)
     }
 
-    //TODO deal with ordering
+    // TODO deal with ordering
 
   }
 
@@ -69,7 +69,7 @@ class OperationInterpreter(db: Transactor[IO]) {
           }
           .traverse { operation =>
             OperationQueries
-              .saveOperation(operation) //TODO use updateMany instead of map
+              .saveOperation(operation) // TODO use updateMany instead of map
           }
           .transact(db)
 

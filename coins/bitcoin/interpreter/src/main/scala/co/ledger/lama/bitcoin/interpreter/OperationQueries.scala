@@ -3,16 +3,18 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.data.NonEmptyList
-import co.ledger.lama.bitcoin.common.models.Service._
+import cats.free.Free
+import co.ledger.lama.bitcoin.common.models.service._
 import co.ledger.lama.common.logging.IOLogging
 import doobie.implicits._
 import doobie.postgres.implicits._
 import doobie._
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
+import doobie.free.connection.ConnectionOp
 
 object OperationQueries extends IOLogging {
 
-  def fetchTx(accountId: UUID, hash: String) = {
+  def fetchTx(accountId: UUID, hash: String): Free[ConnectionOp, Option[TransactionView]] = {
     log.info(s"Fetching transaction for accountId $accountId and hash $hash")
 
     for {
@@ -91,7 +93,7 @@ object OperationQueries extends IOLogging {
     sql"""SELECT account_id, hash, operation_type, value, time
           FROM operation
           WHERE account_id = $accountId
-          LIMIT $limit 
+          LIMIT $limit
           OFFSET $offset
           """
       .query[Operation]
@@ -109,8 +111,8 @@ object OperationQueries extends IOLogging {
           ) ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
         """.update.run
 
-  def flagInputs(accountId: UUID, addresses: List[String]) = {
-    val query = sql"""UPDATE input 
+  def flagInputs(accountId: UUID, addresses: List[String]): ConnectionIO[Int] = {
+    val query = sql"""UPDATE input
           SET belongs = true
           WHERE account_id = $accountId
           AND belongs = false
@@ -118,8 +120,8 @@ object OperationQueries extends IOLogging {
     query.update.run
   }
 
-  def flagOutputsForAddress(accountId: UUID, address: AccountAddress) = {
-    sql"""UPDATE output 
+  def flagOutputsForAddress(accountId: UUID, address: AccountAddress): ConnectionIO[Int] = {
+    sql"""UPDATE output
           SET belongs = true, change_type = ${address.changeType}
           WHERE account_id = $accountId
           AND belongs = false

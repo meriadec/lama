@@ -1,6 +1,7 @@
 package co.ledger.lama.common.utils
 
 import cats.effect.{Async, Blocker, ContextShift, IO, Resource, Timer}
+import co.ledger.lama.common.logging.IOLogging
 import io.grpc.{
   ManagedChannel,
   ManagedChannelBuilder,
@@ -15,7 +16,7 @@ import scala.concurrent.duration._
 import doobie.ExecutionContexts
 import fs2.{Pure, Stream}
 
-object ResourceUtils {
+object ResourceUtils extends IOLogging {
 
   def retriableResource[F[_], O](
       resource: Resource[F, O],
@@ -28,7 +29,7 @@ object ResourceUtils {
       .resource(resource)
       .attempts(policy)
       .evalTap {
-        case Left(value) => F.delay(println(s"Resource acquisition Failed : $value"))
+        case Left(value) => F.delay(log.logger.error(s"Resource acquisition Failed : $value"))
         case Right(_)    => F.unit
       }
       .collectFirst {
@@ -82,13 +83,14 @@ object ResourceUtils {
       .resource[IO]
 
   def grpcManagedChannel(conf: GrpcClientConfig): Resource[IO, ManagedChannel] =
-    if (conf.ssl)
+    if (conf.ssl) {
       ManagedChannelBuilder
         .forAddress(conf.host, conf.port)
         .resource[IO]
-    else
+    } else {
       ManagedChannelBuilder
         .forAddress(conf.host, conf.port)
         .usePlaintext()
         .resource[IO]
+    }
 }

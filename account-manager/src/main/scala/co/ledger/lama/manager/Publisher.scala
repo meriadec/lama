@@ -69,8 +69,7 @@ trait Publisher[K, V <: WithKey[K]] {
     for {
       countOnGoingEvents <- decrOnGoingEvents(key)
       nextEvent <-
-        if (countOnGoingEvents < maxOnGoingEvents)
-          lpopPendingEvents(key)
+        if (countOnGoingEvents < maxOnGoingEvents) lpopPendingEvents(key)
         else IO.pure(None)
       result <- nextEvent match {
         case Some(next) => publish(next)
@@ -87,7 +86,7 @@ trait Publisher[K, V <: WithKey[K]] {
   private def incrOnGoingEvents(key: K): IO[Long] =
     IO.fromOption(redis.incr(onGoingEventsCounterKey(key)))(RedisUnexpectedException)
 
-  /// https://redis.io/commands/decr
+  // https://redis.io/commands/decr
   // Decrement the counter of ongoing events for a key and return the value after.
   private def decrOnGoingEvents(key: K): IO[Long] =
     IO.fromOption(redis.decr(onGoingEventsCounterKey(key)))(RedisUnexpectedException)

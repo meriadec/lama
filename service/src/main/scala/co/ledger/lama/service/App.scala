@@ -36,14 +36,14 @@ object App extends IOApp with IOLogging {
 
       _ = log.info("Keychain GRPC client instantiated")
 
-      grpdBitcoinInterpreterClient <- grpcManagedChannel(conf.bitcoin.interpreter)
+      grpcBitcoinInterpreterClient <- grpcManagedChannel(conf.bitcoin.interpreter)
         .map(BitcoinInterpreterServiceFs2Grpc.stub[IO](_))
 
       _ = log.info("Bitcoin GRPC client instantiated")
     } yield ServiceResources(
       grpcAccountManagerClient,
       grpcKeychainClient,
-      grpdBitcoinInterpreterClient
+      grpcBitcoinInterpreterClient
     )
 
     resources.use { serviceResources =>

@@ -4,8 +4,8 @@ import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf.{AccountAddress, GetOperationsResult}
-import co.ledger.lama.bitcoin.common.models.Explorer.Transaction
-import co.ledger.lama.bitcoin.common.models.Service.{Operation, Sent}
+import co.ledger.lama.bitcoin.common.models.explorer.Transaction
+import co.ledger.lama.bitcoin.common.models.service.{Operation, Sent}
 import co.ledger.lama.bitcoin.worker.services.{InterpreterService, SortingEnum}
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.SortingEnum
 import com.google.protobuf.empty.Empty

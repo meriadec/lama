@@ -2,7 +2,7 @@ package co.ledger.lama.bitcoin.interpreter.models
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.Service._
+import co.ledger.lama.bitcoin.common.models.service._
 import doobie._
 import doobie.postgres.implicits._
 

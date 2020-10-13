@@ -6,7 +6,7 @@ import io.circe.generic.semiauto._
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
 
-object Explorer {
+object explorer {
 
   implicit val config: Configuration = Configuration.default.withSnakeCaseMemberNames
 

@@ -1,8 +1,8 @@
 package co.ledger.lama.bitcoin.interpreter
 
 import cats.effect.{ConcurrentEffect, IO}
-import co.ledger.lama.bitcoin.common.models.Explorer._
-import co.ledger.lama.bitcoin.common.models.Service._
+import co.ledger.lama.bitcoin.common.models.explorer._
+import co.ledger.lama.bitcoin.common.models.service._
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.utils.UuidUtils
@@ -31,7 +31,7 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
 
       _ = log.info("Transactions saved")
 
-    } yield Empty() //TODO return Int
+    } yield Empty() // TODO return Int
   }
 
   def getOperations(
@@ -56,7 +56,7 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
     } yield protobuf.GetOperationsResult(operations.map(_.toProto), truncated)
   }
   def deleteTransactions(request: protobuf.DeleteTransactionsRequest, ctx: Metadata): IO[Empty] =
-    ???
+    IO.pure(Empty())
 
   def computeOperations(request: protobuf.ComputeOperationsRequest, ctx: Metadata): IO[Empty] = {
     log.info(s"""Computing operations with parameters:
@@ -67,6 +67,6 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
       addresses = request.addresses.map(AccountAddress.fromProto).toList
       _ <- operationInterpreter.computeOperations(accountId, addresses)
-    } yield Empty() //TODO return Int
+    } yield Empty() // TODO return Int
   }
 }

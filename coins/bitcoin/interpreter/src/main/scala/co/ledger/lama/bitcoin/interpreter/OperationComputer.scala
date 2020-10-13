@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.bitcoin.common.models.Service._
+import co.ledger.lama.bitcoin.common.models.service._
 
 object OperationComputer extends IOLogging {
 

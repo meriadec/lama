@@ -1,6 +1,6 @@
 package co.ledger.lama.bitcoin.worker
 
-import co.ledger.lama.bitcoin.common.models.Explorer.{Block, Transaction}
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, Transaction}
 import co.ledger.protobuf.bitcoin.AddressInfo
 import io.circe.generic.semiauto._
 import io.circe.{Decoder, Encoder}
