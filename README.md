@@ -4,6 +4,15 @@
 
 Synchronization and management of account states (transactions, balance, ...) across Blockchain protocols.
 
+Main feature of Lama are:
+- Scalable and stateless components
+- Easy support of new coin integration by design
+- Account manager component for handling account metadata and sending sync event messages
+- Coin specific components:
+    * Worker: fetching data from blockchain
+    * Interpreter: computing and inserting data (operations, balance, ...)
+    * Broadcaster: estimating fees and creating transactions
+
 ## How account synchronization works?
 
 ![](./excalidraw/sync-overview.png)
@@ -31,7 +40,7 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 Please refer to the [getting started][account-manager-getting-started] section of the account manager README.
 
-## REST API
+## REST API Service
 
 ### Run through docker (recommended)
 
@@ -43,7 +52,27 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 `sbt service/assembly && sbt service/docker`
 
+### Run manually
+
+Please refer to the [getting started][service-getting-started] section of the service README.
+
 ## Coin integration
+
+### Bitcoin Worker
+
+### Run through docker (recommended)
+
+Run `docker-compose up bitcoin-worker`.
+
+Please have a look on `docker-compose.yml` file for more details on the configuration.
+
+#### Build and publish image in local
+
+`sbt bitcoinWorker/assembly && sbt bitcoinWorker/docker`
+
+### Run manually
+
+Please refer to the [getting started][bitcoin-worker-getting-started] section of the bitcoin worker README.
 
 ### Bitcoin Interpreter
 
@@ -61,26 +90,11 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 Please refer to the [getting started][bitcoin-interpreter-getting-started] section of the bitcoin interpreter README.
 
-### Bitcoin Worker
-
-### Run through docker (recommended)
-
-Run `docker-compose up bitcoin-worker`.
-
-Please have a look on `docker-compose.yml` file for more details on the configuration.
-
-#### Build and publish image in local
-
-`sbt bitcoinWorker/assembly && sbt bitcoinWorker/docker`
-
-### Run manually
-
-Please refer to the [getting started][bitcoin-interpreter-getting-started] section of the bitcoin interpreter README.
-
 
 [docker]: https://docs.docker.com/get-docker/
 [flyway]: https://flywaydb.org/
 [account-manager]: https://github.com/LedgerHQ/lama/tree/master/account-manager
 [account-manager-getting-started]: account-manager/README.md#getting-started
+[service-getting-started]: service/README.md#getting-started
 [bitcoin-interpreter-getting-started]: coins/bitcoin/interpreter/README.md#getting-started
 [bitcoin-worker-getting-started]: coins/bitcoin/worker/README.md#getting-started
