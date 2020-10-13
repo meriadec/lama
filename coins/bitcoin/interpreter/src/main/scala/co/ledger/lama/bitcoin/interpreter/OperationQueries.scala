@@ -48,6 +48,25 @@ object OperationQueries extends IOLogging {
       .query[String]
       .stream
 
+  def fetchUTXOs(
+      accountId: UUID,
+      limit: Int = 20,
+      offset: Int = 0
+  ): fs2.Stream[doobie.ConnectionIO, OutputView] =
+    sql"""SELECT o.output_index, o.value, o.address, o.script_hex, o.belongs, o.change_type
+          FROM output o
+            LEFT JOIN input i
+              ON o.account_id = i.account_id
+              AND o.address = i.address
+          WHERE o.account_id = $accountId
+            AND o.belongs = true
+            AND i.address IS NULL
+          LIMIT $limit
+          OFFSET $offset
+          """
+      .query[OutputView]
+      .stream
+
   private def fetchTxAndBlock(
       accountId: UUID,
       hash: String

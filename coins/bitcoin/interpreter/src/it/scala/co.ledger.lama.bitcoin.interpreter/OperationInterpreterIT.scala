@@ -93,4 +93,27 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
       }
   }
 
+  it should "have made utxos" in IOAssertion {
+    setup() *>
+      appResources.use { db =>
+        val operationInterpreter = new OperationInterpreter(db)
+
+        for {
+          _   <- QueryUtils.saveBlock(db, block)
+          _   <- QueryUtils.saveTx(db, insertTx, accountId)
+          _   <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress1))
+          res <- operationInterpreter.getUTXOs(accountId, 20, 0)
+          (utxos, trunc) = res
+        } yield {
+          utxos should have size 1
+          trunc shouldBe false
+
+          val utxo = utxos.head
+
+          utxo.address shouldBe outputAddress1.accountAddress
+          utxo.changeType shouldBe Some(outputAddress1.changeType)
+        }
+      }
+  }
+
 }

@@ -75,4 +75,7 @@ class FakeInterpreter extends Interpreter {
   def computeOperations(request: ComputeOperationsRequest, ctx: Metadata): IO[Empty] =
     IO.pure(Empty())
 
+  def getUTXOs(request: protobuf.GetUTXOsRequest, ctx: Metadata): IO[protobuf.GetUTXOsResult] =
+    IO.pure(GetUTXOsResult(Nil))
+
 }

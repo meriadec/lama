@@ -2,7 +2,7 @@ package co.ledger.lama.service.utils
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.service.Operation
+import co.ledger.lama.bitcoin.common.models.service.{Operation, OutputView}
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.models.BitcoinNetwork.{MainNet, RegTest, TestNet3, Unspecified}
 import co.ledger.lama.common.models.Scheme.{Bip44, Bip49, Bip84}
@@ -16,7 +16,8 @@ import co.ledger.lama.manager.protobuf.{
 import co.ledger.lama.service.models.{
   AccountRegistered,
   GetAccountManagerInfoResult,
-  GetOperationsResult
+  GetOperationsResult,
+  GetUTXOsResult
 }
 import co.ledger.lama.service.routes.AccountController.CreationRequest
 import co.ledger.protobuf.bitcoin.{BitcoinNetwork, CreateKeychainRequest, Scheme}
@@ -78,11 +79,18 @@ object ProtobufUtils {
       syncFrequency = ra.syncFrequency
     )
 
-  def fromTransactionListingInfos(txs: protobuf.GetOperationsResult): GetOperationsResult =
+  def fromOperationListingInfos(txs: protobuf.GetOperationsResult): GetOperationsResult =
     GetOperationsResult(
       truncated = txs.truncated,
       operations = txs.operations.map(Operation.fromProto),
       size = txs.operations.size
+    )
+
+  def fromUtxosListingInfo(txs: protobuf.GetUTXOsResult): GetUTXOsResult =
+    GetUTXOsResult(
+      truncated = txs.truncated,
+      utxos = txs.utxos.map(OutputView.fromProto),
+      size = txs.utxos.size
     )
 
 }

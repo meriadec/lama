@@ -3,12 +3,13 @@ package co.ledger.lama.service
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
-import co.ledger.lama.common.utils.IOAssertion
+import co.ledger.lama.common.utils.{IOAssertion, IOUtils}
 import co.ledger.lama.service.ConfigSpec.ConfigSpec
 import co.ledger.lama.service.models.{
   AccountRegistered,
   GetAccountManagerInfoResult,
-  GetOperationsResult
+  GetOperationsResult,
+  GetUTXOsResult
 }
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec.{circeEntityDecoder, circeEntityEncoder}
@@ -17,9 +18,6 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 import cats.implicits._
-import co.ledger.lama.common.utils.ResourceUtils.RetryPolicy
-import fs2.{Chunk, Pull, Stream}
-import org.http4s.client.Client
 import io.circe.parser._
 
 import scala.concurrent.ExecutionContext
@@ -34,7 +32,9 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
 
   val accountsRes: Resource[IO, List[TestAccount]] =
     Resource
-      .fromAutoCloseable(IO(scala.io.Source.fromResource("test-accounts.json")))
+      .fromAutoCloseable(
+        IO(scala.io.Source.fromFile(getClass.getResource("/test-accounts.json").getFile))
+      )
       .evalMap { bf =>
         IO.fromEither(decode[List[TestAccount]](bf.getLines().mkString))
       }
@@ -62,43 +62,13 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
       uri = Uri.unsafeFromString(s"$serverUrl/accounts/$accountId")
     )
 
-  def fetchPaginatedOperations(
-      client: Client[IO],
-      accountId: UUID,
-      offset: Int = 0,
-      limit: Int = 20
-  ): Pull[IO, GetOperationsResult, Unit] =
-    Pull
-      .eval(
-        getOperations(
-          client.expect[GetOperationsResult](
-            getOperationsRequest(accountId, offset, limit)
-          )
-        )
+  def getUTXOsRequest(accountId: UUID, offset: Int, limit: Int) =
+    Request[IO](
+      method = Method.GET,
+      uri = Uri.unsafeFromString(
+        s"$serverUrl/accounts/$accountId/utxos?limit=$limit&offset=$offset"
       )
-      .flatMap { res =>
-        if (res.truncated) {
-          Pull.output(Chunk(res)) >>
-            fetchPaginatedOperations(client, accountId, offset + limit, limit)
-        } else {
-          Pull.output(Chunk(res))
-        }
-      }
-
-  def getOperations(io: IO[GetOperationsResult]): IO[GetOperationsResult] = {
-    Stream
-      .eval(io.flatMap { res =>
-        if (res.operations.isEmpty)
-          IO.raiseError(new Exception())
-        else IO.pure(res)
-      })
-      .attempts(RetryPolicy.linear())
-      .collectFirst {
-        case Right(res) => res
-      }
-      .compile
-      .lastOrError
-  }
+    )
 
   IOAssertion {
     accountsRes
@@ -115,10 +85,40 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                 getAccountRequest(accountRegistered.accountId)
               )
 
-              operations <- fetchPaginatedOperations(
-                client,
-                accountRegistered.accountId
-              ).stream.compile.toList.map(_.flatMap(_.operations))
+              operations <-
+                IOUtils
+                  .fetchPaginatedItems[GetOperationsResult](
+                    (offset, limit) =>
+                      IOUtils.retry[GetOperationsResult](
+                        client.expect[GetOperationsResult](
+                          getOperationsRequest(accountRegistered.accountId, offset, limit)
+                        ),
+                        _.operations.nonEmpty
+                      ),
+                    _.truncated,
+                    0,
+                    20
+                  )
+                  .stream
+                  .compile
+                  .toList
+                  .map(_.flatMap(_.operations))
+
+              utxos <-
+                IOUtils
+                  .fetchPaginatedItems[GetUTXOsResult](
+                    (offset, limit) =>
+                      client.expect[GetUTXOsResult](
+                        getUTXOsRequest(accountRegistered.accountId, offset, limit)
+                      ),
+                    _.truncated,
+                    0,
+                    20
+                  )
+                  .stream
+                  .compile
+                  .toList
+                  .map(_.flatMap(_.utxos))
 
               accountDeletedStatus <-
                 client.status(removeAccountRequest(accountRegistered.accountId))
@@ -132,9 +132,11 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
 
               // TODO: test account info (balance, ...)
 
-              // TODO: test utxos
+              it should s"have ${account.expected.utxosSize} utxos" in {
+                utxos.size shouldBe account.expected.utxosSize
+              }
 
-              it should s"have ${operations.size} operations" in {
+              it should s"have ${account.expected.opsSize} operations" in {
                 operations.size shouldBe account.expected.opsSize
               }
 

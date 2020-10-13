@@ -6,6 +6,7 @@ import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   BitcoinInterpreterServiceFs2Grpc,
   GetOperationsRequest,
+  GetUTXOsRequest,
   SortingOrder
 }
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
@@ -124,7 +125,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           +& OptionalLimitQueryParamMatcher(limit)
           +& OptionalOffsetQueryParamMatcher(offset)
           +& OptionalSortQueryParamMatcher(sort) =>
-        log.info(s"Fetching UTXOs for account: $accountId")
+        log.info(s"Fetching operations for account: $accountId")
         interpreterClient
           .getOperations(
             new GetOperationsRequest(
@@ -139,7 +140,24 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             ),
             new Metadata
           )
-          .map(fromTransactionListingInfos)
+          .map(fromOperationListingInfos)
+          .flatMap(Ok(_))
+
+      case GET -> Root / "accounts" / UUIDVar(
+            accountId
+          ) / "utxos" :? OptionalLimitQueryParamMatcher(limit)
+          +& OptionalOffsetQueryParamMatcher(offset) =>
+        log.info(s"Fetching UTXOs for account: $accountId")
+        interpreterClient
+          .getUTXOs(
+            new GetUTXOsRequest(
+              accountId = UuidUtils.uuidToBytes(accountId),
+              limit = limit.getOrElse(0),
+              offset = offset.getOrElse(0)
+            ),
+            new Metadata
+          )
+          .map(fromUtxosListingInfo)
           .flatMap(Ok(_))
     }
 }

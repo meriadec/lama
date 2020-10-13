@@ -2,19 +2,11 @@ package co.ledger.lama.common.utils
 
 import cats.effect.{Async, Blocker, ContextShift, IO, Resource, Timer}
 import co.ledger.lama.common.logging.IOLogging
-import io.grpc.{
-  ManagedChannel,
-  ManagedChannelBuilder,
-  Server,
-  ServerBuilder,
-  ServerServiceDefinition
-}
-import org.lyranthe.fs2_grpc.java_runtime.implicits._
-import doobie.hikari.HikariTransactor
-
-import scala.concurrent.duration._
 import doobie.ExecutionContexts
-import fs2.{Pure, Stream}
+import doobie.hikari.HikariTransactor
+import fs2.Stream
+import io.grpc._
+import org.lyranthe.fs2_grpc.java_runtime.implicits._
 
 object ResourceUtils extends IOLogging {
 
@@ -38,18 +30,6 @@ object ResourceUtils extends IOLogging {
       .compile
       .resource
       .lastOrError
-
-  type RetryPolicy = Stream[Pure, FiniteDuration]
-
-  object RetryPolicy {
-    def linear(delay: FiniteDuration = 1.second, maxRetry: Int = 20): RetryPolicy =
-      Stream.emit(delay).repeatN(maxRetry)
-    def exponential(
-        initial: FiniteDuration = 50.millisecond,
-        factor: Long = 2,
-        maxElapsedTime: FiniteDuration = 2.minute
-    ): RetryPolicy = Stream.iterate(initial)(_ * factor).takeWhile(_ < maxElapsedTime)
-  }
 
   def postgresTransactor(
       conf: PostgresConfig

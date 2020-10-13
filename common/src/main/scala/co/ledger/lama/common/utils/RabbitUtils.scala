@@ -29,8 +29,7 @@ object RabbitUtils {
           .make(IO(Executors.newCachedThreadPool()))(es => IO(es.shutdown()))
           .map(Blocker.liftExecutorService)
           .evalMap(blocker => RabbitClient[IO](conf, blocker))
-      _ <-
-        retriableResource(client.createConnectionChannel, ResourceUtils.RetryPolicy.exponential())
+      _ <- retriableResource(client.createConnectionChannel, RetryPolicy.exponential())
     } yield client
   }
 

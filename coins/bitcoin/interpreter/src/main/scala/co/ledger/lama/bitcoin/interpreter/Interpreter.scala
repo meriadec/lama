@@ -55,6 +55,28 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
       (operations, truncated) = opResult
     } yield protobuf.GetOperationsResult(operations.map(_.toProto), truncated)
   }
+
+  def getUTXOs(request: protobuf.GetUTXOsRequest, ctx: Metadata): IO[protobuf.GetUTXOsResult] = {
+
+    val limit  = if (request.limit <= 0) 20 else request.limit
+    val offset = if (request.offset < 0) 0 else request.offset
+
+    log.info(s"""Getting UTXOs with parameters:
+              |- accountId: ${request.accountId}
+              |- limit: $limit
+              |- offset: $offset
+              |""".stripMargin)
+
+    for {
+      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+      _         <- log.info("Fetching UTXOs")
+      res       <- operationInterpreter.getUTXOs(accountId, limit, offset)
+      (utxos, truncated) = res
+    } yield {
+      protobuf.GetUTXOsResult(utxos.map(_.toProto), truncated)
+    }
+  }
+
   def deleteTransactions(request: protobuf.DeleteTransactionsRequest, ctx: Metadata): IO[Empty] =
     IO.pure(Empty())
 

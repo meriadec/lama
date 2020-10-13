@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.IO
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.service.{AccountAddress, Operation}
+import co.ledger.lama.bitcoin.common.models.service.{AccountAddress, Operation, OutputView}
 import doobie.Transactor
 import doobie.implicits._
 
@@ -30,15 +30,29 @@ class OperationInterpreter(db: Transactor[IO]) {
           .map(tx => op.copy(transaction = tx))
       )
 
+      // we get 1 more than necessary to know if there's more, then we return the correct number
       truncated = opsWithTx.size > limit
     } yield {
-      val protoOperations = opsWithTx.slice(0, limit)
-      (protoOperations, truncated)
+      val operations = opsWithTx.slice(0, limit)
+      (operations, truncated)
     }
 
     // TODO deal with ordering
 
   }
+
+  def getUTXOs(accountId: UUID, limit: Int, offset: Int): IO[(List[OutputView], Boolean)] =
+    for {
+      utxos <-
+        OperationQueries
+          .fetchUTXOs(accountId, limit + 1, offset)
+          .transact(db)
+          .compile
+          .toList
+
+      // we get 1 more than necessary to know if there's more, then we return the correct number
+      truncated = utxos.size > limit
+    } yield (utxos.slice(0, limit), truncated)
 
   def computeOperations(accountId: UUID, addresses: List[AccountAddress]): IO[Int] =
     for {
