@@ -9,6 +9,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.AccountAddress
 import co.ledger.lama.bitcoin.interpreter.protobuf.ChangeType.{EXTERNAL, INTERNAL}
 import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
 import co.ledger.lama.bitcoin.worker.services._
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Status.{Registered, Unregistered}
 import co.ledger.lama.common.models.{ReportableEvent, WorkableEvent}
 import fs2.{Chunk, Pull, Stream}
@@ -22,7 +23,7 @@ class Worker(
     keychainService: KeychainService,
     explorerService: ExplorerService,
     interpreterService: InterpreterService
-) {
+) extends IOLogging {
   def run(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): Stream[IO, Unit] =
     syncEventService.consumeWorkableEvents
       .evalMap { workableEvent =>
@@ -83,7 +84,8 @@ class Worker(
         AccountAddress(a.address, if (a.change.isChangeExternal) EXTERNAL else INTERNAL)
       }
 
-      _ <- interpreterService.computeOperations(account.id, addresses)
+      opCount <- interpreterService.computeOperations(account.id, addresses)
+      _       <- log.info(s"$opCount operations computed")
     } yield {
       val txs = batchResults.flatMap(_.transactions).distinctBy(_.hash)
 
@@ -135,7 +137,8 @@ class Worker(
               .toList
 
           // Ask to interpreter to save transactions.
-          _ <- interpreterService.saveTransactions(accountId, transactions)
+          txCount <- interpreterService.saveTransactions(accountId, transactions)
+          _       <- log.info(s"$txCount transactions saved")
 
           // Filter only used addresses.
           usedAddressesInfos = addressInfos.filter { a =>

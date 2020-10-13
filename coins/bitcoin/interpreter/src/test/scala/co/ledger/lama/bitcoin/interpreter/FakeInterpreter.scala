@@ -5,7 +5,6 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf._
 import com.google.protobuf.ByteString
-import com.google.protobuf.empty.Empty
 import io.grpc.Metadata
 
 import scala.collection.mutable
@@ -16,12 +15,12 @@ class FakeInterpreter extends Interpreter {
 
   var transactions: mutable.Map[UUID, Seq[Transaction]] = mutable.Map[UUID, Seq[Transaction]]()
 
-  def saveTransactions(request: SaveTransactionsRequest, ctx: Metadata): IO[Empty] =
+  def saveTransactions(request: SaveTransactionsRequest, ctx: Metadata): IO[ResultCount] =
     IO.pure {
       transactions.update(bytesToUUID(request.accountId), request.transactions)
-    }.map(_ => Empty())
+    }.map(_ => ResultCount(request.transactions.size))
 
-  def deleteTransactions(request: DeleteTransactionsRequest, ctx: Metadata): IO[Empty] =
+  def deleteTransactions(request: DeleteTransactionsRequest, ctx: Metadata): IO[ResultCount] =
     IO.pure {
       val accountId = bytesToUUID(request.accountId)
       if (request.blockHeight == 0) {
@@ -36,7 +35,7 @@ class FakeInterpreter extends Interpreter {
           }
         )
       }
-    }.map(_ => Empty())
+    }.map(_ => ResultCount(1))
 
   def getOperations(request: GetOperationsRequest, ctx: Metadata): IO[GetOperationsResult] = {
     val limit = if (request.limit == 0) 20 else request.limit
@@ -72,8 +71,8 @@ class FakeInterpreter extends Interpreter {
     }
   }
 
-  def computeOperations(request: ComputeOperationsRequest, ctx: Metadata): IO[Empty] =
-    IO.pure(Empty())
+  def computeOperations(request: ComputeOperationsRequest, ctx: Metadata): IO[ResultCount] =
+    IO.pure(ResultCount(0))
 
   def getUTXOs(request: protobuf.GetUTXOsRequest, ctx: Metadata): IO[protobuf.GetUTXOsResult] =
     IO.pure(GetUTXOsResult(Nil))

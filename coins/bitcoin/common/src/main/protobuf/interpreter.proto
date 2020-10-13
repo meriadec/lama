@@ -9,10 +9,10 @@ package pb.v1;
 option java_package = "co.ledger.lama.bitcoin.interpreter.protobuf";
 
 service BitcoinInterpreterService {
-  rpc SaveTransactions(SaveTransactionsRequest) returns (google.protobuf.Empty) {}
-  rpc DeleteTransactions(DeleteTransactionsRequest) returns (google.protobuf.Empty) {}
+  rpc SaveTransactions(SaveTransactionsRequest) returns (ResultCount) {}
+  rpc DeleteTransactions(DeleteTransactionsRequest) returns (ResultCount) {}
   rpc GetOperations(GetOperationsRequest) returns (GetOperationsResult) {}
-  rpc ComputeOperations(ComputeOperationsRequest) returns (google.protobuf.Empty) {}
+  rpc ComputeOperations(ComputeOperationsRequest) returns (ResultCount) {}
   rpc GetUTXOs(GetUTXOsRequest) returns (GetUTXOsResult) {}
 }
 
@@ -59,4 +59,8 @@ message GetUTXOsRequest {
 message GetUTXOsResult {
   repeated OutputView utxos = 1;
   bool truncated = 2;
+}
+
+message ResultCount {
+  int32 count = 1;
 }

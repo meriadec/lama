@@ -24,9 +24,9 @@ object SortingEnum extends Enumeration {
 }
 
 trait InterpreterService {
-  def saveTransactions(accountId: UUID, txs: List[Transaction]): IO[Unit]
+  def saveTransactions(accountId: UUID, txs: List[Transaction]): IO[Int]
 
-  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Unit]
+  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int]
 
   def getTransactions(
       accountId: UUID,
@@ -39,13 +39,13 @@ trait InterpreterService {
   def computeOperations(
       accountId: UUID,
       addresses: Seq[AccountAddress]
-  ): IO[Unit]
+  ): IO[Int]
 }
 
 class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[IO, Metadata])
     extends InterpreterService {
 
-  def saveTransactions(accountId: UUID, txs: List[Transaction]): IO[Unit] =
+  def saveTransactions(accountId: UUID, txs: List[Transaction]): IO[Int] =
     grpcClient
       .saveTransactions(
         new SaveTransactionsRequest(
@@ -54,9 +54,9 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
         ),
         new Metadata()
       )
-      .void
+      .map(_.count)
 
-  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Unit] =
+  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] =
     grpcClient
       .deleteTransactions(
         new DeleteTransactionsRequest(
@@ -65,7 +65,7 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
         ),
         new Metadata()
       )
-      .void
+      .map(_.count)
 
   def getTransactions(
       accountId: UUID,
@@ -92,7 +92,7 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
     )
   }
 
-  def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Unit] =
+  def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Int] =
     grpcClient
       .computeOperations(
         new ComputeOperationsRequest(
@@ -101,6 +101,6 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
         ),
         new Metadata()
       )
-      .void
+      .map(_.count)
 
 }

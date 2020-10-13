@@ -8,7 +8,6 @@ import co.ledger.lama.bitcoin.common.models.explorer.Transaction
 import co.ledger.lama.bitcoin.common.models.service.{Operation, Sent}
 import co.ledger.lama.bitcoin.worker.services.{InterpreterService, SortingEnum}
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.SortingEnum
-import com.google.protobuf.empty.Empty
 
 import scala.collection.mutable
 
@@ -19,16 +18,16 @@ class InterpreterServiceMock extends InterpreterService {
   def saveTransactions(
       accountId: UUID,
       txs: List[Transaction]
-  ): IO[Unit] =
+  ): IO[Int] =
     IO.delay {
       savedTransactions.update(
         accountId,
         savedTransactions.getOrElse(accountId, List.empty) ++ txs
       )
-    }
+    }.map(_ => txs.size)
 
-  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Unit] =
-    blockHeightCursor match {
+  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] = {
+    val io = blockHeightCursor match {
       case Some(blockHeight) =>
         IO.delay {
           savedTransactions.update(
@@ -38,6 +37,9 @@ class InterpreterServiceMock extends InterpreterService {
         }
       case None => IO.delay(savedTransactions.remove(accountId))
     }
+
+    io.map(_ => 0)
+  }
 
   //TODO useless in worker it test but needed in service it test.
   def getTransactions(
@@ -79,7 +81,7 @@ class InterpreterServiceMock extends InterpreterService {
       )
     }
 
-  def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Unit] = {
-    IO.pure(Empty())
+  def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Int] = {
+    IO.pure(0)
   }
 }
