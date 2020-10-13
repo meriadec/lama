@@ -93,4 +93,10 @@ object TransactionQueries {
           ) ON CONFLICT ON CONSTRAINT output_pkey DO NOTHING
         """
 
+  def deleteTransactions(accountId: UUID, blockHeight: Long): ConnectionIO[Int] =
+    sql"""DELETE from transaction t
+          USING block b
+          WHERE t.block_hash = b.hash
+          AND t.account_id = $accountId
+          AND b.height >= $blockHeight""".update.run
 }

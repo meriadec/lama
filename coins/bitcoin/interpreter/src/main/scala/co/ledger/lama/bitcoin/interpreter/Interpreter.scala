@@ -3,7 +3,6 @@ package co.ledger.lama.bitcoin.interpreter
 import cats.effect.{ConcurrentEffect, IO}
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
-import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.utils.UuidUtils
 import com.google.protobuf.empty.Empty
@@ -77,8 +76,16 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
     }
   }
 
-  def deleteTransactions(request: protobuf.DeleteTransactionsRequest, ctx: Metadata): IO[Empty] =
-    IO.pure(Empty())
+  def deleteTransactions(request: protobuf.DeleteTransactionsRequest, ctx: Metadata): IO[Empty] = {
+    for {
+      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+      _         <- log.info(s"""Deleting transactions with parameters:
+                      |- accountId: ${accountId}
+                      |- blockHeight: ${request.blockHeight}""".stripMargin)
+      txRes     <- transactionInterpreter.deleteTransactions(accountId, request.blockHeight)
+      _         <- log.info(s"Deleted $txRes transactions")
+    } yield Empty()
+  }
 
   def computeOperations(request: protobuf.ComputeOperationsRequest, ctx: Metadata): IO[Empty] = {
     log.info(s"""Computing operations with parameters:

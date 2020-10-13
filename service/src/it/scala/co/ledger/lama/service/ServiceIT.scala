@@ -122,6 +122,13 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
 
               accountDeletedStatus <-
                 client.status(removeAccountRequest(accountRegistered.accountId))
+
+              deletedAccountResult <- IOUtils.retry[GetAccountManagerInfoResult](
+                client.expect[GetAccountManagerInfoResult](
+                  getAccountRequest(accountRegistered.accountId)
+                ),
+                _.status.contains("deleted")
+              )
             } yield {
               val accountStr =
                 s"Account: ${accountResult.accountId} (${account.registerRequest.scheme})"
@@ -146,10 +153,9 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
               }
 
               it should "unregistered" in {
-                // TODO: test unregister (get ops and account info from removed account = 404)
                 accountDeletedStatus.code shouldBe 200
+                deletedAccountResult.status shouldBe Some("deleted")
               }
-
             }
           }
       }

@@ -43,7 +43,7 @@ CREATE TABLE input (
     belongs BOOLEAN,
 
     PRIMARY KEY (account_id, hash, output_hash, output_index),
-    FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash)
+    FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash) ON DELETE CASCADE
 );
 
 CREATE TABLE output (
@@ -57,7 +57,7 @@ CREATE TABLE output (
     change_type CHANGE_TYPE,
 
     PRIMARY KEY (account_id, hash, output_index),
-    FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash)
+    FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash) ON DELETE CASCADE
 );
 
 CREATE TABLE operation (
@@ -68,5 +68,5 @@ CREATE TABLE operation (
     time VARCHAR NOT NULL,
 
     PRIMARY KEY (account_id, hash, operation_type),
-    FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash)
+    FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash) ON DELETE CASCADE
 );

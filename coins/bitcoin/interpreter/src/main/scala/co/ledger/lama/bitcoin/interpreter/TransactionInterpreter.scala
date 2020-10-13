@@ -23,4 +23,7 @@ class TransactionInterpreter(db: Transactor[IO]) {
 
     } yield res.sum
 
+  def deleteTransactions(accountId: UUID, blockHeight: Long): IO[Int] =
+    TransactionQueries.deleteTransactions(accountId, blockHeight).transact(db)
+
 }

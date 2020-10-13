@@ -177,11 +177,8 @@ class Worker(
           Pull.output(Chunk(batchResult))
       }
 
-  // TODO:
-  //  - ask interpreter to delete account
-  //  - delete keychain
-  //  - report successful deleted event
   def deleteAccount(workableEvent: WorkableEvent): IO[ReportableEvent] =
-    IO.pure(workableEvent.reportSuccess(Json.obj()))
-
+    interpreterService
+      .removeTransactions(workableEvent.accountId, None)
+      .map(_ => workableEvent.reportSuccess(Json.obj()))
 }

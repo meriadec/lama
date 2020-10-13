@@ -1,3 +1,5 @@
+[![LedgerHQ](https://circleci.com/gh/LedgerHQ/lama.svg?style=shield)](https://github.com/LedgerHQ/lama)
+
 # Ledger Account Manager API
 
 Synchronization and management of account states (transactions, balance, ...) across Blockchain protocols.

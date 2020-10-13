@@ -10,11 +10,14 @@ import doobie.implicits._
 import doobie.postgres.implicits._
 import doobie._
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
-import doobie.free.connection.ConnectionOp
+import doobie.free.connection
 
 object OperationQueries extends IOLogging {
 
-  def fetchTx(accountId: UUID, hash: String): Free[ConnectionOp, Option[TransactionView]] = {
+  def fetchTx(
+      accountId: UUID,
+      hash: String
+  ): Free[connection.ConnectionOp, Option[TransactionView]] = {
     log.info(s"Fetching transaction for accountId $accountId and hash $hash")
 
     for {
@@ -118,7 +121,7 @@ object OperationQueries extends IOLogging {
       .query[Operation]
       .stream
 
-  def saveOperation(operation: Operation): doobie.ConnectionIO[Int] =
+  def saveOperation(operation: Operation): ConnectionIO[Int] =
     sql"""INSERT INTO operation (
             account_id, hash, operation_type, value, time
           ) VALUES (
@@ -147,5 +150,4 @@ object OperationQueries extends IOLogging {
           AND address = ${address.accountAddress}
        """.update.run
   }
-
 }
