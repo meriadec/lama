@@ -2,11 +2,12 @@ package co.ledger.lama.service
 
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
+import co.ledger.lama.common.health.protobuf.HealthFs2Grpc
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import co.ledger.lama.service.Config.Config
-import co.ledger.lama.service.routes.AccountController
+import co.ledger.lama.service.routes._
 import co.ledger.protobuf.bitcoin.KeychainServiceFs2Grpc
 import io.grpc.Metadata
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
@@ -17,6 +18,8 @@ import pureconfig.ConfigSource
 object App extends IOApp with IOLogging {
 
   case class ServiceResources(
+      grpcAccountManagerHealthClient: HealthFs2Grpc[IO, Metadata],
+      grpcBitcoinInterpreterHealthClient: HealthFs2Grpc[IO, Metadata],
       grpcAccountClient: AccountManagerServiceFs2Grpc[IO, Metadata],
       grpcKeychainClient: KeychainServiceFs2Grpc[IO, Metadata],
       grpcBitcoinInterpreterClient: BitcoinInterpreterServiceFs2Grpc[IO, Metadata]
@@ -29,6 +32,9 @@ object App extends IOApp with IOLogging {
       grpcAccountManagerClient <-
         grpcManagedChannel(conf.accountManager).map(AccountManagerServiceFs2Grpc.stub[IO](_))
 
+      grpcAccountManagerHealthClient <-
+        grpcManagedChannel(conf.accountManager).map(HealthFs2Grpc.stub[IO](_))
+
       _ = log.info("Account Manager GRPC client instantiated")
 
       grpcKeychainClient <-
@@ -39,21 +45,30 @@ object App extends IOApp with IOLogging {
       grpcBitcoinInterpreterClient <- grpcManagedChannel(conf.bitcoin.interpreter)
         .map(BitcoinInterpreterServiceFs2Grpc.stub[IO](_))
 
+      grpcBitcoinInterpreterHealthClient <- grpcManagedChannel(conf.bitcoin.interpreter)
+        .map(HealthFs2Grpc.stub[IO](_))
+
       _ = log.info("Bitcoin GRPC client instantiated")
     } yield ServiceResources(
-      grpcAccountManagerClient,
-      grpcKeychainClient,
-      grpcBitcoinInterpreterClient
+      grpcAccountManagerHealthClient = grpcAccountManagerHealthClient,
+      grpcBitcoinInterpreterHealthClient = grpcBitcoinInterpreterHealthClient,
+      grpcAccountClient = grpcAccountManagerClient,
+      grpcKeychainClient = grpcKeychainClient,
+      grpcBitcoinInterpreterClient = grpcBitcoinInterpreterClient
     )
 
     resources.use { serviceResources =>
       log.info("Instantiating routes")
 
       val httpRoutes = Router[IO](
-        "/" -> AccountController.routes(
+        "accounts" -> AccountController.routes(
           serviceResources.grpcKeychainClient,
           serviceResources.grpcAccountClient,
           serviceResources.grpcBitcoinInterpreterClient
+        ),
+        "health" -> HealthController.routes(
+          serviceResources.grpcAccountManagerHealthClient,
+          serviceResources.grpcBitcoinInterpreterHealthClient
         )
       ).orNotFound
 

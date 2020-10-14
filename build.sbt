@@ -73,9 +73,11 @@ lazy val sharedSettings = assemblySettings ++ dockerSettings ++ Defaults.itSetti
 
 // Common lama library
 lazy val common = (project in file("common"))
+  .enablePlugins(Fs2Grpc)
   .configs(IntegrationTest)
   .settings(
     name := "lama-common",
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     libraryDependencies ++= (Dependencies.lamaCommon ++ Dependencies.test),
     test in assembly := {}
   )

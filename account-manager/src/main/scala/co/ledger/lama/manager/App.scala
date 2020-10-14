@@ -2,7 +2,7 @@ package co.ledger.lama.manager
 
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.utils.{RabbitUtils, ResourceUtils}
+import co.ledger.lama.common.utils.{HealthUtils, RabbitUtils, ResourceUtils}
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import co.ledger.lama.manager.config.{Config, OrchestratorConfig}
 import com.redis.RedisClient
@@ -35,7 +35,8 @@ object App extends IOApp with IOLogging {
 
       // define rpc service definitions
       serviceDefinitions = List(
-        new Service(db, conf.orchestrator.coins).definition
+        new Service(db, conf.orchestrator.coins).definition,
+        new HealthUtils().definition
       )
 
       // create the grpc server

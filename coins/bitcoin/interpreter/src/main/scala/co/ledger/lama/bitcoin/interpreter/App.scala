@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.interpreter
 
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.common.logging.IOLogging
+import co.ledger.lama.common.utils.HealthUtils
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import pureconfig.ConfigSource
 import fs2.Stream
@@ -18,7 +19,8 @@ object App extends IOApp with IOLogging {
       _ = log.info("DB instantiated")
 
       serviceDefinitions = List(
-        new DbInterpreter(db).definition
+        new DbInterpreter(db).definition,
+        new HealthUtils().definition
       )
 
       grpcServer <- grpcServer(conf.grpcServer, serviceDefinitions)

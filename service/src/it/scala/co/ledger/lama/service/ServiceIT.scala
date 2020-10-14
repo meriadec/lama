@@ -18,7 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 import cats.implicits._
-import co.ledger.lama.common.models.Status.{Deleted, Registered, Synchronized}
+import co.ledger.lama.common.models.Status.{Deleted, Published, Registered, Synchronized}
 import co.ledger.lama.common.models.Sort
 import io.circe.parser._
 
@@ -78,8 +78,11 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
         case (accounts, client) =>
           accounts.traverse { account =>
             for {
-              accountRegistered <- client.expect[AccountRegistered](
-                accountRegisteringRequest.withEntity(account.registerRequest)
+              // This is retried because sometimes, the keychain service isn't ready when the tests start
+              accountRegistered <- IOUtils.retry[AccountRegistered](
+                client.expect[AccountRegistered](
+                  accountRegisteringRequest.withEntity(account.registerRequest)
+                )
               )
 
               accountInfoAfterRegister <- client.expect[AccountInfo](
@@ -90,7 +93,7 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                 IOUtils
                   .fetchPaginatedItems[GetOperationsResult](
                     (offset, limit) =>
-                      IOUtils.retry[GetOperationsResult](
+                      IOUtils.retryIf[GetOperationsResult](
                         client.expect[GetOperationsResult](
                           getOperationsRequest(accountRegistered.accountId, offset, limit)
                         ),
@@ -128,7 +131,7 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
               accountDeletedStatus <-
                 client.status(removeAccountRequest(accountRegistered.accountId))
 
-              deletedAccountResult <- IOUtils.retry[AccountInfo](
+              deletedAccountResult <- IOUtils.retryIf[AccountInfo](
                 client.expect[AccountInfo](
                   getAccountRequest(accountRegistered.accountId)
                 ),
@@ -140,7 +143,8 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
 
               accountStr should "be registered" in {
                 accountInfoAfterRegister.accountId shouldBe accountRegistered.accountId
-                accountInfoAfterRegister.syncEvent.map(_.status) should contain(Registered)
+                accountInfoAfterRegister.syncEvent
+                  .map(_.status) should (contain(Registered) or contain(Published))
               }
 
               it should s"have a balance of ${account.expected.balance}" in {

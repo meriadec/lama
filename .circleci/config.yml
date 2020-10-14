@@ -271,6 +271,7 @@ jobs:
   e2e_tests:
     machine:
       image: ubuntu-1604:202007-01
+    resource_class: large
     steps:
       - checkout
       - after_checkout_lama
@@ -283,7 +284,13 @@ jobs:
           name: Run dockerized lama components
           command: docker-compose up -d
       - run:
-          command: sleep 60
+          name: Waiting for GRPC servers to be up
+          command: |
+            apt-get update && apt-get install -y wget
+            wget https://github.com/jwilder/dockerize/releases/download/v0.6.1/dockerize-linux-amd64-v0.6.1.tar.gz \
+                && sudo tar -C /usr/local/bin -xzvf dockerize-linux-amd64-v0.6.1.tar.gz \
+                && rm dockerize-linux-amd64-v0.6.1.tar.gz
+            dockerize -wait http://localhost:8080/health -timeout 120s
       - run:
           name: Run e2e tests
           command: sbt service/it:test

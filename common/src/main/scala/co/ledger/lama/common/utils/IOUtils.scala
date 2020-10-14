@@ -25,7 +25,20 @@ object IOUtils {
       }
   }
 
-  def retry[T](io: IO[T], success: T => Boolean, policy: RetryPolicy = RetryPolicy.linear())(
+  def retry[T](io: IO[T], policy: RetryPolicy = RetryPolicy.linear())(implicit
+      t: Timer[IO]
+  ): IO[T] = {
+    Stream
+      .eval(io)
+      .attempts(policy)
+      .collectFirst {
+        case Right(res) => res
+      }
+      .compile
+      .lastOrError
+  }
+
+  def retryIf[T](io: IO[T], success: T => Boolean, policy: RetryPolicy = RetryPolicy.linear())(
       implicit t: Timer[IO]
   ): IO[T] = {
     Stream

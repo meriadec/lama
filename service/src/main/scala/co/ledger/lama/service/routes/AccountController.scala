@@ -56,7 +56,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       interpreterClient: BitcoinInterpreterServiceFs2Grpc[IO, Metadata]
   ): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
-      case GET -> Root / "accounts" / UUIDVar(accountId) =>
+      case GET -> Root / UUIDVar(accountId) =>
         accountManagerClient
           .getAccountInfo(toAccountInfoRequest(accountId), new Metadata)
           .parProduct(
@@ -70,7 +70,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             case (info, balance) => Ok(fromAccountInfo(info, balance))
           }
 
-      case req @ POST -> Root / "accounts" =>
+      case req @ POST -> Root =>
         val ra = for {
           creationRequest <- req.as[CreationRequest]
           _               <- log.info(s"Creating keychain with arguments: ${creationRequest}")
@@ -79,8 +79,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           keychainId <- IO.fromOption(
             UuidUtils.bytesToUuid(createdKeychain.keychainId)
           )(MalformedProtobufUuidException)
-          _ = log.debug(s"Keychain created with id: $keychainId")
-          _ = log.info("Registering account")
+          _ <- log.debug(s"Keychain created with id: $keychainId")
+          _ <- log.info("Registering account")
           registeredAccount <- accountManagerClient.registerAccount(
             new RegisterAccountRequest(
               key = keychainId.toString,
@@ -90,7 +90,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             ),
             new Metadata
           )
-          _ = log.debug(
+          _ <- log.debug(
             s"Account registered with id: ${UuidUtils.bytesToUuid(registeredAccount.accountId).getOrElse("")}"
           )
         } yield registeredAccount
@@ -99,7 +99,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           .map(fromRegisterAccount)
           .flatMap(Ok(_))
 
-      case DELETE -> Root / "accounts" / UUIDVar(accountId) =>
+      case DELETE -> Root / UUIDVar(accountId) =>
         log.info(s"Fetching account informations for id: ${accountId}")
         val r = for {
           ai <- accountManagerClient.getAccountInfo(
@@ -130,7 +130,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
         r.flatMap(_ => Ok())
 
-      case GET -> Root / "accounts" / UUIDVar(
+      case GET -> Root / UUIDVar(
             accountId
           ) / "operations" :? OptionalBlockHeightQueryParamMatcher(blockHeight)
           +& OptionalLimitQueryParamMatcher(limit)
@@ -154,7 +154,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           .map(fromOperationListingInfos)
           .flatMap(Ok(_))
 
-      case GET -> Root / "accounts" / UUIDVar(
+      case GET -> Root / UUIDVar(
             accountId
           ) / "utxos" :? OptionalLimitQueryParamMatcher(limit)
           +& OptionalOffsetQueryParamMatcher(offset) =>
