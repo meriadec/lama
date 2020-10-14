@@ -4,7 +4,9 @@ import io.circe.{Decoder, Encoder}
 import pureconfig.ConfigReader
 import pureconfig.error.CannotConvert
 
-abstract class Sort(val name: String)
+abstract class Sort(val name: String) {
+  override def toString: String = name
+}
 
 object Sort {
   case object Ascending extends Sort("ASC")
@@ -22,4 +24,8 @@ object Sort {
 
   implicit val configReader: ConfigReader[Sort] =
     ConfigReader.fromString(str => fromKey(str).toRight(CannotConvert(str, "Sort", "unknown")))
+
+  def fromIsAsc(isAsc: Boolean): Sort =
+    if (isAsc) Ascending
+    else Descending
 }

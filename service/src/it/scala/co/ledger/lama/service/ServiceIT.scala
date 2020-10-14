@@ -19,10 +19,10 @@ import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 import cats.implicits._
 import co.ledger.lama.common.models.Status.{Deleted, Registered, Synchronized}
+import co.ledger.lama.common.models.Sort
 import io.circe.parser._
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContext.global
 
 class ServiceIT extends AnyFlatSpecLike with Matchers {
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
@@ -49,11 +49,11 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
       uri = Uri.unsafeFromString(s"$serverUrl/accounts/$accountId")
     )
 
-  def getOperationsRequest(accountId: UUID, offset: Int, limit: Int) =
+  def getOperationsRequest(accountId: UUID, offset: Int, limit: Int, sort: Sort = Sort.Descending) =
     Request[IO](
       method = Method.GET,
       uri = Uri.unsafeFromString(
-        s"$serverUrl/accounts/$accountId/operations?limit=$limit&offset=$offset"
+        s"$serverUrl/accounts/$accountId/operations?limit=$limit&offset=$offset&sort=$sort"
       )
     )
 
@@ -73,7 +73,7 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
 
   IOAssertion {
     accountsRes
-      .parZip(BlazeClientBuilder[IO](global).resource)
+      .parZip(BlazeClientBuilder[IO](ExecutionContext.global).resource)
       .use {
         case (accounts, client) =>
           accounts.traverse { account =>
@@ -168,7 +168,7 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                 operations.size shouldBe account.expected.opsSize
               }
 
-              val lastTxHash = operations.maxBy(_.time).hash
+              val lastTxHash = operations.head.hash
               it should s"have fetch operations to last cursor $lastTxHash" in {
                 lastTxHash shouldBe account.expected.lastTxHash
               }

@@ -76,7 +76,8 @@ lazy val common = (project in file("common"))
   .configs(IntegrationTest)
   .settings(
     name := "lama-common",
-    libraryDependencies ++= (Dependencies.lamaCommon ++ Dependencies.test)
+    libraryDependencies ++= (Dependencies.lamaCommon ++ Dependencies.test),
+    test in assembly := {}
   )
 
 lazy val accountManager = (project in file("account-manager"))

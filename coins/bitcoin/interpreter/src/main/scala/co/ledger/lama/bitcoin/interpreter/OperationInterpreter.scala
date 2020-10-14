@@ -12,19 +12,24 @@ import co.ledger.lama.bitcoin.common.models.service.{
   Received,
   Sent
 }
+import co.ledger.lama.common.models.Sort
 import doobie.Transactor
 import doobie.implicits._
 
 class OperationInterpreter(db: Transactor[IO]) {
 
-  def getOperations(accountId: UUID, limit: Int, offset: Int): IO[(List[Operation], Boolean)] = {
-
+  def getOperations(
+      accountId: UUID,
+      limit: Int,
+      offset: Int,
+      sort: Sort
+  ): IO[(List[Operation], Boolean)] =
     for {
 
       // We fetch limit + 1 operations to know if there's more to fetch.
       ops <-
         OperationQueries
-          .fetchOperations(accountId, Some(limit + 1), Some(offset))
+          .fetchOperations(accountId, sort, Some(limit + 1), Some(offset))
           .transact(db)
           .compile
           .toList
@@ -43,10 +48,6 @@ class OperationInterpreter(db: Transactor[IO]) {
       val operations = opsWithTx.slice(0, limit)
       (operations, truncated)
     }
-
-    // TODO deal with ordering
-
-  }
 
   def getUTXOs(accountId: UUID, limit: Int, offset: Int): IO[(List[OutputView], Boolean)] =
     for {

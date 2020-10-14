@@ -4,6 +4,7 @@ import java.util.UUID
 
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.common.models.Sort
 import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -69,11 +70,12 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
         val transactionInterpreter = new TransactionInterpreter(db)
 
         for {
-          _   <- QueryUtils.saveBlock(db, block)
-          _   <- QueryUtils.saveTx(db, insertTx, accountId)
-          _   <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
-          _   <- transactionInterpreter.deleteTransactions(accountId, 0)
-          res <- operationInterpreter.getOperations(accountId, 20, 0)
+          _ <- QueryUtils.saveBlock(db, block)
+          _ <- QueryUtils.saveTx(db, insertTx, accountId)
+          _ <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
+          _ <- transactionInterpreter.deleteTransactions(accountId, 0)
+          res <-
+            operationInterpreter.getOperations(accountId, limit = 20, offset = 0, Sort.Ascending)
           (ops, trunc) = res
         } yield {
           ops should have size 0

@@ -5,6 +5,7 @@ import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
 import co.ledger.lama.bitcoin.interpreter.protobuf.ResultCount
 import co.ledger.lama.common.logging.IOLogging
+import co.ledger.lama.common.models.Sort
 import co.ledger.lama.common.utils.UuidUtils
 import doobie.Transactor
 import io.grpc.{Metadata, ServerServiceDefinition}
@@ -42,19 +43,22 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
   ): IO[protobuf.GetOperationsResult] = {
     val limit  = if (request.limit <= 0) 20 else request.limit
     val offset = if (request.offset < 0) 0 else request.offset
-
-    log.info(s"""Getting operations with parameters:
-         |- accountId: ${request.accountId}
-         |- limit: $limit
-         |- offset: $offset
-         |""".stripMargin)
+    val sort   = Sort.fromIsAsc(request.sort.isAsc)
 
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
-      _ = log.info("Fetching operations")
-      opResult <- operationInterpreter.getOperations(accountId, limit, offset)
-      _                       = log.info(s"$opResult")
+      _         <- log.info(s"""Getting operations with parameters:
+                  |- accountId: $accountId
+                  |- limit: $limit
+                  |- offset: $offset
+                  |- sort: $sort
+                  |""".stripMargin)
+      opResult  <- operationInterpreter.getOperations(accountId, limit, offset, sort)
       (operations, truncated) = opResult
+      _ <- log.info(s"""Results:
+                     |- size: ${operations.length}
+                     |- truncated: $truncated
+                     |""".stripMargin)
     } yield protobuf.GetOperationsResult(operations.map(_.toProto), truncated)
   }
 

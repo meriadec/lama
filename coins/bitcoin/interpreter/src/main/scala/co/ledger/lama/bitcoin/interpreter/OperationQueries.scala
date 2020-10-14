@@ -10,6 +10,7 @@ import doobie.implicits._
 import doobie.postgres.implicits._
 import doobie._
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
+import co.ledger.lama.common.models.Sort
 import doobie.free.connection
 
 object OperationQueries extends IOLogging {
@@ -111,16 +112,18 @@ object OperationQueries extends IOLogging {
 
   def fetchOperations(
       accountId: UUID,
+      sort: Sort = Sort.Descending,
       limit: Option[Int] = None,
       offset: Option[Int] = None
   ): fs2.Stream[doobie.ConnectionIO, Operation] = {
+    val orderF  = Fragment.const(s"ORDER BY time $sort")
     val limitF  = limit.map(l => fr"LIMIT $l").getOrElse(Fragment.empty)
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
 
     val query = sql"""SELECT account_id, hash, operation_type, value, time
           FROM operation
           WHERE account_id = $accountId
-          """ ++ limitF ++ offsetF
+          """ ++ orderF ++ limitF ++ offsetF
     query.query[Operation].stream
   }
 
