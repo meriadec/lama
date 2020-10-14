@@ -5,6 +5,7 @@ import java.util.UUID
 import co.ledger.lama.common.models.Status.Published
 import io.circe.{Decoder, Encoder, Json}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.syntax.EncoderOps
 
 sealed trait SyncEvent extends WithKey[UUID] {
   def accountId: UUID
@@ -17,6 +18,21 @@ sealed trait SyncEvent extends WithKey[UUID] {
 trait WithKey[K] { def key: K }
 
 object SyncEvent {
+
+  implicit val encoder: Encoder[SyncEvent] =
+    Encoder.instance {
+      case re: ReportableEvent  => re.asJson
+      case we: WorkableEvent    => we.asJson
+      case te: TriggerableEvent => te.asJson
+      case ne: FlaggedEvent     => ne.asJson
+    }
+
+  implicit val decoder: Decoder[SyncEvent] =
+    Decoder[ReportableEvent]
+      .map[SyncEvent](identity)
+      .or(Decoder[WorkableEvent].map[SyncEvent](identity))
+      .or(Decoder[TriggerableEvent].map[SyncEvent](identity))
+      .or(Decoder[FlaggedEvent].map[SyncEvent](identity))
 
   def apply(
       accountId: UUID,

@@ -11,7 +11,10 @@
     "expected": {
       "opsSize": 6,
       "utxosSize": 0,
-      "lastTxHash": "87c56939aafe72cd9dafa23379444c5c771f9e02ea014da79748a6b5cc320ba9"
+      "lastTxHash": "87c56939aafe72cd9dafa23379444c5c771f9e02ea014da79748a6b5cc320ba9",
+      "balance": 0,
+      "amountReceived": 2324546,
+      "amountSpent": 2324546
     }
   },
   {
@@ -26,7 +29,10 @@
     "expected": {
       "opsSize": 129,
       "utxosSize": 16,
-      "lastTxHash": "b0c0dc176eaf463a5cecf15f1f55af99a41edfd6e01685068c0db3cc779861c8"
+      "lastTxHash": "b0c0dc176eaf463a5cecf15f1f55af99a41edfd6e01685068c0db3cc779861c8",
+      "balance": 983047,
+      "amountReceived": 7209619,
+      "amountSpent": 6226572
     }
   }
 ]

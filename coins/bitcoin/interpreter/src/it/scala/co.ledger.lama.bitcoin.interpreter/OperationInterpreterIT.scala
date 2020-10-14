@@ -116,4 +116,23 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
       }
   }
 
+  it should "have the correct balance" in IOAssertion {
+    setup() *>
+      appResources.use { db =>
+        val operationInterpreter = new OperationInterpreter(db)
+
+        for {
+          _  <- QueryUtils.saveBlock(db, block)
+          _  <- QueryUtils.saveTx(db, insertTx, accountId)
+          _  <- operationInterpreter.computeOperations(accountId, List(outputAddress1))
+          ai <- operationInterpreter.getBalance(accountId)
+        } yield {
+          ai.balance shouldBe BigInt(50000)
+          ai.amountReceived shouldBe BigInt(50000)
+          ai.amountSpent shouldBe BigInt(0)
+          ai.utxoCount shouldBe 1
+        }
+      }
+  }
+
 }

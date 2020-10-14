@@ -5,18 +5,7 @@ import java.util.UUID
 import io.circe.Decoder
 import io.circe.generic.semiauto.deriveDecoder
 import co.ledger.lama.bitcoin.common.models.service.{Operation, OutputView}
-
-case class GetAccountManagerInfoResult(
-    accountId: UUID,
-    keychainId: String,
-    syncFrequency: Long,
-    status: Option[String]
-)
-
-object GetAccountManagerInfoResult {
-  implicit val getAccountManagerInfoResultDecoder: Decoder[GetAccountManagerInfoResult] =
-    deriveDecoder[GetAccountManagerInfoResult]
-}
+import co.ledger.lama.common.models.SyncEvent
 
 case class GetOperationsResult(
     truncated: Boolean,
@@ -38,6 +27,21 @@ case class GetUTXOsResult(
 object GetUTXOsResult {
   implicit val getUTXOsResultDecoder: Decoder[GetUTXOsResult] =
     deriveDecoder[GetUTXOsResult]
+}
+
+case class AccountInfo(
+    accountId: UUID,
+    syncFrequency: Long,
+    syncEvent: Option[SyncEvent],
+    balance: BigInt,
+    utxoCount: Int,
+    amountSpent: BigInt,
+    amountReceived: BigInt
+)
+
+object AccountInfo {
+  implicit val getAccountInfoDecoder: Decoder[AccountInfo] =
+    deriveDecoder[AccountInfo]
 }
 
 case class AccountRegistered(accountId: UUID, syncId: UUID, syncFrequency: Long)

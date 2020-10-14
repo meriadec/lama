@@ -107,4 +107,17 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
       savedOps <- operationInterpreter.computeOperations(accountId, addresses)
     } yield ResultCount(savedOps)
   }
+
+  def getBalance(
+      request: protobuf.GetBalanceRequest,
+      ctx: Metadata
+  ): IO[protobuf.GetBalanceResult] = {
+    for {
+      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+      info      <- operationInterpreter.getBalance(accountId)
+    } yield {
+      info.toProto
+    }
+  }
+
 }

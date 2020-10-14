@@ -4,7 +4,14 @@ import java.util.UUID
 
 import cats.effect.IO
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.service.{AccountAddress, Operation, OutputView}
+import co.ledger.lama.bitcoin.common.models.service.{
+  AccountAddress,
+  AccountBalance,
+  Operation,
+  OutputView,
+  Received,
+  Sent
+}
 import doobie.Transactor
 import doobie.implicits._
 
@@ -17,7 +24,7 @@ class OperationInterpreter(db: Transactor[IO]) {
       // We fetch limit + 1 operations to know if there's more to fetch.
       ops <-
         OperationQueries
-          .fetchOperations(accountId, limit + 1, offset)
+          .fetchOperations(accountId, Some(limit + 1), Some(offset))
           .transact(db)
           .compile
           .toList
@@ -45,7 +52,7 @@ class OperationInterpreter(db: Transactor[IO]) {
     for {
       utxos <-
         OperationQueries
-          .fetchUTXOs(accountId, limit + 1, offset)
+          .fetchUTXOs(accountId, Some(limit + 1), Some(offset))
           .transact(db)
           .compile
           .toList
@@ -104,5 +111,22 @@ class OperationInterpreter(db: Transactor[IO]) {
 
     query.transact(db)
   }
+
+  def getBalance(accountId: UUID): IO[AccountBalance] =
+    for {
+      utxo <- OperationQueries.fetchUTXOs(accountId).transact(db).compile.toList
+      ops  <- OperationQueries.fetchOperations(accountId).transact(db).compile.toList
+    } yield {
+      AccountBalance(
+        utxo.map(_.value).sum,
+        utxo.size,
+        ops.collect {
+          case op if op.operationType == Sent => op.value
+        }.sum,
+        ops.collect {
+          case op if op.operationType == Received => op.value
+        }.sum
+      )
+    }
 
 }

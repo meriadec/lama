@@ -53,10 +53,14 @@ object OperationQueries extends IOLogging {
 
   def fetchUTXOs(
       accountId: UUID,
-      limit: Int = 20,
-      offset: Int = 0
-  ): fs2.Stream[doobie.ConnectionIO, OutputView] =
-    sql"""SELECT o.output_index, o.value, o.address, o.script_hex, o.belongs, o.change_type
+      limit: Option[Int] = None,
+      offset: Option[Int] = None
+  ): fs2.Stream[doobie.ConnectionIO, OutputView] = {
+    val limitF  = limit.map(l => fr"LIMIT $l").getOrElse(Fragment.empty)
+    val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
+
+    val query =
+      sql"""SELECT o.output_index, o.value, o.address, o.script_hex, o.belongs, o.change_type
           FROM output o
             LEFT JOIN input i
               ON o.account_id = i.account_id
@@ -64,11 +68,9 @@ object OperationQueries extends IOLogging {
           WHERE o.account_id = $accountId
             AND o.belongs = true
             AND i.address IS NULL
-          LIMIT $limit
-          OFFSET $offset
-          """
-      .query[OutputView]
-      .stream
+      """ ++ limitF ++ offsetF
+    query.query[OutputView].stream
+  }
 
   private def fetchTxAndBlock(
       accountId: UUID,
@@ -109,17 +111,18 @@ object OperationQueries extends IOLogging {
 
   def fetchOperations(
       accountId: UUID,
-      limit: Int = 20,
-      offset: Int = 0
-  ): fs2.Stream[doobie.ConnectionIO, Operation] =
-    sql"""SELECT account_id, hash, operation_type, value, time
+      limit: Option[Int] = None,
+      offset: Option[Int] = None
+  ): fs2.Stream[doobie.ConnectionIO, Operation] = {
+    val limitF  = limit.map(l => fr"LIMIT $l").getOrElse(Fragment.empty)
+    val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
+
+    val query = sql"""SELECT account_id, hash, operation_type, value, time
           FROM operation
           WHERE account_id = $accountId
-          LIMIT $limit
-          OFFSET $offset
-          """
-      .query[Operation]
-      .stream
+          """ ++ limitF ++ offsetF
+    query.query[Operation].stream
+  }
 
   def saveOperation(operation: Operation): ConnectionIO[Int] =
     sql"""INSERT INTO operation (

@@ -6,8 +6,8 @@ import cats.effect.{ContextShift, IO, Resource, Timer}
 import co.ledger.lama.common.utils.{IOAssertion, IOUtils}
 import co.ledger.lama.service.ConfigSpec.ConfigSpec
 import co.ledger.lama.service.models.{
+  AccountInfo,
   AccountRegistered,
-  GetAccountManagerInfoResult,
   GetOperationsResult,
   GetUTXOsResult
 }
@@ -18,6 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 import cats.implicits._
+import co.ledger.lama.common.models.Status.{Deleted, Registered, Synchronized}
 import io.circe.parser._
 
 import scala.concurrent.ExecutionContext
@@ -81,7 +82,7 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                 accountRegisteringRequest.withEntity(account.registerRequest)
               )
 
-              accountResult <- client.expect[GetAccountManagerInfoResult](
+              accountInfoAfterRegister <- client.expect[AccountInfo](
                 getAccountRequest(accountRegistered.accountId)
               )
 
@@ -120,26 +121,46 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                   .toList
                   .map(_.flatMap(_.utxos))
 
+              accountInfoAfterSync <- client.expect[AccountInfo](
+                getAccountRequest(accountRegistered.accountId)
+              )
+
               accountDeletedStatus <-
                 client.status(removeAccountRequest(accountRegistered.accountId))
 
-              deletedAccountResult <- IOUtils.retry[GetAccountManagerInfoResult](
-                client.expect[GetAccountManagerInfoResult](
+              deletedAccountResult <- IOUtils.retry[AccountInfo](
+                client.expect[AccountInfo](
                   getAccountRequest(accountRegistered.accountId)
                 ),
-                _.status.contains("deleted")
+                _.syncEvent.exists(_.status == Deleted)
               )
             } yield {
               val accountStr =
-                s"Account: ${accountResult.accountId} (${account.registerRequest.scheme})"
+                s"Account: ${accountInfoAfterRegister.accountId} (${account.registerRequest.scheme})"
 
-              accountStr should "registered" in {
-                accountResult.accountId shouldBe accountRegistered.accountId
+              accountStr should "be registered" in {
+                accountInfoAfterRegister.accountId shouldBe accountRegistered.accountId
+                accountInfoAfterRegister.syncEvent.map(_.status) should contain(Registered)
               }
 
-              // TODO: test account info (balance, ...)
+              it should s"have a balance of ${account.expected.balance}" in {
+                accountInfoAfterSync.balance shouldBe BigInt(account.expected.balance)
+                accountInfoAfterSync.syncEvent.map(_.status) should contain(Synchronized)
+              }
 
-              it should s"have ${account.expected.utxosSize} utxos" in {
+              it should s"have ${account.expected.utxosSize} utxos in AccountInfo API" in {
+                accountInfoAfterSync.utxoCount shouldBe account.expected.utxosSize
+              }
+
+              it should s"have ${account.expected.amountReceived} amount received" in {
+                accountInfoAfterSync.amountReceived shouldBe account.expected.amountReceived
+              }
+
+              it should s"have ${account.expected.amountSpent} amount spent" in {
+                accountInfoAfterSync.amountSpent shouldBe account.expected.amountSpent
+              }
+
+              it should s"have ${account.expected.utxosSize} utxos in UTXO API" in {
                 utxos.size shouldBe account.expected.utxosSize
               }
 
@@ -152,9 +173,9 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                 lastTxHash shouldBe account.expected.lastTxHash
               }
 
-              it should "unregistered" in {
+              it should "be unregistered" in {
                 accountDeletedStatus.code shouldBe 200
-                deletedAccountResult.status shouldBe Some("deleted")
+                deletedAccountResult.syncEvent.map(_.status) should contain(Deleted)
               }
             }
           }

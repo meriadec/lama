@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.effect.IO
+import co.ledger.lama.bitcoin.common.models.service.AccountBalance
 import co.ledger.lama.bitcoin.interpreter.protobuf._
 import com.google.protobuf.ByteString
 import io.grpc.Metadata
@@ -76,5 +77,8 @@ class FakeInterpreter extends Interpreter {
 
   def getUTXOs(request: protobuf.GetUTXOsRequest, ctx: Metadata): IO[protobuf.GetUTXOsResult] =
     IO.pure(GetUTXOsResult(Nil))
+
+  def getBalance(request: GetBalanceRequest, ctx: Metadata): IO[protobuf.GetBalanceResult] =
+    IO.pure(AccountBalance(0, 0, 0, 0).toProto)
 
 }

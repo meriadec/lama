@@ -3,39 +3,25 @@ package co.ledger.lama.service.utils
 import java.util.UUID
 
 import co.ledger.lama.bitcoin.common.models.service.{Operation, OutputView}
-import co.ledger.lama.bitcoin.interpreter.protobuf
+import co.ledger.lama.bitcoin.interpreter.{protobuf => pbInterpreter}
 import co.ledger.lama.common.models.BitcoinNetwork.{MainNet, RegTest, TestNet3, Unspecified}
 import co.ledger.lama.common.models.Scheme.{Bip44, Bip49, Bip84}
-import co.ledger.lama.common.models.{Coin, CoinFamily}
+import co.ledger.lama.common.models.{Coin, CoinFamily, Status, SyncEvent}
 import co.ledger.lama.common.utils.UuidUtils
-import co.ledger.lama.manager.protobuf.{
-  AccountInfoRequest,
-  AccountInfoResult,
-  RegisterAccountResult
-}
+import co.ledger.lama.manager.{protobuf => pbManager}
 import co.ledger.lama.service.models.{
+  AccountInfo,
   AccountRegistered,
-  GetAccountManagerInfoResult,
   GetOperationsResult,
   GetUTXOsResult
 }
 import co.ledger.lama.service.routes.AccountController.CreationRequest
 import co.ledger.protobuf.bitcoin.{BitcoinNetwork, CreateKeychainRequest, Scheme}
+import io.circe.parser.parse
 
 object ProtobufUtils {
-  def toAccountInfoRequest(accountId: UUID): AccountInfoRequest =
-    new AccountInfoRequest(UuidUtils.uuidToBytes(accountId))
-
-  def fromAccountInfoResult(accountInfoResult: AccountInfoResult): GetAccountManagerInfoResult = {
-    val accountId = UuidUtils.bytesToUuid(accountInfoResult.accountId).get
-
-    GetAccountManagerInfoResult(
-      accountId = accountId,
-      keychainId = accountInfoResult.key,
-      syncFrequency = accountInfoResult.syncFrequency,
-      status = accountInfoResult.lastSyncEvent.map(_.status)
-    )
-  }
+  def toAccountInfoRequest(accountId: UUID): pbManager.AccountInfoRequest =
+    new pbManager.AccountInfoRequest(UuidUtils.uuidToBytes(accountId))
 
   def toScheme(s: co.ledger.lama.common.models.Scheme): Scheme.Recognized =
     s match {
@@ -72,25 +58,55 @@ object ProtobufUtils {
       case _        => co.ledger.lama.manager.protobuf.Coin.Unrecognized(-1)
     }
 
-  def fromRegisterAccount(ra: RegisterAccountResult): AccountRegistered =
+  def fromRegisterAccount(ra: pbManager.RegisterAccountResult): AccountRegistered =
     AccountRegistered(
       accountId = UuidUtils.bytesToUuid(ra.accountId).get,
       syncId = UuidUtils.bytesToUuid(ra.syncId).get,
       syncFrequency = ra.syncFrequency
     )
 
-  def fromOperationListingInfos(txs: protobuf.GetOperationsResult): GetOperationsResult =
+  def fromOperationListingInfos(txs: pbInterpreter.GetOperationsResult): GetOperationsResult =
     GetOperationsResult(
       truncated = txs.truncated,
       operations = txs.operations.map(Operation.fromProto),
       size = txs.operations.size
     )
 
-  def fromUtxosListingInfo(txs: protobuf.GetUTXOsResult): GetUTXOsResult =
+  def fromUtxosListingInfo(txs: pbInterpreter.GetUTXOsResult): GetUTXOsResult =
     GetUTXOsResult(
       truncated = txs.truncated,
       utxos = txs.utxos.map(OutputView.fromProto),
       size = txs.utxos.size
     )
+
+  def fromSyncEvent(accountId: UUID, pb: pbManager.SyncEvent): Option[SyncEvent] =
+    for {
+      syncId  <- UuidUtils.bytesToUuid(pb.syncId)
+      status  <- Status.fromKey(pb.status)
+      payload <- parse(new String(pb.payload.toByteArray)).flatMap(_.as[SyncEvent.Payload]).toOption
+    } yield {
+      SyncEvent(
+        accountId,
+        syncId,
+        status,
+        payload
+      )
+    }
+
+  def fromAccountInfo(
+      info: pbManager.AccountInfoResult,
+      balance: pbInterpreter.GetBalanceResult
+  ): AccountInfo = {
+    val accountId = UuidUtils.bytesToUuid(info.accountId).get
+    AccountInfo(
+      accountId,
+      info.syncFrequency,
+      info.lastSyncEvent.flatMap(fromSyncEvent(accountId, _)),
+      BigInt(balance.balance),
+      balance.utxoCount,
+      BigInt(balance.amountSpent),
+      BigInt(balance.amountReceived)
+    )
+  }
 
 }

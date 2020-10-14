@@ -14,7 +14,14 @@ object TestAccount {
   implicit val encoder: Encoder[TestAccount] = deriveEncoder[TestAccount]
 }
 
-case class AccountExpectedResult(opsSize: Int, utxosSize: Int, lastTxHash: String)
+case class AccountExpectedResult(
+    opsSize: Int,
+    utxosSize: Int,
+    lastTxHash: String,
+    balance: Long,
+    amountReceived: Long,
+    amountSpent: Long
+)
 
 object AccountExpectedResult {
   implicit val decoder: Decoder[AccountExpectedResult] = deriveDecoder[AccountExpectedResult]

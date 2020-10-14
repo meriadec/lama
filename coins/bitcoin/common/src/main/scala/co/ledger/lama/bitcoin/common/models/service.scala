@@ -280,4 +280,21 @@ object service {
       )
     }
   }
+
+  case class AccountBalance(
+      balance: BigInt,
+      utxoCount: Int,
+      amountSpent: BigInt,
+      amountReceived: BigInt
+  ) {
+    def toProto: protobuf.GetBalanceResult = {
+      protobuf.GetBalanceResult(
+        balance.toLong,
+        utxoCount,
+        amountSpent.toLong,
+        amountReceived.toLong
+      )
+    }
+  }
+
 }

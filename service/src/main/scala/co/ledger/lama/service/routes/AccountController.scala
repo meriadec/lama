@@ -5,6 +5,7 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   BitcoinInterpreterServiceFs2Grpc,
+  GetBalanceRequest,
   GetOperationsRequest,
   GetUTXOsRequest,
   SortingOrder
@@ -32,6 +33,8 @@ import org.http4s.dsl.Http4sDsl
 
 object AccountController extends Http4sDsl[IO] with IOLogging {
 
+  implicit val cs = IO.contextShift(scala.concurrent.ExecutionContext.global)
+
   case class CreationRequest(
       extendedPublicKey: String,
       scheme: Scheme,
@@ -56,8 +59,16 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       case GET -> Root / "accounts" / UUIDVar(accountId) =>
         accountManagerClient
           .getAccountInfo(toAccountInfoRequest(accountId), new Metadata)
-          .map(fromAccountInfoResult)
-          .flatMap(Ok(_))
+          .parProduct(
+            interpreterClient
+              .getBalance(
+                GetBalanceRequest(UuidUtils.uuidToBytes(accountId)),
+                new Metadata
+              )
+          )
+          .flatMap {
+            case (info, balance) => Ok(fromAccountInfo(info, balance))
+          }
 
       case req @ POST -> Root / "accounts" =>
         val ra = for {
