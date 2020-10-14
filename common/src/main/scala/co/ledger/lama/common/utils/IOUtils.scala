@@ -40,19 +40,14 @@ object IOUtils {
 
   def retryIf[T](io: IO[T], success: T => Boolean, policy: RetryPolicy = RetryPolicy.linear())(
       implicit t: Timer[IO]
-  ): IO[T] = {
-    Stream
-      .eval(io.flatMap { res =>
+  ): IO[T] =
+    retry(
+      io.flatMap { res =>
         if (success(res))
           IO.pure(res)
         else
           IO.raiseError(new Exception())
-      })
-      .attempts(policy)
-      .collectFirst {
-        case Right(res) => res
-      }
-      .compile
-      .lastOrError
-  }
+      },
+      policy
+    )
 }

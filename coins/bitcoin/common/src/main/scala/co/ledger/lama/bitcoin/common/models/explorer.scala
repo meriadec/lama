@@ -1,16 +1,14 @@
 package co.ledger.lama.bitcoin.common.models
 
+import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.bitcoin.interpreter.protobuf
-import io.circe.generic.extras.{Configuration, ConfiguredJsonCodec}
-import io.circe.generic.semiauto._
+import io.circe.generic.extras.semiauto._
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
 
 object explorer {
 
-  implicit val config: Configuration = Configuration.default.withSnakeCaseMemberNames
-
-  @ConfiguredJsonCodec case class Block(
+  case class Block(
       hash: String,
       height: Long,
       time: String,
@@ -25,8 +23,8 @@ object explorer {
   }
 
   object Block {
-    implicit val encoder: Encoder[Block] = deriveEncoder[Block]
-    implicit val decoder: Decoder[Block] = deriveDecoder[Block]
+    implicit val encoder: Encoder[Block] = deriveConfiguredEncoder[Block]
+    implicit val decoder: Decoder[Block] = deriveConfiguredDecoder[Block]
 
     def fromProto(proto: protobuf.Block): Block =
       Block(proto.hash, proto.height, proto.time)
@@ -36,7 +34,7 @@ object explorer {
     def toProto: protobuf.Input
   }
 
-  @ConfiguredJsonCodec case class DefaultInput(
+  case class DefaultInput(
       outputHash: String,
       outputIndex: Long,
       inputIndex: Long,
@@ -75,9 +73,12 @@ object explorer {
         proto.txinwitness,
         BigInt(proto.sequence)
       )
+
+    implicit val encoder: Encoder[DefaultInput] = deriveConfiguredEncoder[DefaultInput]
+    implicit val decoder: Decoder[DefaultInput] = deriveConfiguredDecoder[DefaultInput]
   }
 
-  @ConfiguredJsonCodec case class CoinbaseInput(
+  case class CoinbaseInput(
       coinbase: String,
       inputIndex: Long,
       sequence: BigInt
@@ -101,6 +102,9 @@ object explorer {
         proto.inputIndex,
         BigInt(proto.sequence)
       )
+
+    implicit val encoder: Encoder[CoinbaseInput] = deriveConfiguredEncoder[CoinbaseInput]
+    implicit val decoder: Decoder[CoinbaseInput] = deriveConfiguredDecoder[CoinbaseInput]
   }
 
   object Input {
@@ -122,7 +126,7 @@ object explorer {
         CoinbaseInput.fromProto(proto.getCoinbase)
   }
 
-  @ConfiguredJsonCodec case class Output(
+  case class Output(
       outputIndex: Long,
       value: BigInt,
       address: String,
@@ -138,8 +142,8 @@ object explorer {
   }
 
   object Output {
-    implicit val encoder: Encoder[Output] = deriveEncoder[Output]
-    implicit val decoder: Decoder[Output] = deriveDecoder[Output]
+    implicit val encoder: Encoder[Output] = deriveConfiguredEncoder[Output]
+    implicit val decoder: Decoder[Output] = deriveConfiguredDecoder[Output]
 
     def fromProto(proto: protobuf.Output): Output =
       Output(
@@ -150,7 +154,7 @@ object explorer {
       )
   }
 
-  @ConfiguredJsonCodec case class Transaction(
+  case class Transaction(
       id: String,
       hash: String,
       receivedAt: String,
@@ -176,8 +180,8 @@ object explorer {
   }
 
   object Transaction {
-    implicit val encoder: Encoder[Transaction] = deriveEncoder[Transaction]
-    implicit val decoder: Decoder[Transaction] = deriveDecoder[Transaction]
+    implicit val encoder: Encoder[Transaction] = deriveConfiguredEncoder[Transaction]
+    implicit val decoder: Decoder[Transaction] = deriveConfiguredDecoder[Transaction]
 
     def fromProto(proto: protobuf.Transaction): Transaction =
       Transaction(

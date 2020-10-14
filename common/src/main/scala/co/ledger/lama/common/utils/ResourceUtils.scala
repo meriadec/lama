@@ -21,7 +21,7 @@ object ResourceUtils extends IOLogging {
       .resource(resource)
       .attempts(policy)
       .evalTap {
-        case Left(value) => F.delay(log.logger.error(s"Resource acquisition Failed : $value"))
+        case Left(value) => F.delay(log.logger.info(s"Resource acquisition Failed : $value"))
         case Right(_)    => F.unit
       }
       .collectFirst {

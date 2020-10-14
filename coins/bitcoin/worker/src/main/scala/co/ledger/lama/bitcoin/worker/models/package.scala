@@ -1,8 +1,9 @@
 package co.ledger.lama.bitcoin.worker
 
+import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, Transaction}
 import co.ledger.protobuf.bitcoin.AddressInfo
-import io.circe.generic.semiauto._
+import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
 
 package object models {
@@ -11,9 +12,9 @@ package object models {
 
   object GetTransactionsResponse {
     implicit val encoder: Encoder[GetTransactionsResponse] =
-      deriveEncoder[GetTransactionsResponse]
+      deriveConfiguredEncoder[GetTransactionsResponse]
     implicit val decoder: Decoder[GetTransactionsResponse] =
-      deriveDecoder[GetTransactionsResponse]
+      deriveConfiguredDecoder[GetTransactionsResponse]
   }
 
   case class PayloadData(
@@ -23,8 +24,8 @@ package object models {
   )
 
   object PayloadData {
-    implicit val encoder: Encoder[PayloadData] = deriveEncoder[PayloadData]
-    implicit val decoder: Decoder[PayloadData] = deriveDecoder[PayloadData]
+    implicit val encoder: Encoder[PayloadData] = deriveConfiguredEncoder[PayloadData]
+    implicit val decoder: Decoder[PayloadData] = deriveConfiguredDecoder[PayloadData]
   }
 
   case class BatchResult(

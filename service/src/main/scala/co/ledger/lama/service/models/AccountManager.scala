@@ -2,8 +2,9 @@ package co.ledger.lama.service.models
 
 import java.util.UUID
 
+import co.ledger.lama.common.models.implicits._
 import io.circe.Decoder
-import io.circe.generic.semiauto.deriveDecoder
+import io.circe.generic.extras.semiauto._
 import co.ledger.lama.bitcoin.common.models.service.{Operation, OutputView}
 import co.ledger.lama.common.models.SyncEvent
 
@@ -15,7 +16,7 @@ case class GetOperationsResult(
 
 object GetOperationsResult {
   implicit val getOperationsResultDecoder: Decoder[GetOperationsResult] =
-    deriveDecoder[GetOperationsResult]
+    deriveConfiguredDecoder[GetOperationsResult]
 }
 
 case class GetUTXOsResult(
@@ -26,7 +27,7 @@ case class GetUTXOsResult(
 
 object GetUTXOsResult {
   implicit val getUTXOsResultDecoder: Decoder[GetUTXOsResult] =
-    deriveDecoder[GetUTXOsResult]
+    deriveConfiguredDecoder[GetUTXOsResult]
 }
 
 case class AccountInfo(
@@ -34,20 +35,19 @@ case class AccountInfo(
     syncFrequency: Long,
     syncEvent: Option[SyncEvent],
     balance: BigInt,
-    utxoCount: Int,
+    utxosCount: Int,
     amountSpent: BigInt,
     amountReceived: BigInt
 )
 
 object AccountInfo {
   implicit val getAccountInfoDecoder: Decoder[AccountInfo] =
-    deriveDecoder[AccountInfo]
+    deriveConfiguredDecoder[AccountInfo]
 }
 
 case class AccountRegistered(accountId: UUID, syncId: UUID, syncFrequency: Long)
 
 object AccountRegistered {
   implicit val accountRegisteredDecoder: Decoder[AccountRegistered] =
-    deriveDecoder[AccountRegistered]
-
+    deriveConfiguredDecoder[AccountRegistered]
 }

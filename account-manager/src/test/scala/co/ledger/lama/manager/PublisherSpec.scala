@@ -1,13 +1,15 @@
 package co.ledger.lama.manager
+
 import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.common.models.WithKey
+import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.common.utils.IOAssertion
 import com.redis.RedisClient
 import fs2.Stream
+import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
-import io.circe.generic.semiauto._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.Inspectors
@@ -92,8 +94,8 @@ case class TestEvent(accountId: UUID, eventId: String) extends WithKey[UUID] {
 
 object TestEvent {
 
-  implicit val decoder: Decoder[TestEvent] = deriveDecoder[TestEvent]
-  implicit val encoder: Encoder[TestEvent] = deriveEncoder[TestEvent]
+  implicit val decoder: Decoder[TestEvent] = deriveConfiguredDecoder[TestEvent]
+  implicit val encoder: Encoder[TestEvent] = deriveConfiguredEncoder[TestEvent]
 
 }
 

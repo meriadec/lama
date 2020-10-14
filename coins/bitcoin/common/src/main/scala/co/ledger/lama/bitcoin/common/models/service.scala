@@ -2,17 +2,15 @@ package co.ledger.lama.bitcoin.common.models
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.interpreter.protobuf
+import co.ledger.lama.common.models.implicits.defaultCirceConfig
 import co.ledger.lama.common.utils.UuidUtils
-import io.circe.generic.extras.{Configuration, ConfiguredJsonCodec}
-import io.circe.generic.semiauto._
+import co.ledger.lama.bitcoin.interpreter.protobuf
+import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
 
 object service {
 
-  implicit val config: Configuration = Configuration.default.withSnakeCaseMemberNames
-
-  @ConfiguredJsonCodec case class BlockView(
+  case class BlockView(
       hash: String,
       height: Long,
       time: String
@@ -26,14 +24,14 @@ object service {
   }
 
   object BlockView {
-    implicit val encoder: Encoder[BlockView] = deriveEncoder[BlockView]
-    implicit val decoder: Decoder[BlockView] = deriveDecoder[BlockView]
+    implicit val encoder: Encoder[BlockView] = deriveConfiguredEncoder[BlockView]
+    implicit val decoder: Decoder[BlockView] = deriveConfiguredDecoder[BlockView]
 
     def fromProto(proto: protobuf.BlockView): BlockView =
       BlockView(proto.hash, proto.height, proto.time)
   }
 
-  @ConfiguredJsonCodec case class InputView(
+  case class InputView(
       outputHash: String,
       outputIndex: Long,
       inputIndex: Long,
@@ -71,6 +69,9 @@ object service {
         BigInt(proto.sequence),
         proto.belongs
       )
+
+    implicit val encoder: Encoder[InputView] = deriveConfiguredEncoder[InputView]
+    implicit val decoder: Decoder[InputView] = deriveConfiguredDecoder[InputView]
   }
 
   sealed trait ChangeType {
@@ -88,8 +89,8 @@ object service {
   }
 
   object ChangeType {
-    implicit val encoder: Encoder[ChangeType] = deriveEncoder[ChangeType]
-    implicit val decoder: Decoder[ChangeType] = deriveDecoder[ChangeType]
+    implicit val encoder: Encoder[ChangeType] = deriveConfiguredEncoder[ChangeType]
+    implicit val decoder: Decoder[ChangeType] = deriveConfiguredDecoder[ChangeType]
 
     def fromKey(key: String): Option[ChangeType] = {
       key match {
@@ -108,7 +109,7 @@ object service {
     }
   }
 
-  @ConfiguredJsonCodec case class OutputView(
+  case class OutputView(
       outputIndex: Long,
       value: BigInt,
       address: String,
@@ -128,8 +129,8 @@ object service {
   }
 
   object OutputView {
-    implicit val encoder: Encoder[OutputView] = deriveEncoder[OutputView]
-    implicit val decoder: Decoder[OutputView] = deriveDecoder[OutputView]
+    implicit val encoder: Encoder[OutputView] = deriveConfiguredEncoder[OutputView]
+    implicit val decoder: Decoder[OutputView] = deriveConfiguredDecoder[OutputView]
 
     def fromProto(proto: protobuf.OutputView): OutputView =
       OutputView(
@@ -142,7 +143,7 @@ object service {
       )
   }
 
-  @ConfiguredJsonCodec case class TransactionView(
+  case class TransactionView(
       id: String,
       hash: String,
       receivedAt: String,
@@ -168,8 +169,8 @@ object service {
   }
 
   object TransactionView {
-    implicit val encoder: Encoder[TransactionView] = deriveEncoder[TransactionView]
-    implicit val decoder: Decoder[TransactionView] = deriveDecoder[TransactionView]
+    implicit val encoder: Encoder[TransactionView] = deriveConfiguredEncoder[TransactionView]
+    implicit val decoder: Decoder[TransactionView] = deriveConfiguredDecoder[TransactionView]
 
     def fromProto(proto: protobuf.TransactionView): TransactionView =
       TransactionView(
@@ -202,8 +203,8 @@ object service {
   }
 
   object OperationType {
-    implicit val encoder: Encoder[OperationType] = deriveEncoder[OperationType]
-    implicit val decoder: Decoder[OperationType] = deriveDecoder[OperationType]
+    implicit val encoder: Encoder[OperationType] = deriveConfiguredEncoder[OperationType]
+    implicit val decoder: Decoder[OperationType] = deriveConfiguredDecoder[OperationType]
 
     def fromKey(key: String): Option[OperationType] = {
       key match {
@@ -222,7 +223,7 @@ object service {
     }
   }
 
-  @ConfiguredJsonCodec case class Operation(
+  case class Operation(
       accountId: UUID,
       hash: String,
       transaction: Option[TransactionView],
@@ -243,8 +244,8 @@ object service {
   }
 
   object Operation {
-    implicit val encoder: Encoder[Operation] = deriveEncoder[Operation]
-    implicit val decoder: Decoder[Operation] = deriveDecoder[Operation]
+    implicit val encoder: Encoder[Operation] = deriveConfiguredEncoder[Operation]
+    implicit val decoder: Decoder[Operation] = deriveConfiguredDecoder[Operation]
 
     def fromProto(proto: protobuf.Operation): Operation = {
       Operation(
@@ -260,7 +261,7 @@ object service {
     }
   }
 
-  @ConfiguredJsonCodec case class AccountAddress(
+  case class AccountAddress(
       accountAddress: String,
       changeType: ChangeType
   ) {
@@ -270,8 +271,8 @@ object service {
   }
 
   object AccountAddress {
-    implicit val encoder: Encoder[AccountAddress] = deriveEncoder[AccountAddress]
-    implicit val decoder: Decoder[AccountAddress] = deriveDecoder[AccountAddress]
+    implicit val encoder: Encoder[AccountAddress] = deriveConfiguredEncoder[AccountAddress]
+    implicit val decoder: Decoder[AccountAddress] = deriveConfiguredDecoder[AccountAddress]
 
     def fromProto(proto: protobuf.AccountAddress): AccountAddress = {
       AccountAddress(

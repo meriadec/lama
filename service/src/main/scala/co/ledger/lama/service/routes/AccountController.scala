@@ -13,6 +13,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.{BitcoinNetwork, Coin, CoinFamily, Scheme, Sort}
+import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.protobuf.{
   AccountInfoRequest,
@@ -24,8 +25,8 @@ import co.ledger.lama.service.utils.ProtobufUtils._
 import co.ledger.lama.service.utils.RouterUtils._
 import co.ledger.protobuf.bitcoin.{DeleteKeychainRequest, KeychainServiceFs2Grpc}
 import io.circe.{Decoder, Encoder}
-import io.circe.generic.auto._
-import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.generic.extras.auto._
+import io.circe.generic.extras.semiauto._
 import io.grpc.Metadata
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec._
@@ -46,8 +47,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
   )
 
   object CreationRequest {
-    implicit val encoder: Encoder[CreationRequest] = deriveEncoder[CreationRequest]
-    implicit val decoder: Decoder[CreationRequest] = deriveDecoder[CreationRequest]
+    implicit val encoder: Encoder[CreationRequest] = deriveConfiguredEncoder[CreationRequest]
+    implicit val decoder: Decoder[CreationRequest] = deriveConfiguredDecoder[CreationRequest]
   }
 
   def routes(
@@ -73,7 +74,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       case req @ POST -> Root =>
         val ra = for {
           creationRequest <- req.as[CreationRequest]
-          _               <- log.info(s"Creating keychain with arguments: ${creationRequest}")
+          _               <- log.info(s"Creating keychain with arguments: $creationRequest")
           createdKeychain <-
             keychainClient.createKeychain(toCreateKeychainRequest(creationRequest), new Metadata)
           keychainId <- IO.fromOption(
