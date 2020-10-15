@@ -3,12 +3,13 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.data.NonEmptyList
+import cats.implicits._
 import cats.free.Free
 import co.ledger.lama.bitcoin.common.models.service._
 import co.ledger.lama.common.logging.IOLogging
+import doobie._
 import doobie.implicits._
 import doobie.postgres.implicits._
-import doobie._
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import co.ledger.lama.common.models.Sort
 import doobie.free.connection
@@ -127,17 +128,14 @@ object OperationQueries extends IOLogging {
     query.query[Operation].stream
   }
 
-  def saveOperation(operation: Operation): ConnectionIO[Int] =
-    sql"""INSERT INTO operation (
+  def saveOperations(operation: List[Operation]): ConnectionIO[Int] = {
+    val query = """INSERT INTO operation (
             account_id, hash, operation_type, value, time
-          ) VALUES (
-            ${operation.accountId},
-            ${operation.hash},
-            ${operation.operationType},
-            ${operation.value},
-            ${operation.time}
-          ) ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
-        """.update.run
+          ) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
+        """
+    Update[Operation](query).updateMany(operation)
+  }
 
   def flagInputs(accountId: UUID, addresses: List[String]): ConnectionIO[Int] = {
     val query = sql"""UPDATE input

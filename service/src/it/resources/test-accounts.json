@@ -27,12 +27,12 @@
       "coin": "btc"
     },
     "expected": {
-      "ops_size": 129,
+      "ops_size": 130,
       "utxos_size": 16,
-      "last_tx_hash": "b0c0dc176eaf463a5cecf15f1f55af99a41edfd6e01685068c0db3cc779861c8",
-      "balance": 983047,
+      "last_tx_hash": "f49efd0ca9dafe67b1f214d5f6e29a2409d29e9e1d3bccdc039396e6543ecace",
+      "balance": 958583,
       "amount_received": 7209619,
-      "amount_spent": 6226572
+      "amount_spent": 6251036
     }
   }
 ]

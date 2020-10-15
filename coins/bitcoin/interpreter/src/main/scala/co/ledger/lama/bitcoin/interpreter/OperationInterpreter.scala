@@ -84,18 +84,16 @@ class OperationInterpreter(db: Transactor[IO]) {
         case Some(tx) => tx
       })
 
-      ops <-
-        txs
-          .flatMap { transaction =>
-            OperationComputer.compute(transaction, accountId, addresses)
-          }
-          .traverse { operation =>
-            OperationQueries
-              .saveOperation(operation) // TODO use updateMany instead of map
-          }
+      opCount <-
+        OperationQueries
+          .saveOperations(
+            txs.flatMap { transaction =>
+              OperationComputer.compute(transaction, accountId, addresses)
+            }
+          )
           .transact(db)
 
-    } yield ops.sum
+    } yield opCount
 
   private def flagInputsAndOutputs(accountId: UUID, addresses: List[AccountAddress]): IO[Int] = {
     val query = for {

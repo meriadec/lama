@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.interpreter.models
 
 import java.util.UUID
 
+import co.ledger.lama.bitcoin.common.models.explorer.{DefaultInput, Output}
 import co.ledger.lama.bitcoin.common.models.service._
 import doobie._
 import doobie.postgres.implicits._
@@ -18,6 +19,26 @@ object implicits {
 
   // For 'BigInt' values, we need to use Long (because that's what a bigint is in psql)
   // If problems arise with the length of the value we'll have to use VARCHAR instead in db.
+
+  implicit val writeInput: Write[DefaultInput] =
+    Write[(String, Long, Long, BigInt, String, String, List[String], BigInt)]
+      .contramap { i =>
+        (
+          i.outputHash,
+          i.outputIndex,
+          i.inputIndex,
+          i.value.toLong,
+          i.address,
+          i.scriptSignature,
+          i.txinwitness.toList,
+          i.sequence
+        )
+      }
+
+  implicit val writeOutput: Write[Output] =
+    Write[(Long, BigInt, String, String)].contramap { o =>
+      (o.outputIndex, o.value.toLong, o.address, o.scriptHex)
+    }
 
   implicit lazy val readTransaction: Read[TransactionView] =
     Read[(String, String, String, Long, Long, String, Int, Long, String)]
@@ -89,5 +110,11 @@ object implicits {
       .map {
         case (accountId, hash, operationType, value, time) =>
           Operation(accountId, hash, None, operationType, value, time)
+      }
+
+  implicit lazy val writeOperation: Write[Operation] =
+    Write[(UUID, String, OperationType, Long, String)]
+      .contramap { op =>
+        (op.accountId, op.hash, op.operationType, op.value.toLong, op.time)
       }
 }

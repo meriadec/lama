@@ -39,7 +39,7 @@ object QueryUtils {
 
   def saveOp(db: Transactor[IO], operation: Operation) = {
     OperationQueries
-      .saveOperation(operation)
+      .saveOperations(List(operation))
       .transact(db)
       .void
   }

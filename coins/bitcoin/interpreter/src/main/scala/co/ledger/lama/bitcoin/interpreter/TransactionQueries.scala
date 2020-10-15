@@ -5,6 +5,7 @@ import java.util.UUID
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
+import doobie.Update
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.postgres.implicits._
@@ -23,19 +24,23 @@ object TransactionQueries {
   def saveTransaction(tx: Transaction, accountId: UUID): ConnectionIO[Int] =
     for {
 
-      txStatement <- prepareTxInsert(accountId, tx).update.run
+      txStatement <- insertTx(accountId, tx)
 
-      _ <- tx.inputs.toList.collect {
-        case input: DefaultInput => prepareInputInsert(accountId, tx.hash, input).update.run
-      }.sequence
+      _ <- insertInputs(
+        accountId,
+        tx.hash,
+        tx.inputs.toList.collect {
+          case input: DefaultInput => input
+        }
+      )
 
-      _ <- tx.outputs.toList.traverse(prepareOutputInsert(accountId, tx.hash, _).update.run)
+      _ <- insertOutpus(accountId, tx.hash, tx.outputs.toList)
 
     } yield {
       txStatement
     }
 
-  private def prepareTxInsert(
+  private def insertTx(
       accountId: UUID,
       tx: Transaction
   ) = {
@@ -51,47 +56,43 @@ object TransactionQueries {
             ${tx.block.hash},
             ${tx.confirmations}
           ) ON CONFLICT ON CONSTRAINT transaction_pkey DO NOTHING
-        """
+        """.update.run
   }
 
-  private def prepareInputInsert(
+  private def insertInputs(
       accountId: UUID,
       txHash: String,
-      input: DefaultInput
-  ) = sql"""INSERT INTO input (
+      inputs: List[DefaultInput]
+  ) = {
+    val query =
+      s"""INSERT INTO input (
             account_id, hash, output_hash, output_index, input_index, value, address, script_signature, txinwitness, sequence, belongs
-          ) VALUES (
-            $accountId,
-            $txHash,
-            ${input.outputHash},
-            ${input.outputIndex},
-            ${input.inputIndex},
-            ${input.value},
-            ${input.address},
-            ${input.scriptSignature},
-            NULL,
-            ${input.sequence},
-            false -- until we know all known addresses, we consider all new transaction inputs as not belonging
-          ) ON CONFLICT ON CONSTRAINT input_pkey DO NOTHING
+          ) VALUES ('$accountId', '$txHash', ?, ?, ?, ?, ?, ?, ?, ?, false)
+          ON CONFLICT ON CONSTRAINT input_pkey DO NOTHING
         """
+    Update[DefaultInput](query).updateMany(inputs)
+  }
 
-  private def prepareOutputInsert(
+  private def insertOutpus(
       accountId: UUID,
       txHash: String,
-      output: Output
-  ) = sql"""INSERT INTO output (
+      outputs: List[Output]
+  ) = {
+    val query = s"""INSERT INTO output (
             account_id, hash, output_index, value, address, script_hex, belongs, change_type
           ) VALUES (
-            $accountId,
-            $txHash,
-            ${output.outputIndex},
-            ${output.value},
-            ${output.address},
-            ${output.scriptHex},
+            '$accountId',
+            '$txHash',
+            ?,
+            ?,
+            ?,
+            ?,
             false, -- until we know all known addresses, we consider all new transaction outputs as not belonging
             NULL   -- and so there is no changeType
           ) ON CONFLICT ON CONSTRAINT output_pkey DO NOTHING
         """
+    Update[Output](query).updateMany(outputs)
+  }
 
   def deleteTransactions(accountId: UUID, blockHeight: Long): ConnectionIO[Int] =
     sql"""DELETE from transaction t
