@@ -69,10 +69,10 @@ case class WorkableEvent(
     FlaggedEvent(accountId, syncId, Status.Published, payload)
 
   def reportSuccess(data: Json): ReportableEvent =
-    ReportableEvent(accountId, syncId, status.success, payload.copy(data = data))
+    ReportableEvent(accountId, syncId, status.success, payload.copy(data = data.deepDropNullValues))
 
   def reportFailure(data: Json): ReportableEvent = {
-    val updatedPayloadData = payload.data.deepMerge(data)
+    val updatedPayloadData = payload.data.deepMerge(data).deepDropNullValues
     ReportableEvent(accountId, syncId, status.failure, payload.copy(data = updatedPayloadData))
   }
 }

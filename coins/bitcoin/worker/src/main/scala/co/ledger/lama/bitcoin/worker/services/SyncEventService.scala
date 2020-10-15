@@ -1,6 +1,8 @@
 package co.ledger.lama.bitcoin.worker.services
 
 import cats.effect.IO
+import io.circe.syntax._
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.{ReportableEvent, WorkableEvent}
 import co.ledger.lama.common.utils.RabbitUtils
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
@@ -12,7 +14,7 @@ class SyncEventService(
     workerQueueName: QueueName,
     lamaExchangeName: ExchangeName,
     lamaRoutingKey: RoutingKey
-) {
+) extends IOLogging {
 
   def consumeWorkableEvents: Stream[IO, WorkableEvent] =
     RabbitUtils.createAutoAckConsumer[WorkableEvent](rabbitClient, workerQueueName)
@@ -21,6 +23,9 @@ class SyncEventService(
     RabbitUtils.createPublisher[ReportableEvent](rabbitClient, lamaExchangeName, lamaRoutingKey)
 
   def reportEvent(event: ReportableEvent): IO[Unit] =
-    publisher.evalMap(p => p(event)).compile.drain
+    publisher
+      .evalMap(p => p(event) *> log.info(s"Published event: ${event.asJson.toString}"))
+      .compile
+      .drain
 
 }

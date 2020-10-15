@@ -13,19 +13,17 @@ object OperationComputer extends IOLogging {
       addresses: List[AccountAddress]
   ): List[Operation] = {
 
-    log.debug(s"Computing $tx")
-
     val inputAmount = extractInputAmount(tx, addresses)
 
-    log.debug(s"Input amount: $inputAmount")
+    log.logger.debug(s"Input amount: $inputAmount")
 
     val outputAmount = extractOutputAmount(tx, addresses)
 
-    log.debug(s"Output amount: $outputAmount")
+    log.logger.debug(s"Output amount: $outputAmount")
 
     val changeAmount = extractChangeAmount(tx, addresses)
 
-    log.debug(s"Change amount: $changeAmount")
+    log.logger.debug(s"Change amount: $changeAmount")
 
     val (sentAmount, receivedAmount) = {
       // in case the account is not the sender but change was received,
@@ -36,8 +34,8 @@ object OperationComputer extends IOLogging {
         (inputAmount - changeAmount, outputAmount)
     }
 
-    log.debug(s"Sent amount: $sentAmount")
-    log.debug(s"Received amount: $receivedAmount")
+    log.logger.debug(s"Sent amount: $sentAmount")
+    log.logger.debug(s"Received amount: $receivedAmount")
 
     val sentOperation = Operation(
       accountId = accountId,
@@ -48,7 +46,7 @@ object OperationComputer extends IOLogging {
       time = tx.block.time
     )
 
-    log.debug(s"Sent operation: $sentOperation")
+    log.logger.debug(s"Sent operation: $sentOperation")
 
     val receivedOperation = Operation(
       accountId = accountId,
@@ -59,7 +57,7 @@ object OperationComputer extends IOLogging {
       time = tx.block.time
     )
 
-    log.debug(s"Received operation: $receivedOperation")
+    log.logger.debug(s"Received operation: $receivedOperation")
 
     // Both send and remove operations are created so we remove useless operation with value 0
     List(sentOperation, receivedOperation).filter(_.value > 0L)
@@ -82,7 +80,6 @@ object OperationComputer extends IOLogging {
             .exists(a => a.changeType == External && a.accountAddress == output.address) =>
         output.value
     }.sum
-
   }
 
   private def extractInputAmount(tx: TransactionView, addresses: List[AccountAddress]) = {

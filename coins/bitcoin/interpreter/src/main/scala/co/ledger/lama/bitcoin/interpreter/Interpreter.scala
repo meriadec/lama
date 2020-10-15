@@ -24,16 +24,12 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
       request: protobuf.SaveTransactionsRequest,
       ctx: Metadata
   ): IO[protobuf.ResultCount] = {
-    log.info(s"Saving ${request.transactions.size} transactions")
-    log.debug(s"{request.transactions}")
 
     for {
       accountId  <- UuidUtils.bytesToUuidIO(request.accountId)
+      _          <- log.info(s"Saving transactions for $accountId")
       txs        <- IO.pure(request.transactions.map(Transaction.fromProto).toList)
       savedCount <- transactionInterpreter.saveTransactions(accountId, txs)
-
-      _ = log.info("Transactions saved")
-
     } yield ResultCount(savedCount)
   }
 
@@ -51,31 +47,22 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
                   |- accountId: $accountId
                   |- limit: $limit
                   |- offset: $offset
-                  |- sort: $sort
-                  |""".stripMargin)
+                  |- sort: $sort""".stripMargin)
       opResult  <- operationInterpreter.getOperations(accountId, limit, offset, sort)
       (operations, truncated) = opResult
-      _ <- log.info(s"""Results:
-                     |- size: ${operations.length}
-                     |- truncated: $truncated
-                     |""".stripMargin)
     } yield protobuf.GetOperationsResult(operations.map(_.toProto), truncated)
   }
 
   def getUTXOs(request: protobuf.GetUTXOsRequest, ctx: Metadata): IO[protobuf.GetUTXOsResult] = {
-
     val limit  = if (request.limit <= 0) 20 else request.limit
     val offset = if (request.offset < 0) 0 else request.offset
 
-    log.info(s"""Getting UTXOs with parameters:
-              |- accountId: ${request.accountId}
-              |- limit: $limit
-              |- offset: $offset
-              |""".stripMargin)
-
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
-      _         <- log.info("Fetching UTXOs")
+      _         <- log.info(s"""Getting UTXOs with parameters:
+                               |- accountId: $accountId
+                               |- limit: $limit
+                               |- offset: $offset""".stripMargin)
       res       <- operationInterpreter.getUTXOs(accountId, limit, offset)
       (utxos, truncated) = res
     } yield {
@@ -90,7 +77,7 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
       _         <- log.info(s"""Deleting transactions with parameters:
-                      |- accountId: ${accountId}
+                      |- accountId: $accountId
                       |- blockHeight: ${request.blockHeight}""".stripMargin)
       txRes     <- transactionInterpreter.deleteTransactions(accountId, request.blockHeight)
       _         <- log.info(s"Deleted $txRes transactions")
@@ -101,13 +88,10 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
       request: protobuf.ComputeOperationsRequest,
       ctx: Metadata
   ): IO[protobuf.ResultCount] = {
-    log.info(s"""Computing operations with parameters:
-         |- accountId: ${request.accountId}
-         |- addresses: ${request.addresses}
-         |""".stripMargin)
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
       addresses = request.addresses.map(AccountAddress.fromProto).toList
+      _        <- log.info(s"Computing operations for $accountId")
       savedOps <- operationInterpreter.computeOperations(accountId, addresses)
     } yield ResultCount(savedOps)
   }

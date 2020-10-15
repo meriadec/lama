@@ -2,16 +2,18 @@
 
 # Ledger Account Manager API
 
+![](./lama.jpg)
+
 Synchronization and management of account states (transactions, balance, ...) across Blockchain protocols.
 
-Main feature of Lama are:
+Main features of Lama are:
 - Scalable and stateless components
-- Easy support of new coin integration by design
+- Event-driven architecture
 - Account manager component for handling account metadata and sending sync event messages
-- Coin specific components:
-    * Worker: fetching data from blockchain
-    * Interpreter: computing and inserting data (operations, balance, ...)
-    * Broadcaster: estimating fees and creating transactions
+- Easy support of new coin integration by having coin specific components:
+  * Worker: fetching data from blockchain
+  * Interpreter: computing and inserting data (operations, balance, ...)
+  * Broadcaster: estimating fees and creating transactions
 
 ## How account synchronization works?
 

@@ -1,7 +1,6 @@
 package co.ledger.lama.manager
 
 import cats.effect.{ExitCode, IO, IOApp, Resource}
-import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.utils.{HealthUtils, RabbitUtils, ResourceUtils}
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import co.ledger.lama.manager.config.{Config, OrchestratorConfig}
@@ -10,28 +9,23 @@ import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.ExchangeType
 import pureconfig.ConfigSource
 
-object App extends IOApp with IOLogging {
+object App extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
     val conf = ConfigSource.default.loadOrThrow[Config]
 
-    log.info("Instanciating resources")
-
     val resources = for {
+
+      // create the db transactor
       db <- postgresTransactor(conf.postgres)
-      _ = log.info("DB instantiated")
 
       // rabbitmq client
       rabbitClient <- RabbitUtils.createClient(conf.rabbit)
-
-      _ = log.info("RabbitMQ instantiated")
 
       // redis client
       redisClient <- ResourceUtils.retriableResource(
         Resource.fromAutoCloseable(IO(new RedisClient(conf.redis.host, conf.redis.port)))
       )
-
-      _ = log.info("Redis instantiated")
 
       // define rpc service definitions
       serviceDefinitions = List(
@@ -41,8 +35,6 @@ object App extends IOApp with IOLogging {
 
       // create the grpc server
       grpcServer <- grpcServer(conf.grpcServer, serviceDefinitions)
-
-      _ = log.info("GRPC server instantiated")
 
     } yield (db, rabbitClient, redisClient, grpcServer)
 
@@ -57,8 +49,6 @@ object App extends IOApp with IOLogging {
             rabbitClient,
             redisClient
           )
-
-          log.info("Instantiating server")
 
           declareExchangesAndBindings(rabbitClient, conf.orchestrator) *>
             IO(server.start()) *>

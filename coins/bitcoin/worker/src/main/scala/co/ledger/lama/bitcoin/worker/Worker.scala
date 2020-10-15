@@ -24,35 +24,37 @@ class Worker(
     explorerService: ExplorerService,
     interpreterService: InterpreterService
 ) extends IOLogging {
+
   def run(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): Stream[IO, Unit] =
     syncEventService.consumeWorkableEvents
       .evalMap { workableEvent =>
-        val reportableEvent = workableEvent.status match {
-          case Registered   => synchronizeAccount(workableEvent)
-          case Unregistered => deleteAccount(workableEvent)
-        }
+        val reportableEvent =
+          workableEvent.status match {
+            case Registered   => synchronizeAccount(workableEvent)
+            case Unregistered => deleteAccount(workableEvent)
+          }
 
         // In case of error, fallback to a reportable failed event.
-        reportableEvent
-          .handleErrorWith { error =>
-            error.printStackTrace() // TODO: logging
+        log.info(s"Received event: ${workableEvent.asJson.toString}") *>
+          reportableEvent
+            .handleErrorWith { error =>
+              val previousState =
+                workableEvent.payload.data
+                  .as[PayloadData]
+                  .toOption
 
-            val previousState =
-              workableEvent.payload.data
-                .as[PayloadData]
-                .toOption
+              val payloadData = PayloadData(
+                lastBlock = previousState.flatMap(_.lastBlock),
+                errorMessage = Some(error.getMessage)
+              )
 
-            val payloadData = PayloadData(
-              lastBlock = previousState.flatMap(_.lastBlock),
-              errorMessage = Some(error.getMessage)
-            )
+              val failedEvent = workableEvent.reportFailure(payloadData.asJson)
 
-            val failedEvent = workableEvent.reportFailure(payloadData.asJson)
-
-            IO.pure(failedEvent)
-          }
-          // Always report the event at the end.
-          .flatMap(syncEventService.reportEvent)
+              log.error(s"Failed event: $failedEvent", error) *>
+                IO.pure(failedEvent)
+            }
+            // Always report the event at the end.
+            .flatMap(syncEventService.reportEvent)
       }
 
   def synchronizeAccount(
@@ -60,13 +62,15 @@ class Worker(
   )(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): IO[ReportableEvent] = {
     val account = workableEvent.payload.account
 
-    val previousState =
+    val previousBlockState =
       workableEvent.payload.data
         .as[PayloadData]
         .toOption
+        .flatMap(_.lastBlock)
 
     // sync the whole account per streamed batch
     for {
+      _          <- log.info(s"Syncing from cursor state: $previousBlockState")
       keychainId <- IO.fromTry(Try(UUID.fromString(account.key)))
 
       keychainInfo <- keychainService.getKeychainInfo(keychainId)
@@ -75,7 +79,7 @@ class Worker(
         account.id,
         keychainId,
         keychainInfo.lookaheadSize,
-        previousState.flatMap(_.lastBlock.map(_.hash)),
+        previousBlockState.map(_.hash),
         0,
         keychainInfo.lookaheadSize
       ).stream.compile.toList
@@ -84,22 +88,20 @@ class Worker(
         AccountAddress(a.address, if (a.change.isChangeExternal) EXTERNAL else INTERNAL)
       }
 
-      opCount <- interpreterService.computeOperations(account.id, addresses)
-      _       <- log.info(s"$opCount operations computed")
-    } yield {
-      val txs = batchResults.flatMap(_.transactions).distinctBy(_.hash)
+      opsCount <- interpreterService.computeOperations(account.id, addresses)
 
-      val txsSize = txs.size
+      _ <- log.info(s"$opsCount operations computed")
 
-      val lastBlock =
-        if (txsSize == 0) previousState.flatMap(_.lastBlock)
+      txs = batchResults.flatMap(_.transactions).distinctBy(_.hash)
+
+      lastBlock =
+        if (txs.isEmpty) previousBlockState
         else Some(txs.maxBy(_.block.time).block)
 
+      _ <- log.info(s"New cursor state: $lastBlock")
+    } yield {
       // New cursor state.
-      val payloadData = PayloadData(
-        lastBlock = lastBlock,
-        fetchedTxsSize = Some(txsSize)
-      )
+      val payloadData = PayloadData(lastBlock = lastBlock)
 
       // Create the reportable successful event.
       workableEvent.reportSuccess(payloadData.asJson)
@@ -127,9 +129,11 @@ class Worker(
       .eval {
         for {
           // Get batch of addresses from the keychain
+          _            <- log.info("Calling keychain to get addresses")
           addressInfos <- keychainService.getAddresses(keychainId, fromAddrIndex, toAddrIndex)
 
           // For this batch of addresses, fetch transactions from the explorer.
+          _ <- log.info("Fetching transactions from explorer")
           transactions <-
             explorerService
               .getTransactions(addressInfos.map(_.address), blockHashCursor)
@@ -137,8 +141,8 @@ class Worker(
               .toList
 
           // Ask to interpreter to save transactions.
-          txCount <- interpreterService.saveTransactions(accountId, transactions)
-          _       <- log.info(s"$txCount transactions saved")
+          txsCount <- interpreterService.saveTransactions(accountId, transactions)
+          _        <- log.info(s"$txsCount transactions saved")
 
           // Filter only used addresses.
           usedAddressesInfos = addressInfos.filter { a =>
@@ -154,7 +158,8 @@ class Worker(
           _ <-
             if (transactions.nonEmpty) {
               // Mark addresses as used.
-              keychainService.markAddressesAsUsed(keychainId, usedAddressesInfos.map(_.address))
+              log.info(s"Marking addresses as used") *>
+                keychainService.markAddressesAsUsed(keychainId, usedAddressesInfos.map(_.address))
             } else IO.unit
 
           // Flag to know if we continue or not to discover addresses

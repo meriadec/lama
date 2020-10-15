@@ -135,7 +135,7 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                 client.expect[AccountInfo](
                   getAccountRequest(accountRegistered.accountId)
                 ),
-                _.syncEvent.exists(_.status == Deleted)
+                _.lastSyncEvent.exists(_.status == Deleted)
               )
             } yield {
               val accountStr =
@@ -143,13 +143,13 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
 
               accountStr should "be registered" in {
                 accountInfoAfterRegister.accountId shouldBe accountRegistered.accountId
-                accountInfoAfterRegister.syncEvent
+                accountInfoAfterRegister.lastSyncEvent
                   .map(_.status) should (contain(Registered) or contain(Published))
               }
 
               it should s"have a balance of ${account.expected.balance}" in {
                 accountInfoAfterSync.balance shouldBe BigInt(account.expected.balance)
-                accountInfoAfterSync.syncEvent.map(_.status) should contain(Synchronized)
+                accountInfoAfterSync.lastSyncEvent.map(_.status) should contain(Synchronized)
               }
 
               it should s"have ${account.expected.utxosSize} utxos in AccountInfo API" in {
@@ -179,7 +179,7 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
 
               it should "be unregistered" in {
                 accountDeletedStatus.code shouldBe 200
-                deletedAccountResult.syncEvent.map(_.status) should contain(Deleted)
+                deletedAccountResult.lastSyncEvent.map(_.status) should contain(Deleted)
               }
             }
           }

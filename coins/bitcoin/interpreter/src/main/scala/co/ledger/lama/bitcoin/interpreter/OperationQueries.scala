@@ -20,15 +20,14 @@ object OperationQueries extends IOLogging {
       accountId: UUID,
       hash: String
   ): Free[connection.ConnectionOp, Option[TransactionView]] = {
-    log.info(s"Fetching transaction for accountId $accountId and hash $hash")
-
+    log.logger.debug(s"Fetching transaction for accountId $accountId and hash $hash")
     for {
       tx <- fetchTxAndBlock(accountId, hash)
-      _ = log.debug(s"Transaction $tx")
+      _ = log.logger.debug(s"Transaction $tx")
       inputs <- fetchInputs(accountId, hash).compile.toList
-      _ = log.debug(s"Inputs $inputs")
+      _ = log.logger.debug(s"Inputs $inputs")
       outputs <- fetchOutputs(accountId, hash).compile.toList
-      _ = log.debug(s"Outputs $outputs")
+      _ = log.logger.debug(s"Outputs $outputs")
     } yield {
       tx.map(
         _.copy(

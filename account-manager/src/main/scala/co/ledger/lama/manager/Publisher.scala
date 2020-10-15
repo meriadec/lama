@@ -1,7 +1,10 @@
 package co.ledger.lama.manager
 
+import java.util.UUID
+
 import cats.effect.IO
-import co.ledger.lama.common.models.WithKey
+import co.ledger.lama.common.logging.IOLogging
+import co.ledger.lama.common.models.{WithKey, WorkableEvent}
 import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.manager.Exceptions.RedisUnexpectedException
 import com.redis.RedisClient
@@ -109,19 +112,23 @@ object Publisher {
   def pendingEventsKey[K](key: K): String        = s"pending_events_$key"
 }
 
-class RabbitPublisher[K, V <: WithKey[K]](
+class WorkableEventPublisher(
     val redis: RedisClient,
     rabbit: RabbitClient[IO],
     exchangeName: ExchangeName,
     routingKey: RoutingKey
-)(implicit val enc: Encoder[V], val dec: Decoder[V])
-    extends Publisher[K, V] {
+)(implicit val enc: Encoder[WorkableEvent], val dec: Decoder[WorkableEvent])
+    extends Publisher[UUID, WorkableEvent]
+    with IOLogging {
 
-  def publish(event: V): IO[Unit] =
-    publisher.evalMap(p => p(event)).compile.drain
+  def publish(event: WorkableEvent): IO[Unit] =
+    publisher
+      .evalMap(p => p(event) *> log.info(s"Published event: ${event.asJson.toString}"))
+      .compile
+      .drain
 
-  private val publisher: Stream[IO, V => IO[Unit]] =
-    RabbitUtils.createPublisher[V](
+  private val publisher: Stream[IO, WorkableEvent => IO[Unit]] =
+    RabbitUtils.createPublisher[WorkableEvent](
       rabbit,
       exchangeName,
       routingKey

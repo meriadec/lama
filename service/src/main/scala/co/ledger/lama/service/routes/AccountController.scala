@@ -80,7 +80,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           keychainId <- IO.fromOption(
             UuidUtils.bytesToUuid(createdKeychain.keychainId)
           )(MalformedProtobufUuidException)
-          _ <- log.debug(s"Keychain created with id: $keychainId")
+          _ <- log.info(s"Keychain created with id: $keychainId")
           _ <- log.info("Registering account")
           registeredAccount <- accountManagerClient.registerAccount(
             new RegisterAccountRequest(
@@ -91,7 +91,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             ),
             new Metadata
           )
-          _ <- log.debug(
+          _ <- log.info(
             s"Account registered with id: ${UuidUtils.bytesToUuid(registeredAccount.accountId).getOrElse("")}"
           )
         } yield registeredAccount
@@ -101,14 +101,15 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           .flatMap(Ok(_))
 
       case DELETE -> Root / UUIDVar(accountId) =>
-        log.info(s"Fetching account informations for id: ${accountId}")
         val r = for {
+          _ <- log.info(s"Fetching account informations for id: $accountId")
+
           ai <- accountManagerClient.getAccountInfo(
             new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
             new Metadata
           )
 
-          _ = log.info("Deleting keychain")
+          _ <- log.info("Deleting keychain")
 
           _ <- keychainClient.deleteKeychain(
             new DeleteKeychainRequest(
@@ -117,8 +118,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             new Metadata
           )
 
-          _ = log.info("Keychain deleted")
-          _ = log.info("Unregistering account")
+          _ <- log.info("Keychain deleted")
+          _ <- log.info("Unregistering account")
 
           _ <- accountManagerClient.unregisterAccount(
             new UnregisterAccountRequest(
@@ -126,7 +127,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             ),
             new Metadata
           )
-          _ = log.info("Account unregistered")
+          _ <- log.info("Account unregistered")
         } yield ()
 
         r.flatMap(_ => Ok())
@@ -137,39 +138,39 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           +& OptionalLimitQueryParamMatcher(limit)
           +& OptionalOffsetQueryParamMatcher(offset)
           +& OptionalSortQueryParamMatcher(sort) =>
-        log.info(s"Fetching operations for account: $accountId")
-        interpreterClient
-          .getOperations(
-            new GetOperationsRequest(
-              accountId = UuidUtils.uuidToBytes(accountId),
-              blockHeight = blockHeight.getOrElse(0L),
-              limit = limit.getOrElse(0),
-              offset = offset.getOrElse(0),
-              sort = sort.getOrElse(Sort.Descending) match {
-                case Sort.Ascending => SortingOrder.ASC
-                case _              => SortingOrder.DESC
-              }
-            ),
-            new Metadata
-          )
-          .map(fromOperationListingInfos)
-          .flatMap(Ok(_))
+        log.info(s"Fetching operations for account: $accountId") *>
+          interpreterClient
+            .getOperations(
+              new GetOperationsRequest(
+                accountId = UuidUtils.uuidToBytes(accountId),
+                blockHeight = blockHeight.getOrElse(0L),
+                limit = limit.getOrElse(0),
+                offset = offset.getOrElse(0),
+                sort = sort.getOrElse(Sort.Descending) match {
+                  case Sort.Ascending => SortingOrder.ASC
+                  case _              => SortingOrder.DESC
+                }
+              ),
+              new Metadata
+            )
+            .map(fromOperationListingInfos)
+            .flatMap(Ok(_))
 
       case GET -> Root / UUIDVar(
             accountId
           ) / "utxos" :? OptionalLimitQueryParamMatcher(limit)
           +& OptionalOffsetQueryParamMatcher(offset) =>
-        log.info(s"Fetching UTXOs for account: $accountId")
-        interpreterClient
-          .getUTXOs(
-            new GetUTXOsRequest(
-              accountId = UuidUtils.uuidToBytes(accountId),
-              limit = limit.getOrElse(0),
-              offset = offset.getOrElse(0)
-            ),
-            new Metadata
-          )
-          .map(fromUtxosListingInfo)
-          .flatMap(Ok(_))
+        log.info(s"Fetching UTXOs for account: $accountId") *>
+          interpreterClient
+            .getUTXOs(
+              new GetUTXOsRequest(
+                accountId = UuidUtils.uuidToBytes(accountId),
+                limit = limit.getOrElse(0),
+                offset = offset.getOrElse(0)
+              ),
+              new Metadata
+            )
+            .map(fromUtxosListingInfo)
+            .flatMap(Ok(_))
     }
 }

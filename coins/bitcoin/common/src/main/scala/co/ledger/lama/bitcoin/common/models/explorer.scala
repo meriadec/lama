@@ -11,8 +11,7 @@ object explorer {
   case class Block(
       hash: String,
       height: Long,
-      time: String,
-      txs: Option[Seq[String]] = None
+      time: String
   ) {
     def toProto: protobuf.Block =
       protobuf.Block(

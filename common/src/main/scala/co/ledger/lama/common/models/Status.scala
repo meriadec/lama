@@ -5,6 +5,7 @@ import io.circe.{Decoder, Encoder}
 
 sealed trait Status {
   def name: String
+  override def toString: String = name
 }
 
 object Status {

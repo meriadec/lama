@@ -100,6 +100,13 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
                 val expectedLastBlockHeight = 644553L
 
                 it should s"have synchronized $expectedTxsSize txs with last blockHeight=$expectedLastBlockHeight" in {
+                  interpreterService.savedTransactions
+                    .getOrElse(
+                      account.id,
+                      List.empty
+                    )
+                    .distinctBy(_.hash) should have size expectedTxsSize
+
                   reportableEvent shouldBe Some(
                     registeredEvent.reportSuccess(
                       PayloadData(
@@ -109,8 +116,7 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
                             expectedLastBlockHeight,
                             "2020-08-20T13:01:16Z"
                           )
-                        ),
-                        fetchedTxsSize = Some(expectedTxsSize)
+                        )
                       ).asJson
                     )
                   )

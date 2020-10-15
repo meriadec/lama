@@ -33,7 +33,7 @@ object GetUTXOsResult {
 case class AccountInfo(
     accountId: UUID,
     syncFrequency: Long,
-    syncEvent: Option[SyncEvent],
+    lastSyncEvent: Option[SyncEvent],
     balance: BigInt,
     utxosCount: Int,
     amountSpent: BigInt,

@@ -1,8 +1,8 @@
 package co.ledger.lama.manager
 
-import java.util.UUID
-
 import cats.effect.{ContextShift, IO, Timer}
+import io.circe.syntax._
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.manager.config.CoinConfig
@@ -74,7 +74,8 @@ class CoinSyncEventTask(
     rabbit: RabbitClient[IO],
     redis: RedisClient
 )(implicit cs: ContextShift[IO])
-    extends SyncEventTask {
+    extends SyncEventTask
+    with IOLogging {
 
   // Fetch publishable events from database.
   def publishableEvents: Stream[IO, WorkableEvent] =
@@ -84,7 +85,7 @@ class CoinSyncEventTask(
 
   // Publisher publishing to the worker exchange with routingKey = "coinFamily.coin".
   private val publisher =
-    new RabbitPublisher[UUID, WorkableEvent](
+    new WorkableEventPublisher(
       redis,
       rabbit,
       workerExchangeName,
@@ -113,7 +114,8 @@ class CoinSyncEventTask(
   def reportEventsPipe: Pipe[IO, ReportableEvent, Unit] =
     _.evalMap { e =>
       Queries.insertSyncEvent(e).transact(db).void *>
-        publisher.dequeue(e.accountId)
+        publisher.dequeue(e.accountId) *>
+        log.info(s"Reported event: ${e.asJson.toString}")
     }
 
   // Fetch triggerable events from database.
@@ -125,7 +127,8 @@ class CoinSyncEventTask(
   // From triggerable events, construct next events then insert.
   def triggerEventsPipe: Pipe[IO, TriggerableEvent, Unit] =
     _.evalMap { e =>
-      Queries.insertSyncEvent(e.nextWorkable).transact(db).void
+      Queries.insertSyncEvent(e.nextWorkable).transact(db).void *>
+        log.info(s"Next event: ${e.nextWorkable.asJson.toString}")
     }
 
 }

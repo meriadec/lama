@@ -75,36 +75,37 @@ object service {
   }
 
   sealed trait ChangeType {
+    val name: String
     def toProto: protobuf.ChangeType
   }
   final case object Internal extends ChangeType {
+    val name = "internal"
+
     def toProto: protobuf.ChangeType = {
       protobuf.ChangeType.INTERNAL
     }
   }
   final case object External extends ChangeType {
+    val name = "external"
+
     def toProto: protobuf.ChangeType = {
       protobuf.ChangeType.EXTERNAL
     }
   }
 
   object ChangeType {
-    implicit val encoder: Encoder[ChangeType] = deriveConfiguredEncoder[ChangeType]
-    implicit val decoder: Decoder[ChangeType] = deriveConfiguredDecoder[ChangeType]
+    implicit val encoder: Encoder[ChangeType] = Encoder.encodeString.contramap(_.name)
+    implicit val decoder: Decoder[ChangeType] =
+      Decoder.decodeString.emap(fromKey(_).toRight("Could not decode as change type"))
 
-    def fromKey(key: String): Option[ChangeType] = {
-      key match {
-        case "internal" => Some(Internal)
-        case "external" => Some(External)
-        case _          => None
-      }
-    }
+    val all: Map[String, ChangeType] = Map(Internal.name -> Internal, External.name -> External)
+
+    def fromKey(key: String): Option[ChangeType] = all.get(key)
 
     def fromProto(proto: protobuf.ChangeType): ChangeType = {
       proto match {
         case protobuf.ChangeType.INTERNAL => Internal
         case _                            => External
-
       }
     }
   }
@@ -189,30 +190,30 @@ object service {
   }
 
   sealed trait OperationType {
+    val name: String
     def toProto: protobuf.OperationType
   }
   final case object Sent extends OperationType {
+    val name = "sent"
     def toProto: protobuf.OperationType = {
       protobuf.OperationType.SENT
     }
   }
   final case object Received extends OperationType {
+    val name = "received"
     def toProto: protobuf.OperationType = {
       protobuf.OperationType.RECEIVED
     }
   }
 
   object OperationType {
-    implicit val encoder: Encoder[OperationType] = deriveConfiguredEncoder[OperationType]
-    implicit val decoder: Decoder[OperationType] = deriveConfiguredDecoder[OperationType]
+    implicit val encoder: Encoder[OperationType] = Encoder.encodeString.contramap(_.name)
+    implicit val decoder: Decoder[OperationType] =
+      Decoder.decodeString.emap(fromKey(_).toRight("Could not decode as operation type"))
 
-    def fromKey(key: String): Option[OperationType] = {
-      key match {
-        case "sent"     => Some(Sent)
-        case "received" => Some(Received)
-        case _          => None
-      }
-    }
+    val all: Map[String, OperationType] = Map(Sent.name -> Sent, Received.name -> Received)
+
+    def fromKey(key: String): Option[OperationType] = all.get(key)
 
     def fromProto(proto: protobuf.OperationType): OperationType = {
       proto match {

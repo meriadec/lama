@@ -19,7 +19,6 @@ package object models {
 
   case class PayloadData(
       lastBlock: Option[Block] = None,
-      fetchedTxsSize: Option[Int] = None,
       errorMessage: Option[String] = None
   )
 
