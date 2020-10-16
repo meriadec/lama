@@ -1,6 +1,7 @@
 package co.ledger.lama.service
 
 import cats.effect.{ExitCode, IO, IOApp}
+import co.ledger.lama.service.middlewares.LoggingMiddleware._
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
 import co.ledger.lama.common.health.protobuf.HealthFs2Grpc
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
@@ -54,10 +55,12 @@ object App extends IOApp {
 
     resources.use { serviceResources =>
       val httpRoutes = Router[IO](
-        "accounts" -> AccountController.routes(
-          serviceResources.grpcKeychainClient,
-          serviceResources.grpcAccountClient,
-          serviceResources.grpcBitcoinInterpreterClient
+        "accounts" -> loggingMiddleWare(
+          AccountController.routes(
+            serviceResources.grpcKeychainClient,
+            serviceResources.grpcAccountClient,
+            serviceResources.grpcBitcoinInterpreterClient
+          )
         ),
         "health" -> HealthController.routes(
           serviceResources.grpcAccountManagerHealthClient,
