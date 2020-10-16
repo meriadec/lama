@@ -13,6 +13,8 @@ sealed trait SyncEvent extends WithKey[UUID] {
   def status: Status
   def payload: SyncEvent.Payload
   def key: UUID = accountId
+
+  override def toString: String = s"accountId: $accountId - syncId: $syncId - status: $status"
 }
 
 trait WithKey[K] { def key: K }

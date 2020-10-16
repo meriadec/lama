@@ -7,14 +7,14 @@ import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.{IOAssertion, UuidUtils}
 import co.ledger.lama.manager.Exceptions.AccountNotFoundException
 import co.ledger.lama.manager.config.CoinConfig
-import co.ledger.lama.manager.protobuf.{AccountInfoRequest, BlockHeightState}
+import co.ledger.lama.manager.protobuf.{AccountInfoRequest, BlockHeightState, UpdateAccountRequest}
 import co.ledger.lama.manager.utils.ProtobufUtils
 import co.ledger.lama.manager.{protobuf => pb}
 import com.opentable.db.postgres.embedded.{EmbeddedPostgres, FlywayPreparer}
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
-import io.circe.Json
 import io.grpc.Metadata
+import org.postgresql.util.PSQLException
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -103,78 +103,38 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
     }
   }
 
-  it should "upsert an already registered account" in IOAssertion {
+  it should "update a registered account" in IOAssertion {
     transactor.use { db =>
-      val service = new Service(db, conf.coins)
-      val newAccountInfo =
-        registerBitcoinAccount.withSyncFrequency(updatedSyncFrequency)
-
+      val service    = new Service(db, conf.coins)
+      val fAccountId = UuidUtils.uuidToBytes(registeredAccountId)
       for {
-        response <- service.registerAccount(newAccountInfo, new Metadata())
-
-        accountId     = UuidUtils.bytesToUuid(response.accountId).get
-        syncId        = UuidUtils.bytesToUuid(response.syncId).get
-        syncFrequency = response.syncFrequency
-
-        event <- getLastEvent(service, pb.AccountInfoRequest(response.accountId))
-      } yield {
-        // it should be the registered accountId
-        accountId shouldBe registeredAccountId
-
-        // it should be a new sync id
-        syncId should not be registeredSyncId
-
-        // the sync frequency should be updated
-        syncFrequency shouldBe updatedSyncFrequency
-
-        // check event
-        event shouldBe Some(
-          WorkableEvent(
-            accountId,
-            syncId,
-            Status.Registered,
-            SyncEvent.Payload(accountIdentifier)
-          )
+        _ <- service.updateAccount(
+          UpdateAccountRequest(fAccountId, updatedSyncFrequency),
+          new Metadata()
         )
+
+        newAccountInfo <- service.getAccountInfo(pb.AccountInfoRequest(fAccountId), new Metadata)
+      } yield {
+        newAccountInfo.syncFrequency shouldBe updatedSyncFrequency
       }
     }
   }
 
-  it should "register an account with a cursor state" in IOAssertion {
-    transactor.use { db =>
-      val service          = new Service(db, conf.coins)
-      val blockHeightValue = 10L
-      val accountInfoWithCursor =
-        registerBitcoinAccount
-          .withSyncFrequency(updatedSyncFrequency)
-          .withBlockHeight(BlockHeightState(blockHeightValue))
+  it should "not allow the registration of an already existing account" in {
+    an[PSQLException] should be thrownBy IOAssertion {
+      transactor.use { db =>
+        val service          = new Service(db, conf.coins)
+        val blockHeightValue = 10L
+        val accountInfoWithCursor =
+          registerBitcoinAccount
+            .withSyncFrequency(updatedSyncFrequency)
+            .withBlockHeight(BlockHeightState(blockHeightValue))
 
-      for {
-        response <- service.registerAccount(accountInfoWithCursor, new Metadata())
-
-        accountId = UuidUtils.bytesToUuid(response.accountId).get
-        syncId    = UuidUtils.bytesToUuid(response.syncId).get
-
-        event <- getLastEvent(service, pb.AccountInfoRequest(response.accountId))
-      } yield {
-        // it should be the registered accountId
-        accountId shouldBe registeredAccountId
-
-        // it should be a new sync id
-        syncId should not be registeredSyncId
-
-        // check event
-        event shouldBe Some(
-          WorkableEvent(
-            accountId,
-            syncId,
-            Status.Registered,
-            SyncEvent.Payload(
-              accountIdentifier,
-              Json.obj("blockHeight" -> Json.fromLong(blockHeightValue))
-            )
+        service
+          .registerAccount(
+            accountInfoWithCursor,
+            new Metadata()
           )
-        )
       }
     }
   }

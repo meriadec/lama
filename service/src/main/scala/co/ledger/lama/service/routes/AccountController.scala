@@ -2,7 +2,7 @@ package co.ledger.lama.service.routes
 
 import java.util.UUID
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   BitcoinInterpreterServiceFs2Grpc,
   GetBalanceRequest,
@@ -19,7 +19,8 @@ import co.ledger.lama.manager.protobuf.{
   AccountInfoRequest,
   AccountManagerServiceFs2Grpc,
   RegisterAccountRequest,
-  UnregisterAccountRequest
+  UnregisterAccountRequest,
+  UpdateAccountRequest
 }
 import co.ledger.lama.service.utils.ProtobufUtils._
 import co.ledger.lama.service.utils.RouterUtils._
@@ -34,7 +35,14 @@ import org.http4s.dsl.Http4sDsl
 
 object AccountController extends Http4sDsl[IO] with IOLogging {
 
-  implicit val cs = IO.contextShift(scala.concurrent.ExecutionContext.global)
+  implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
+
+  case class UpdateRequest(syncFrequency: Long)
+
+  object UpdateRequest {
+    implicit val encoder: Encoder[UpdateRequest] = deriveConfiguredEncoder[UpdateRequest]
+    implicit val decoder: Decoder[UpdateRequest] = deriveConfiguredDecoder[UpdateRequest]
+  }
 
   case class CreationRequest(
       extendedPublicKey: String,
@@ -100,7 +108,26 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           .map(fromRegisterAccount)
           .flatMap(Ok(_))
 
+      case req @ PUT -> Root / UUIDVar(accountId) =>
+        val r = for {
+          updateRequest <- req.as[UpdateRequest]
+
+          _ <- log.info(
+            s"Updating account ${accountId} sync frequency with value ${updateRequest.syncFrequency}"
+          )
+
+          _ <- accountManagerClient.updateAccount(
+            new UpdateAccountRequest(
+              accountId = UuidUtils.uuidToBytes(accountId),
+              syncFrequency = updateRequest.syncFrequency
+            ),
+            new Metadata
+          )
+        } yield updateRequest.syncFrequency
+        r.flatMap(_ => Ok())
+
       case DELETE -> Root / UUIDVar(accountId) =>
+        log.info(s"Fetching account informations for id: $accountId")
         val r = for {
           _ <- log.info(s"Fetching account informations for id: $accountId")
 

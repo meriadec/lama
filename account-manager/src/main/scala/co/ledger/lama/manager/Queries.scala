@@ -68,7 +68,18 @@ object Queries {
       .query[AccountInfo]
       .option
 
-  def upsertAccountInfo(
+  def updateAccountSyncFrequency(
+      accountId: UUID,
+      syncFrequency: FiniteDuration
+  ): ConnectionIO[Int] = {
+    val syncFrequencyInterval = new PGInterval()
+    syncFrequencyInterval.setSeconds(syncFrequency.toSeconds.toDouble)
+
+    sql"""UPDATE account_info SET sync_frequency=$syncFrequencyInterval WHERE account_id = $accountId
+          """.update.run
+  }
+
+  def insertAccountInfo(
       accountIdentifier: AccountIdentifier,
       syncFrequency: FiniteDuration
   ): ConnectionIO[AccountInfo] = {
@@ -80,10 +91,9 @@ object Queries {
     val syncFrequencyInterval = new PGInterval()
     syncFrequencyInterval.setSeconds(syncFrequency.toSeconds.toDouble)
 
+    // Yes, this is weird but DO NOTHING does not return anything unfortunately
     sql"""INSERT INTO account_info(account_id, key, coin_family, coin, sync_frequency)
           VALUES($accountId, $key, $coinFamily, $coin, $syncFrequencyInterval)
-          ON CONFLICT (account_id)
-            DO UPDATE SET sync_frequency = $syncFrequencyInterval
           RETURNING account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60
           """
       .query[AccountInfo]

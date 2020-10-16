@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 package pb.v1;
 option java_package = "co.ledger.lama.manager.protobuf";
 
@@ -7,6 +9,7 @@ option java_package = "co.ledger.lama.manager.protobuf";
 // account infos and transactions.
 service AccountManagerService {
     rpc RegisterAccount(RegisterAccountRequest) returns (RegisterAccountResult) {}
+    rpc UpdateAccount(UpdateAccountRequest) returns (google.protobuf.Empty) {}
     rpc UnregisterAccount(UnregisterAccountRequest) returns (UnregisterAccountResult) {}
     rpc GetAccountInfo(AccountInfoRequest) returns (AccountInfoResult) {}
 }
@@ -20,6 +23,11 @@ message RegisterAccountRequest {
     oneof cursor {
         BlockHeightState block_height = 5;
     }
+}
+
+message UpdateAccountRequest {
+    bytes account_id = 1;
+    uint64 sync_frequency = 2;
 }
 
 message BlockHeightState {

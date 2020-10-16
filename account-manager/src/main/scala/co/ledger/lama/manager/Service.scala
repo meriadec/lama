@@ -15,17 +15,10 @@ import co.ledger.lama.manager.Exceptions.{
 }
 import co.ledger.lama.manager.config.CoinConfig
 import co.ledger.lama.manager.models.AccountInfo
-import co.ledger.lama.manager.protobuf.{
-  AccountInfoRequest,
-  AccountInfoResult,
-  AccountManagerServiceFs2Grpc,
-  RegisterAccountRequest,
-  RegisterAccountResult,
-  UnregisterAccountRequest,
-  UnregisterAccountResult
-}
+import co.ledger.lama.manager.protobuf._
 import co.ledger.lama.manager.utils.ProtobufUtils
 import com.google.protobuf.ByteString
+import com.google.protobuf.empty.Empty
 import doobie.implicits._
 import doobie.util.transactor.Transactor
 import io.circe.Json
@@ -39,6 +32,19 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
 
   def definition(implicit ce: ConcurrentEffect[IO]): ServerServiceDefinition =
     AccountManagerServiceFs2Grpc.bindService(this)
+
+  def updateAccount(
+      request: UpdateAccountRequest,
+      ctx: Metadata
+  ): IO[Empty] = {
+    val accountIdIo   = UuidUtils.bytesToUuidIO(request.accountId)
+    val syncFrequency = FiniteDuration(request.syncFrequency, TimeUnit.SECONDS)
+    for {
+      accountId <- accountIdIo
+      _         <- Queries.updateAccountSyncFrequency(accountId, syncFrequency).transact(db)
+    } yield Empty()
+
+  }
 
   def registerAccount(
       request: RegisterAccountRequest,
@@ -65,10 +71,10 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
 
       // Build queries.
       queries = for {
-        // Upsert the account info.
+        // Insert the account info.
         accountInfo <-
           Queries
-            .upsertAccountInfo(
+            .insertAccountInfo(
               account,
               syncFrequency
             )

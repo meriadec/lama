@@ -20,6 +20,7 @@ import pureconfig.ConfigSource
 import cats.implicits._
 import co.ledger.lama.common.models.Status.{Deleted, Published, Registered, Synchronized}
 import co.ledger.lama.common.models.Sort
+import co.ledger.lama.service.routes.AccountController.UpdateRequest
 import io.circe.parser._
 
 import scala.concurrent.ExecutionContext
@@ -42,6 +43,9 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
 
   val accountRegisteringRequest =
     Request[IO](method = Method.POST, uri = Uri.unsafeFromString(s"$serverUrl/accounts"))
+
+  def accountUpdateRequest(accountId: UUID) =
+    Request[IO](method = Method.PUT, uri = Uri.unsafeFromString(s"$serverUrl/accounts/$accountId"))
 
   def getAccountRequest(accountId: UUID) =
     Request[IO](
@@ -128,6 +132,14 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                 getAccountRequest(accountRegistered.accountId)
               )
 
+              accountUpdateStatus <- client.status(
+                accountUpdateRequest(accountRegistered.accountId).withEntity(UpdateRequest(60))
+              )
+
+              accountInfoAfterUpdate <- client.expect[AccountInfo](
+                getAccountRequest(accountRegistered.accountId)
+              )
+
               accountDeletedStatus <-
                 client.status(removeAccountRequest(accountRegistered.accountId))
 
@@ -175,6 +187,11 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
               val lastTxHash = operations.head.hash
               it should s"have fetch operations to last cursor $lastTxHash" in {
                 lastTxHash shouldBe account.expected.lastTxHash
+              }
+
+              it should "be updated" in {
+                accountUpdateStatus.code shouldBe 200
+                accountInfoAfterUpdate.syncFrequency shouldBe 60
               }
 
               it should "be unregistered" in {
