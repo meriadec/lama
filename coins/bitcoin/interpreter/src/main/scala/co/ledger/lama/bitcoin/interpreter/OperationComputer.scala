@@ -4,6 +4,7 @@ import java.util.UUID
 
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
 
 object OperationComputer extends IOLogging {
 
@@ -11,7 +12,7 @@ object OperationComputer extends IOLogging {
       tx: TransactionView,
       accountId: UUID,
       addresses: List[AccountAddress]
-  ): List[Operation] = {
+  ): List[OperationToSave] = {
 
     val inputAmount = extractInputAmount(tx, addresses)
 
@@ -37,24 +38,26 @@ object OperationComputer extends IOLogging {
     log.logger.debug(s"Sent amount: $sentAmount")
     log.logger.debug(s"Received amount: $receivedAmount")
 
-    val sentOperation = Operation(
+    val sentOperation = OperationToSave(
       accountId = accountId,
       hash = tx.hash,
-      Some(tx),
       operationType = Sent,
       value = sentAmount,
-      time = tx.block.time
+      time = tx.block.time,
+      blockHash = tx.block.hash,
+      blockHeight = tx.block.height
     )
 
     log.logger.debug(s"Sent operation: $sentOperation")
 
-    val receivedOperation = Operation(
+    val receivedOperation = OperationToSave(
       accountId = accountId,
       hash = tx.hash,
-      Some(tx),
       operationType = Received,
       value = receivedAmount,
-      time = tx.block.time
+      time = tx.block.time,
+      blockHash = tx.block.hash,
+      blockHeight = tx.block.height
     )
 
     log.logger.debug(s"Received operation: $receivedOperation")

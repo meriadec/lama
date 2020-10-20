@@ -20,6 +20,7 @@ class OperationInterpreter(db: Transactor[IO]) {
 
   def getOperations(
       accountId: UUID,
+      blockHeight: Long,
       limit: Int,
       offset: Int,
       sort: Sort
@@ -29,7 +30,7 @@ class OperationInterpreter(db: Transactor[IO]) {
       // We fetch limit + 1 operations to know if there's more to fetch.
       ops <-
         OperationQueries
-          .fetchOperations(accountId, sort, Some(limit + 1), Some(offset))
+          .fetchOperations(accountId, blockHeight, sort, Some(limit + 1), Some(offset))
           .transact(db)
           .compile
           .toList

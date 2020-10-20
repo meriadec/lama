@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, Transaction}
-import co.ledger.lama.bitcoin.common.models.service.Operation
+import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
 import doobie.util.transactor.Transactor
 import doobie.implicits._
 
@@ -37,7 +37,7 @@ object QueryUtils {
       .toList
   }
 
-  def saveOp(db: Transactor[IO], operation: Operation) = {
+  def saveOp(db: Transactor[IO], operation: OperationToSave) = {
     OperationQueries
       .saveOperations(List(operation))
       .transact(db)

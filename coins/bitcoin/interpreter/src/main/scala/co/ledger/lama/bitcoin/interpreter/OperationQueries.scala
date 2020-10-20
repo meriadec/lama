@@ -6,6 +6,7 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import cats.free.Free
 import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
 import co.ledger.lama.common.logging.IOLogging
 import doobie._
 import doobie.implicits._
@@ -112,6 +113,7 @@ object OperationQueries extends IOLogging {
 
   def fetchOperations(
       accountId: UUID,
+      blockHeight: Long = 0L,
       sort: Sort = Sort.Descending,
       limit: Option[Int] = None,
       offset: Option[Int] = None
@@ -123,17 +125,18 @@ object OperationQueries extends IOLogging {
     val query = sql"""SELECT account_id, hash, operation_type, value, time
           FROM operation
           WHERE account_id = $accountId
+          AND block_height >= $blockHeight
           """ ++ orderF ++ limitF ++ offsetF
     query.query[Operation].stream
   }
 
-  def saveOperations(operation: List[Operation]): ConnectionIO[Int] = {
+  def saveOperations(operation: List[OperationToSave]): ConnectionIO[Int] = {
     val query = """INSERT INTO operation (
-            account_id, hash, operation_type, value, time
-          ) VALUES (?, ?, ?, ?, ?)
+            account_id, hash, operation_type, value, time, block_hash, block_height
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
         """
-    Update[Operation](query).updateMany(operation)
+    Update[OperationToSave](query).updateMany(operation)
   }
 
   def flagInputs(accountId: UUID, addresses: List[String]): ConnectionIO[Int] = {

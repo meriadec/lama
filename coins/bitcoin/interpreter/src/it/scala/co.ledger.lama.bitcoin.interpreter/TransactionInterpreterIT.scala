@@ -90,8 +90,13 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
           blocks <- transactionInterpreter.getLastBlocks(accountId)
           _      <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
           _      <- transactionInterpreter.removeDataFromCursor(accountId, block.height)
-          res <-
-            operationInterpreter.getOperations(accountId, limit = 20, offset = 0, Sort.Ascending)
+          res <- operationInterpreter.getOperations(
+            accountId,
+            blockHeight = 0L,
+            limit = 20,
+            offset = 0,
+            Sort.Ascending
+          )
           (ops, trunc) = res
           blocksAfterDelete <- transactionInterpreter.getLastBlocks(accountId)
         } yield {

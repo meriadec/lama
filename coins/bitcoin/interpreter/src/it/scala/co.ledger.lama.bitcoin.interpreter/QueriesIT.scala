@@ -4,6 +4,7 @@ import java.util.UUID
 
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
 import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -73,15 +74,16 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
       }
   }
 
-  val operation: Operation = Operation(
+  val opToSave: OperationToSave = OperationToSave(
     accountId,
     transactionToInsert.hash,
-    None,
     Sent,
     transactionToInsert.inputs.collect {
       case i: DefaultInput => i.value
     }.sum,
-    block.time
+    block.time,
+    block.hash,
+    block.height
   )
 
   "operation saved in db" should "be fetched" in IOAssertion {
@@ -90,11 +92,18 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
         for {
           _  <- QueryUtils.saveBlock(db, accountId, block)
           _  <- QueryUtils.saveTx(db, transactionToInsert, accountId)
-          _  <- QueryUtils.saveOp(db, operation)
+          _  <- QueryUtils.saveOp(db, opToSave)
           op <- QueryUtils.fetchOps(db, accountId)
         } yield {
-          op should have size 1
-          op.head should be(operation)
+          op should contain only
+            Operation(
+              opToSave.accountId,
+              opToSave.hash,
+              None,
+              opToSave.operationType,
+              opToSave.value,
+              opToSave.time
+            )
         }
       }
   }

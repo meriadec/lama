@@ -68,6 +68,8 @@ CREATE TABLE operation (
     operation_type operation_type NOT NULL,
     value BIGINT NOT NULL,
     time VARCHAR NOT NULL,
+    block_hash VARCHAR NOT NULL,
+    block_height BIGINT NOT NULL,
 
     PRIMARY KEY (account_id, hash, operation_type),
     FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash) ON DELETE CASCADE

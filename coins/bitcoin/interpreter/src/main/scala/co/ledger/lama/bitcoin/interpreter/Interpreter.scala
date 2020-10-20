@@ -52,18 +52,20 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
       request: protobuf.GetOperationsRequest,
       ctx: Metadata
   ): IO[protobuf.GetOperationsResult] = {
-    val limit  = if (request.limit <= 0) 20 else request.limit
-    val offset = if (request.offset < 0) 0 else request.offset
-    val sort   = Sort.fromIsAsc(request.sort.isAsc)
+    val blockHeight = request.blockHeight
+    val limit       = if (request.limit <= 0) 20 else request.limit
+    val offset      = if (request.offset < 0) 0 else request.offset
+    val sort        = Sort.fromIsAsc(request.sort.isAsc)
 
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
       _         <- log.info(s"""Getting operations with parameters:
                   |- accountId: $accountId
+                  |- blockHeight: $blockHeight
                   |- limit: $limit
                   |- offset: $offset
                   |- sort: $sort""".stripMargin)
-      opResult  <- operationInterpreter.getOperations(accountId, limit, offset, sort)
+      opResult  <- operationInterpreter.getOperations(accountId, blockHeight, limit, offset, sort)
       (operations, truncated) = opResult
     } yield protobuf.GetOperationsResult(operations.map(_.toProto), truncated)
   }

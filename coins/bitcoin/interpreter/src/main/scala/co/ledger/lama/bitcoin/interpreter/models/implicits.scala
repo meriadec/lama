@@ -119,9 +119,17 @@ object implicits {
           Operation(accountId, hash, None, operationType, value, time)
       }
 
-  implicit lazy val writeOperation: Write[Operation] =
-    Write[(UUID, String, OperationType, Long, String)]
+  implicit lazy val writeOperation: Write[OperationToSave] =
+    Write[(UUID, String, OperationType, Long, String, String, Long)]
       .contramap { op =>
-        (op.accountId, op.hash, op.operationType, op.value.toLong, op.time)
+        (
+          op.accountId,
+          op.hash,
+          op.operationType,
+          op.value.toLong,
+          op.time,
+          op.blockHash,
+          op.blockHeight
+        )
       }
 }
