@@ -51,11 +51,14 @@ object App extends IOApp {
 
       val interpreterService = new InterpreterGrpcClientService(interpreterClient)
 
+      val cursorStateService = new CursorStateService(explorerService, interpreterService)
+
       val worker = new Worker(
         syncEventService,
         keychainService,
         explorerService,
-        interpreterService
+        interpreterService,
+        cursorStateService
       )
 
       for {

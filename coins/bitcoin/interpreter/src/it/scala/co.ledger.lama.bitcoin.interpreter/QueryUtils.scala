@@ -10,9 +10,9 @@ import doobie.implicits._
 
 object QueryUtils {
 
-  def saveBlock(db: Transactor[IO], block: Block) = {
+  def saveBlock(db: Transactor[IO], accountId: UUID, block: Block) = {
     TransactionQueries
-      .upsertBlock(block)
+      .upsertBlock(accountId, block)
       .transact(db)
   }
 

@@ -17,8 +17,10 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) {
   def getCurrentBlock: IO[Block] =
     httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/current"))
 
-  def getBlock(hash: String): IO[Block] =
-    httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/$hash"))
+  def getBlock(hash: String): IO[Option[Block]] =
+    httpClient
+      .expect[List[Block]](conf.uri.withPath(s"$btcBasePath/blocks/$hash"))
+      .map(_.headOption)
 
   def getBlock(height: Long): IO[Block] =
     httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/$height"))

@@ -9,10 +9,12 @@ CREATE TYPE change_type as ENUM(
 );
 
 CREATE TABLE block (
-    hash VARCHAR NOT NULL PRIMARY KEY,
+    account_id UUID NOT NULL,
+    hash VARCHAR NOT NULL,
     height BIGINT NOT NULL,
     time VARCHAR NOT NULL,
-    deleted BOOLEAN NOT NULL DEFAULT false
+
+    PRIMARY KEY (account_id, hash)
 );
 
 CREATE TABLE transaction (
@@ -26,7 +28,7 @@ CREATE TABLE transaction (
     confirmations INTEGER,
 
     PRIMARY KEY (account_id, hash),
-    FOREIGN KEY (block_hash) REFERENCES block (hash)
+    FOREIGN KEY (account_id, block_hash) REFERENCES block (account_id, hash) ON DELETE CASCADE
 );
 
 CREATE TABLE input (

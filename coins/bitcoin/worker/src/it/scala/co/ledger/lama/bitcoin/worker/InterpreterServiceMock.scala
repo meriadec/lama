@@ -3,8 +3,12 @@ package co.ledger.lama.bitcoin.worker
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.interpreter.protobuf.{AccountAddress, GetOperationsResult}
-import co.ledger.lama.bitcoin.common.models.explorer.Transaction
+import co.ledger.lama.bitcoin.interpreter.protobuf.{
+  AccountAddress,
+  GetLastBlocksResult,
+  GetOperationsResult
+}
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, Transaction}
 import co.ledger.lama.bitcoin.common.models.service.{Operation, Sent}
 import co.ledger.lama.bitcoin.worker.services.{InterpreterService, SortingEnum}
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.SortingEnum
@@ -26,7 +30,7 @@ class InterpreterServiceMock extends InterpreterService {
       )
     }.map(_ => txs.size)
 
-  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] = {
+  def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] = {
     val io = blockHeightCursor match {
       case Some(blockHeight) =>
         IO.delay {
@@ -83,5 +87,39 @@ class InterpreterServiceMock extends InterpreterService {
 
   def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Int] = {
     IO.pure(0)
+  }
+
+  def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult] = {
+    IO.pure(
+      GetLastBlocksResult(
+        List(
+          Block(
+            "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608371", //invalid
+            559035L,
+            "time"
+          ),
+          Block(
+            "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608372", //invalid
+            559034L,
+            "time"
+          ),
+          Block(
+            "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379", //last valid
+            559033L,
+            "time"
+          ),
+          Block(
+            "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608373", //invalid
+            559032L,
+            "time"
+          ),
+          Block(
+            "0000000000000000000bf68b57eacbff287ceafecb54a30dc3fd19630c9a3883", //valid but not last
+            559031L,
+            "time"
+          )
+        ).map(_.toProto)
+      )
+    )
   }
 }

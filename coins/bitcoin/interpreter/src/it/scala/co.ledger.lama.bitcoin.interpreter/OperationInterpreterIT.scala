@@ -69,7 +69,7 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
         val operationInterpreter = new OperationInterpreter(db)
 
         for {
-          _ <- QueryUtils.saveBlock(db, block)
+          _ <- QueryUtils.saveBlock(db, accountId, block)
           _ <- QueryUtils.saveTx(db, insertTx, accountId)
           _ <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
           res <-
@@ -101,7 +101,7 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
         val operationInterpreter = new OperationInterpreter(db)
 
         for {
-          _   <- QueryUtils.saveBlock(db, block)
+          _   <- QueryUtils.saveBlock(db, accountId, block)
           _   <- QueryUtils.saveTx(db, insertTx, accountId)
           _   <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress1))
           res <- operationInterpreter.getUTXOs(accountId, 20, 0)
@@ -124,7 +124,7 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
         val operationInterpreter = new OperationInterpreter(db)
 
         for {
-          _  <- QueryUtils.saveBlock(db, block)
+          _  <- QueryUtils.saveBlock(db, accountId, block)
           _  <- QueryUtils.saveTx(db, insertTx, accountId)
           _  <- operationInterpreter.computeOperations(accountId, List(outputAddress1))
           ai <- operationInterpreter.getBalance(accountId)

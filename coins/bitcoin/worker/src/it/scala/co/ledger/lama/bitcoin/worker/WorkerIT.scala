@@ -6,7 +6,11 @@ import cats.effect.{ContextShift, IO, Resource, Timer}
 import co.ledger.lama.bitcoin.common.models.explorer.Block
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.PayloadData
-import co.ledger.lama.bitcoin.worker.services.{ExplorerService, SyncEventService}
+import co.ledger.lama.bitcoin.worker.services.{
+  CursorStateService,
+  ExplorerService,
+  SyncEventService
+}
 import co.ledger.lama.common.models.{
   AccountIdentifier,
   Coin,
@@ -59,11 +63,14 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
 
             val interpreterService = new InterpreterServiceMock
 
+            val cursorStateService = new CursorStateService(explorerService, interpreterService)
+
             val worker = new Worker(
               syncEventService,
               keychainService,
               explorerService,
-              interpreterService
+              interpreterService,
+              cursorStateService
             )
 
             val accountManager = new SimpleAccountManager(

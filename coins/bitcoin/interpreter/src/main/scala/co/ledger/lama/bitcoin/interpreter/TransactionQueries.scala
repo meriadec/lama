@@ -12,14 +12,23 @@ import doobie.postgres.implicits._
 
 object TransactionQueries {
 
-  def upsertBlock(block: Block): ConnectionIO[Int] =
+  def fetchBlocks(accountId: UUID): fs2.Stream[doobie.ConnectionIO, Block] = {
+    sql"""SELECT hash, height, time
+          FROM block
+          WHERE account_id = $accountId
+          ORDER BY height DESC
+          LIMIT 53 -- the biggest reorg that happened on bitcoin was 53 blocks long
+       """.query[Block].stream
+  }
+
+  def upsertBlock(accountId: UUID, block: Block): ConnectionIO[Int] =
     sql"""INSERT INTO block (
-            hash, height, time
+            account_id, hash, height, time
           ) VALUES (
-            ${block.hash}, ${block.height}, ${block.time}
+            $accountId, ${block.hash}, ${block.height}, ${block.time}
           )
           ON CONFLICT ON CONSTRAINT block_pkey DO NOTHING;
-        """.update.run
+       """.update.run
 
   def saveTransaction(tx: Transaction, accountId: UUID): ConnectionIO[Int] =
     for {
@@ -56,7 +65,7 @@ object TransactionQueries {
             ${tx.block.hash},
             ${tx.confirmations}
           ) ON CONFLICT ON CONSTRAINT transaction_pkey DO NOTHING
-        """.update.run
+       """.update.run
   }
 
   private def insertInputs(
@@ -69,7 +78,7 @@ object TransactionQueries {
             account_id, hash, output_hash, output_index, input_index, value, address, script_signature, txinwitness, sequence, belongs
           ) VALUES ('$accountId', '$txHash', ?, ?, ?, ?, ?, ?, ?, ?, false)
           ON CONFLICT ON CONSTRAINT input_pkey DO NOTHING
-        """
+       """
     Update[DefaultInput](query).updateMany(inputs)
   }
 
@@ -98,6 +107,14 @@ object TransactionQueries {
     sql"""DELETE from transaction t
           USING block b
           WHERE t.block_hash = b.hash
+          AND t.account_id = b.account_id
           AND t.account_id = $accountId
-          AND b.height >= $blockHeight""".update.run
+          AND b.height >= $blockHeight
+       """.update.run
+
+  def deleteFromCursor(accountId: UUID, blockHeight: Long): ConnectionIO[Int] =
+    sql"""DELETE from block
+          WHERE account_id = $accountId
+          AND height >= $blockHeight
+       """.update.run
 }

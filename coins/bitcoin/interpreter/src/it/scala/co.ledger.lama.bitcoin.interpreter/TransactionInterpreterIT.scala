@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
+import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
 import co.ledger.lama.common.models.Sort
@@ -63,23 +64,43 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
     block.time
   )
 
-  "transaction in db" should "be deleted" in IOAssertion {
+  "data in db" should "be deleted from cursor" in IOAssertion {
     setup() *>
       appResources.use { db =>
         val operationInterpreter   = new OperationInterpreter(db)
         val transactionInterpreter = new TransactionInterpreter(db)
 
+        val block2 = Block(
+          "0000000000000000000cc9cc204cf3b314d106e69afbea68f2ae7f9e5047ba74",
+          block.height + 1,
+          "time"
+        )
+        val block3 = Block(
+          "0000000000000000000bf68b57eacbff287ceafecb54a30dc3fd19630c9a3883",
+          block.height + 2,
+          "time"
+        )
+
+        // intentionally disordered
+        val blocksToSave = List(block2, block, block3)
+
         for {
-          _ <- QueryUtils.saveBlock(db, block)
-          _ <- QueryUtils.saveTx(db, insertTx, accountId)
-          _ <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
-          _ <- transactionInterpreter.deleteTransactions(accountId, 0)
+          _      <- blocksToSave.map(QueryUtils.saveBlock(db, accountId, _)).sequence
+          _      <- QueryUtils.saveTx(db, insertTx, accountId)
+          blocks <- transactionInterpreter.getLastBlocks(accountId)
+          _      <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
+          _      <- transactionInterpreter.removeDataFromCursor(accountId, block.height)
           res <-
             operationInterpreter.getOperations(accountId, limit = 20, offset = 0, Sort.Ascending)
           (ops, trunc) = res
+          blocksAfterDelete <- transactionInterpreter.getLastBlocks(accountId)
         } yield {
+          blocks should be(blocksToSave.sortBy(_.height)(Ordering[Long].reverse))
+
           ops should have size 0
           trunc shouldBe false
+
+          blocksAfterDelete shouldBe empty
         }
       }
   }

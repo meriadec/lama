@@ -22,7 +22,8 @@ class Worker(
     syncEventService: SyncEventService,
     keychainService: KeychainService,
     explorerService: ExplorerService,
-    interpreterService: InterpreterService
+    interpreterService: InterpreterService,
+    cursorStateService: CursorStateService
 ) extends IOLogging {
 
   def run(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): Stream[IO, Unit] =
@@ -75,11 +76,25 @@ class Worker(
 
       keychainInfo <- keychainService.getKeychainInfo(keychainId)
 
+      // REORG
+      lastValidBlock <- previousBlockState.map { block =>
+        for {
+          lvb <- cursorStateService.getLastValidState(account.id, block)
+          _ <-
+            if (block.hash == lvb.hash)
+              // If the previous block is still valid, do not reorg
+              IO.unit
+            else
+              // remove all transactions and operations up until last valid block
+              interpreterService.removeDataFromCursor(account.id, Some(lvb.height))
+        } yield lvb
+      }.sequence
+
       batchResults <- syncAccountBatch(
         account.id,
         keychainId,
         keychainInfo.lookaheadSize,
-        previousBlockState.map(_.hash),
+        lastValidBlock.map(_.hash),
         0,
         keychainInfo.lookaheadSize
       ).stream.compile.toList
@@ -187,6 +202,6 @@ class Worker(
 
   def deleteAccount(workableEvent: WorkableEvent): IO[ReportableEvent] =
     interpreterService
-      .removeTransactions(workableEvent.accountId, None)
+      .removeDataFromCursor(workableEvent.accountId, None)
       .map(_ => workableEvent.reportSuccess(Json.obj()))
 }

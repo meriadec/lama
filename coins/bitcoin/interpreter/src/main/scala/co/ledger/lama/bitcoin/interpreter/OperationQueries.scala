@@ -78,7 +78,7 @@ object OperationQueries extends IOLogging {
       hash: String
   ): ConnectionIO[Option[TransactionView]] =
     sql"""SELECT tx.id, tx.hash, tx.received_at, tx.lock_time, tx.fees, tx.block_hash, tx.confirmations, bk.height, bk.time
-          FROM transaction tx INNER JOIN block bk ON tx.block_hash = bk.hash
+          FROM transaction tx INNER JOIN block bk ON tx.block_hash = bk.hash AND tx.account_id = bk.account_id
           WHERE tx.hash = $hash
           AND tx.account_id = $accountId
           """

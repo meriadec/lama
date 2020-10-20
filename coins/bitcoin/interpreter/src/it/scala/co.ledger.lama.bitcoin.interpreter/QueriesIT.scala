@@ -51,8 +51,8 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     setup() *>
       appResources.use { db =>
         for {
-          _   <- QueryUtils.saveBlock(db, block)
-          _   <- QueryUtils.saveBlock(db, block)                       // check upsert (shouldn't throw error)
+          _   <- QueryUtils.saveBlock(db, accountId, block)
+          _   <- QueryUtils.saveBlock(db, accountId, block)            // check upsert (shouldn't throw error)
           _   <- QueryUtils.saveTx(db, transactionToInsert, accountId)
           _   <- QueryUtils.saveTx(db, transactionToInsert, accountId) // check upsert
           txO <- QueryUtils.fetchTx(db, accountId, transactionToInsert.hash)
@@ -88,7 +88,7 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     setup() *>
       appResources.use { db =>
         for {
-          _  <- QueryUtils.saveBlock(db, block)
+          _  <- QueryUtils.saveBlock(db, accountId, block)
           _  <- QueryUtils.saveTx(db, transactionToInsert, accountId)
           _  <- QueryUtils.saveOp(db, operation)
           op <- QueryUtils.fetchOps(db, accountId)

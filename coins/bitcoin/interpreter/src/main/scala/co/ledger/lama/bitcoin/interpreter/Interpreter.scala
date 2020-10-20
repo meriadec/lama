@@ -33,6 +33,21 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
     } yield ResultCount(savedCount)
   }
 
+  def getLastBlocks(
+      request: protobuf.GetLastBlocksRequest,
+      ctx: Metadata
+  ): IO[protobuf.GetLastBlocksResult] = {
+    for {
+      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+      _         <- log.info(s"""Getting blocks for account:
+                               - accountId: $accountId
+                               """)
+      blocks    <- transactionInterpreter.getLastBlocks(accountId)
+    } yield {
+      protobuf.GetLastBlocksResult(blocks.map(_.toProto))
+    }
+  }
+
   def getOperations(
       request: protobuf.GetOperationsRequest,
       ctx: Metadata
@@ -70,7 +85,7 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
     }
   }
 
-  def deleteTransactions(
+  def removeDataFromCursor(
       request: protobuf.DeleteTransactionsRequest,
       ctx: Metadata
   ): IO[protobuf.ResultCount] = {
@@ -79,7 +94,7 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
       _         <- log.info(s"""Deleting transactions with parameters:
                       |- accountId: $accountId
                       |- blockHeight: ${request.blockHeight}""".stripMargin)
-      txRes     <- transactionInterpreter.deleteTransactions(accountId, request.blockHeight)
+      txRes     <- transactionInterpreter.removeDataFromCursor(accountId, request.blockHeight)
       _         <- log.info(s"Deleted $txRes transactions")
     } yield ResultCount(txRes)
   }

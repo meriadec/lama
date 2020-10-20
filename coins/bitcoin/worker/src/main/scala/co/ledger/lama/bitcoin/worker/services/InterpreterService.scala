@@ -8,6 +8,8 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
   BitcoinInterpreterServiceFs2Grpc,
   ComputeOperationsRequest,
   DeleteTransactionsRequest,
+  GetLastBlocksRequest,
+  GetLastBlocksResult,
   GetOperationsRequest,
   GetOperationsResult,
   SaveTransactionsRequest,
@@ -26,7 +28,7 @@ object SortingEnum extends Enumeration {
 trait InterpreterService {
   def saveTransactions(accountId: UUID, txs: List[Transaction]): IO[Int]
 
-  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int]
+  def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int]
 
   def getTransactions(
       accountId: UUID,
@@ -35,6 +37,8 @@ trait InterpreterService {
       offset: Option[Int],
       sortingOrder: Option[SortingEnum]
   ): IO[GetOperationsResult]
+
+  def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult]
 
   def computeOperations(
       accountId: UUID,
@@ -56,9 +60,9 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
       )
       .map(_.count)
 
-  def removeTransactions(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] =
+  def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] =
     grpcClient
-      .deleteTransactions(
+      .removeDataFromCursor(
         new DeleteTransactionsRequest(
           UuidUtils uuidToBytes accountId,
           blockHeightCursor.getOrElse(0)
@@ -91,6 +95,14 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
       new Metadata()
     )
   }
+
+  def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult] =
+    grpcClient.getLastBlocks(
+      new GetLastBlocksRequest(
+        UuidUtils uuidToBytes accountId
+      ),
+      new Metadata()
+    )
 
   def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Int] =
     grpcClient

@@ -2,7 +2,7 @@ package co.ledger.lama.bitcoin.interpreter.models
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.explorer.{DefaultInput, Output}
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, DefaultInput, Output}
 import co.ledger.lama.bitcoin.common.models.service._
 import doobie._
 import doobie.postgres.implicits._
@@ -40,7 +40,14 @@ object implicits {
       (o.outputIndex, o.value.toLong, o.address, o.scriptHex)
     }
 
-  implicit lazy val readTransaction: Read[TransactionView] =
+  implicit val readBlock: Read[Block] =
+    Read[(String, Long, String)]
+      .map {
+        case (hash, height, time) =>
+          Block(hash, height, time)
+      }
+
+  implicit lazy val readTransactionView: Read[TransactionView] =
     Read[(String, String, String, Long, Long, String, Int, Long, String)]
       .map {
         case (
@@ -67,7 +74,7 @@ object implicits {
           )
       }
 
-  implicit lazy val readInput: Read[InputView] =
+  implicit lazy val readInputView: Read[InputView] =
     Read[(String, Int, Int, Long, String, String, Long, Boolean)].map {
       case (
             outputHash,
@@ -92,7 +99,7 @@ object implicits {
         )
     }
 
-  implicit lazy val readOutput: Read[OutputView] =
+  implicit lazy val readOutputView: Read[OutputView] =
     Read[(Int, Long, String, String, Boolean, Option[ChangeType])].map {
       case (outputIndex, value, address, scriptHex, belongs, changeType) =>
         OutputView(

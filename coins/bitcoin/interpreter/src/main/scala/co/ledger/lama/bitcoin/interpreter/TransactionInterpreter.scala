@@ -6,7 +6,7 @@ import cats.effect.IO
 import doobie.Transactor
 import doobie.implicits._
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.explorer.Transaction
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, Transaction}
 
 class TransactionInterpreter(db: Transactor[IO]) {
 
@@ -16,14 +16,22 @@ class TransactionInterpreter(db: Transactor[IO]) {
         transactions
           .traverse(tx =>
             (
-              TransactionQueries.upsertBlock(tx.block),
+              TransactionQueries.upsertBlock(accountId, tx.block),
               TransactionQueries.saveTransaction(tx, accountId)
             ).tupled.transact(db).map(_._2)
           )
 
     } yield res.sum
 
-  def deleteTransactions(accountId: UUID, blockHeight: Long): IO[Int] =
-    TransactionQueries.deleteTransactions(accountId, blockHeight).transact(db)
+  def removeDataFromCursor(accountId: UUID, blockHeight: Long): IO[Int] =
+    TransactionQueries.deleteFromCursor(accountId, blockHeight).transact(db)
+
+  def getLastBlocks(accountId: UUID): IO[List[Block]] = {
+    TransactionQueries
+      .fetchBlocks(accountId)
+      .transact(db)
+      .compile
+      .toList
+  }
 
 }

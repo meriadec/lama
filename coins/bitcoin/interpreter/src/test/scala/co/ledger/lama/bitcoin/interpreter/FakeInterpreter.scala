@@ -21,7 +21,7 @@ class FakeInterpreter extends Interpreter {
       transactions.update(bytesToUUID(request.accountId), request.transactions)
     }.map(_ => ResultCount(request.transactions.size))
 
-  def deleteTransactions(request: DeleteTransactionsRequest, ctx: Metadata): IO[ResultCount] =
+  def removeDataFromCursor(request: DeleteTransactionsRequest, ctx: Metadata): IO[ResultCount] =
     IO.pure {
       val accountId = bytesToUUID(request.accountId)
       if (request.blockHeight == 0) {
@@ -80,5 +80,8 @@ class FakeInterpreter extends Interpreter {
 
   def getBalance(request: GetBalanceRequest, ctx: Metadata): IO[protobuf.GetBalanceResult] =
     IO.pure(AccountBalance(0, 0, 0, 0).toProto)
+
+  def getLastBlocks(request: GetLastBlocksRequest, ctx: Metadata): IO[GetLastBlocksResult] =
+    IO.pure(GetLastBlocksResult(List(Block("hash", 1L, "time"))))
 
 }

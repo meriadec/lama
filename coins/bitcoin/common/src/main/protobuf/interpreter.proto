@@ -10,7 +10,8 @@ option java_package = "co.ledger.lama.bitcoin.interpreter.protobuf";
 
 service BitcoinInterpreterService {
   rpc SaveTransactions(SaveTransactionsRequest) returns (ResultCount) {}
-  rpc DeleteTransactions(DeleteTransactionsRequest) returns (ResultCount) {}
+  rpc GetLastBlocks(GetLastBlocksRequest) returns (GetLastBlocksResult) {}
+  rpc RemoveDataFromCursor(DeleteTransactionsRequest) returns (ResultCount) {}
   rpc GetOperations(GetOperationsRequest) returns (GetOperationsResult) {}
   rpc ComputeOperations(ComputeOperationsRequest) returns (ResultCount) {}
   rpc GetUTXOs(GetUTXOsRequest) returns (GetUTXOsResult) {}
@@ -26,6 +27,14 @@ enum SortingOrder {
 message SaveTransactionsRequest {
   bytes account_id = 1;
   repeated Transaction transactions = 2;
+}
+
+message GetLastBlocksRequest {
+  bytes account_id = 1;
+}
+
+message GetLastBlocksResult {
+  repeated Block blocks = 1;
 }
 
 message ComputeOperationsRequest {

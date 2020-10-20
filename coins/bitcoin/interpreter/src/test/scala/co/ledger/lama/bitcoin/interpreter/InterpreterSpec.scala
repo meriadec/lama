@@ -73,7 +73,7 @@ class InterpreterSpec extends AnyFlatSpecLike with Matchers {
           )
           .map(_.operations)
 
-      _ <- interpreter.deleteTransactions(
+      _ <- interpreter.removeDataFromCursor(
         new DeleteTransactionsRequest(saveTransactionRequest.accountId),
         new Metadata()
       )
