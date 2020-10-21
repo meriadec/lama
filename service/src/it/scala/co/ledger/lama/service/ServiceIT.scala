@@ -99,7 +99,12 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                     (offset, limit) =>
                       IOUtils.retryIf[GetOperationsResult](
                         client.expect[GetOperationsResult](
-                          getOperationsRequest(accountRegistered.accountId, offset, limit)
+                          getOperationsRequest(
+                            accountRegistered.accountId,
+                            offset,
+                            limit,
+                            Sort.Descending
+                          )
                         ),
                         _.operations.nonEmpty
                       ),

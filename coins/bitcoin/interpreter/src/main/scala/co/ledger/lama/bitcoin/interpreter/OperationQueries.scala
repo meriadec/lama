@@ -118,7 +118,7 @@ object OperationQueries extends IOLogging {
       limit: Option[Int] = None,
       offset: Option[Int] = None
   ): fs2.Stream[doobie.ConnectionIO, Operation] = {
-    val orderF  = Fragment.const(s"ORDER BY time $sort")
+    val orderF  = Fragment.const(s"ORDER BY time $sort, hash $sort")
     val limitF  = limit.map(l => fr"LIMIT $l").getOrElse(Fragment.empty)
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
 
