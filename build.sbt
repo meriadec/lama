@@ -48,10 +48,10 @@ lazy val assemblySettings = Seq(
 lazy val dockerSettings = Seq(
   imageNames in docker := Seq(
     // Sets the latest tag
-    ImageName(s"ledgerhq/${name.value}:latest"),
+    ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:latest"),
     // Sets a name with a tag that contains the project version
     ImageName(
-      namespace = Some("ledgerhq"),
+      namespace = Some("docker.pkg.github.com/ledgerhq/lama"),
       repository = name.value,
       tag = Some(version.value)
     )

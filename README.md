@@ -1,4 +1,4 @@
-[![LedgerHQ](https://circleci.com/gh/LedgerHQ/lama.svg?style=shield)](https://github.com/LedgerHQ/lama)
+![Tests](https://github.com/LedgerHQ/lama/workflows/Tests/badge.svg)
 
 # Ledger Account Manager API
 
