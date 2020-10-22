@@ -33,13 +33,13 @@ object service {
 
   case class InputView(
       outputHash: String,
-      outputIndex: Long,
-      inputIndex: Long,
+      outputIndex: Int,
+      inputIndex: Int,
       value: BigInt,
       address: String,
       scriptSignature: String,
       txinwitness: Seq[String],
-      sequence: BigInt,
+      sequence: Long,
       belongs: Boolean
   ) {
     def toProto: protobuf.InputView =
@@ -51,7 +51,7 @@ object service {
         address,
         scriptSignature,
         txinwitness,
-        sequence.toString,
+        sequence,
         belongs
       )
   }
@@ -66,7 +66,7 @@ object service {
         proto.address,
         proto.scriptSignature,
         proto.txinwitness,
-        BigInt(proto.sequence),
+        proto.sequence,
         proto.belongs
       )
 
@@ -111,7 +111,7 @@ object service {
   }
 
   case class OutputView(
-      outputIndex: Long,
+      outputIndex: Int,
       value: BigInt,
       address: String,
       scriptHex: String,

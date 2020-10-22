@@ -17,11 +17,8 @@ object implicits {
   implicit val changeTypeMeta: Meta[ChangeType] =
     pgEnumStringOpt("change_type", ChangeType.fromKey, _.toString.toLowerCase())
 
-  // For 'BigInt' values, we need to use Long (because that's what a bigint is in psql)
-  // If problems arise with the length of the value we'll have to use VARCHAR instead in db.
-
   implicit val writeInput: Write[DefaultInput] =
-    Write[(String, Long, Long, BigInt, String, String, List[String], BigInt)]
+    Write[(String, Int, Int, BigInt, String, String, List[String], Long)]
       .contramap { i =>
         (
           i.outputHash,
@@ -36,8 +33,8 @@ object implicits {
       }
 
   implicit val writeOutput: Write[Output] =
-    Write[(Long, BigInt, String, String)].contramap { o =>
-      (o.outputIndex, o.value.toLong, o.address, o.scriptHex)
+    Write[(BigInt, BigInt, String, String)].contramap { o =>
+      (o.outputIndex, o.value, o.address, o.scriptHex)
     }
 
   implicit val readBlock: Read[Block] =
@@ -48,7 +45,7 @@ object implicits {
       }
 
   implicit lazy val readTransactionView: Read[TransactionView] =
-    Read[(String, String, String, Long, Long, String, Int, Long, String)]
+    Read[(String, String, String, Long, BigDecimal, String, Int, Long, String)]
       .map {
         case (
               id,
@@ -66,7 +63,7 @@ object implicits {
             hash = hash,
             receivedAt = receivedAt,
             lockTime = lockTime,
-            fees = fees,
+            fees = fees.toBigInt,
             inputs = Seq(),
             outputs = Seq(),
             block = BlockView(blockHash, blockHeight, blockTime),
@@ -75,7 +72,7 @@ object implicits {
       }
 
   implicit lazy val readInputView: Read[InputView] =
-    Read[(String, Int, Int, Long, String, String, Long, Boolean)].map {
+    Read[(String, Int, Int, BigDecimal, String, String, Long, Boolean)].map {
       case (
             outputHash,
             outputIndex,
@@ -90,7 +87,7 @@ object implicits {
           outputHash = outputHash,
           outputIndex = outputIndex,
           inputIndex = inputIndex,
-          value = value,
+          value = value.toBigInt,
           address = address,
           scriptSignature = scriptSignature,
           txinwitness = Seq(),
@@ -100,11 +97,11 @@ object implicits {
     }
 
   implicit lazy val readOutputView: Read[OutputView] =
-    Read[(Int, Long, String, String, Boolean, Option[ChangeType])].map {
+    Read[(Int, BigDecimal, String, String, Boolean, Option[ChangeType])].map {
       case (outputIndex, value, address, scriptHex, belongs, changeType) =>
         OutputView(
           outputIndex = outputIndex,
-          value = value,
+          value = value.toBigInt,
           address = address,
           scriptHex = scriptHex,
           belongs = belongs,
@@ -113,20 +110,20 @@ object implicits {
     }
 
   implicit lazy val readOperation: Read[Operation] =
-    Read[(UUID, String, OperationType, Long, String)]
+    Read[(UUID, String, OperationType, BigDecimal, String)]
       .map {
         case (accountId, hash, operationType, value, time) =>
-          Operation(accountId, hash, None, operationType, value, time)
+          Operation(accountId, hash, None, operationType, value.toBigInt, time)
       }
 
   implicit lazy val writeOperation: Write[OperationToSave] =
-    Write[(UUID, String, OperationType, Long, String, String, Long)]
+    Write[(UUID, String, OperationType, BigInt, String, String, Long)]
       .contramap { op =>
         (
           op.accountId,
           op.hash,
           op.operationType,
-          op.value.toLong,
+          op.value,
           op.time,
           op.blockHash,
           op.blockHeight

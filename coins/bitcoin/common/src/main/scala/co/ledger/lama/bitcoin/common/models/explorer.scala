@@ -35,13 +35,13 @@ object explorer {
 
   case class DefaultInput(
       outputHash: String,
-      outputIndex: Long,
-      inputIndex: Long,
+      outputIndex: Int,
+      inputIndex: Int,
       value: BigInt,
       address: String,
       scriptSignature: String,
       txinwitness: Seq[String],
-      sequence: BigInt
+      sequence: Long
   ) extends Input {
     def toProto: protobuf.Input =
       protobuf.Input(
@@ -54,7 +54,7 @@ object explorer {
             address,
             scriptSignature,
             txinwitness,
-            sequence.toString
+            sequence
           )
         )
       )
@@ -70,7 +70,7 @@ object explorer {
         proto.address,
         proto.scriptSignature,
         proto.txinwitness,
-        BigInt(proto.sequence)
+        proto.sequence
       )
 
     implicit val encoder: Encoder[DefaultInput] = deriveConfiguredEncoder[DefaultInput]
@@ -79,8 +79,8 @@ object explorer {
 
   case class CoinbaseInput(
       coinbase: String,
-      inputIndex: Long,
-      sequence: BigInt
+      inputIndex: Int,
+      sequence: Long
   ) extends Input {
     def toProto: protobuf.Input =
       protobuf.Input(
@@ -88,7 +88,7 @@ object explorer {
           protobuf.CoinbaseInput(
             coinbase,
             inputIndex,
-            sequence.toString
+            sequence
           )
         )
       )
@@ -99,7 +99,7 @@ object explorer {
       CoinbaseInput(
         proto.coinbase,
         proto.inputIndex,
-        BigInt(proto.sequence)
+        proto.sequence
       )
 
     implicit val encoder: Encoder[CoinbaseInput] = deriveConfiguredEncoder[CoinbaseInput]
@@ -126,7 +126,7 @@ object explorer {
   }
 
   case class Output(
-      outputIndex: Long,
+      outputIndex: Int,
       value: BigInt,
       address: String,
       scriptHex: String
