@@ -148,7 +148,7 @@ jobs:
 
   docker-publish-account-manager:
     runs-on: ubuntu-latest
-    needs: [it-tests, unit-tests, e2e-tests, lint]
+    needs: [it-tests, unit-tests, e2e-tests]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -168,7 +168,7 @@ jobs:
 
   docker-publish-service:
     runs-on: ubuntu-latest
-    needs: [it-tests, unit-tests, e2e-tests, lint]
+    needs: [it-tests, unit-tests, e2e-tests]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -188,7 +188,7 @@ jobs:
 
   docker-publish-bitcoin-worker:
     runs-on: ubuntu-latest
-    needs: [it-tests, unit-tests, e2e-tests, lint]
+    needs: [it-tests, unit-tests, e2e-tests]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -208,7 +208,7 @@ jobs:
 
   docker-publish-bitcoin-interpreter:
     runs-on: ubuntu-latest
-    needs: [it-tests, unit-tests, e2e-tests, lint]
+    needs: [it-tests, unit-tests, e2e-tests]
     steps:
       - uses: actions/checkout@v2
         with:
