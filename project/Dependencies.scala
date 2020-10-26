@@ -49,7 +49,7 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
     "com.google.protobuf"         % "protobuf-java"     % protobufJava
   )
 
-  val fs2RabbitVersion = "2.1.1"
+  val fs2RabbitVersion = "2.2.0"
   val rabbit: Seq[ModuleID] = Seq(
     "dev.profunktor" %% "fs2-rabbit" % fs2RabbitVersion
   )
