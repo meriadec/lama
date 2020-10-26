@@ -60,7 +60,7 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
   )
 
   val scalaTestVersion     = "3.2.0"
-  val scalaTestPlusVersion = "3.2.0.0"
+  val scalaTestPlusVersion = "3.2.2.0"
   val scalaCheckVersion    = "1.14.3"
   val otjPgEmbeddedVersion = "0.13.3"
   val embeddedRedisVersion = "0.7.3"
