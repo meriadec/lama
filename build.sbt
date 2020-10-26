@@ -2,7 +2,6 @@ import sbt.Keys.libraryDependencies
 
 // Build shared info
 ThisBuild / organization := "co.ledger"
-ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.3"
 ThisBuild / resolvers += Resolver.sonatypeRepo("releases")
 ThisBuild / scalacOptions ++= CompilerFlags.all
@@ -46,16 +45,20 @@ lazy val assemblySettings = Seq(
 )
 
 lazy val dockerSettings = Seq(
-  imageNames in docker := Seq(
+  imageNames in docker := {
     // Sets the latest tag
-    ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:latest"),
+    if (isSnapshot.value)
+      Seq(ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:latest"))
     // Sets a name with a tag that contains the project version
-    ImageName(
-      namespace = Some("docker.pkg.github.com/ledgerhq/lama"),
-      repository = name.value,
-      tag = Some(version.value)
-    )
-  ),
+    else
+      Seq(
+        ImageName(
+          namespace = Some("docker.pkg.github.com/ledgerhq/lama"),
+          repository = name.value,
+          tag = Some(version.value)
+        )
+      )
+  },
   // User `docker` to build docker image
   dockerfile in docker := {
     // The assembly task generates a fat JAR file
