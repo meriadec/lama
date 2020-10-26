@@ -33,7 +33,7 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
 
   val pureconfigVersion   = "0.13.0"
   val logbackVersion      = "1.2.3"
-  val fs2Version          = "2.4.2"
+  val fs2Version          = "2.4.4"
   val fs2GrpcVersion      = "0.7.3"
   val protobufJava        = "3.12.4"
   val scalaLoggingVersion = "3.9.2"
