@@ -1,6 +1,6 @@
 package co.ledger.lama.bitcoin.interpreter
 
-import cats.effect.{ConcurrentEffect, IO}
+import cats.effect.{ConcurrentEffect, ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
 import co.ledger.lama.bitcoin.interpreter.protobuf.ResultCount
@@ -15,20 +15,25 @@ trait Interpreter extends protobuf.BitcoinInterpreterServiceFs2Grpc[IO, Metadata
     protobuf.BitcoinInterpreterServiceFs2Grpc.bindService(this)
 }
 
-class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
+class DbInterpreter(
+    db: Transactor[IO],
+    maxConcurrent: Int
+)(implicit cs: ContextShift[IO])
+    extends Interpreter
+    with IOLogging {
 
-  val transactionInterpreter = new TransactionInterpreter(db)
-  val operationInterpreter   = new OperationInterpreter(db)
+  val transactionInterpreter = new TransactionInterpreter(db, maxConcurrent)
+  val operationInterpreter   = new OperationInterpreter(db, maxConcurrent)
 
+  // TODO: flag has_op
   def saveTransactions(
       request: protobuf.SaveTransactionsRequest,
       ctx: Metadata
   ): IO[protobuf.ResultCount] = {
-
     for {
       accountId  <- UuidUtils.bytesToUuidIO(request.accountId)
       _          <- log.info(s"Saving transactions for $accountId")
-      txs        <- IO.pure(request.transactions.map(Transaction.fromProto).toList)
+      txs        <- IO(request.transactions.map(ConfirmedTransaction.fromProto).toList)
       savedCount <- transactionInterpreter.saveTransactions(accountId, txs)
     } yield ResultCount(savedCount)
   }
@@ -42,10 +47,13 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
       _         <- log.info(s"""Getting blocks for account:
                                - accountId: $accountId
                                """)
-      blocks    <- transactionInterpreter.getLastBlocks(accountId)
-    } yield {
-      protobuf.GetLastBlocksResult(blocks.map(_.toProto))
-    }
+      blocks <-
+        transactionInterpreter
+          .getLastBlocks(accountId)
+          .map(_.toProto)
+          .compile
+          .toList
+    } yield protobuf.GetLastBlocksResult(blocks)
   }
 
   def getOperations(
@@ -107,9 +115,9 @@ class DbInterpreter(db: Transactor[IO]) extends Interpreter with IOLogging {
   ): IO[protobuf.ResultCount] = {
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
-      addresses = request.addresses.map(AccountAddress.fromProto).toList
-      _        <- log.info(s"Computing operations for $accountId")
-      savedOps <- operationInterpreter.computeOperations(accountId, addresses)
+      addresses <- IO(request.addresses.map(AccountAddress.fromProto).toList)
+      _         <- log.info(s"Computing operations for $accountId")
+      savedOps  <- operationInterpreter.computeOperations(accountId, addresses)
     } yield ResultCount(savedOps)
   }
 

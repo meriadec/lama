@@ -47,8 +47,8 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
     )
   )
 
-  val insertTx1: Transaction =
-    Transaction(
+  val insertTx1: ConfirmedTransaction =
+    ConfirmedTransaction(
       "txId1",
       "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1f",
       "",
@@ -60,8 +60,8 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
       1
     )
 
-  val insertTx2: Transaction =
-    Transaction(
+  val insertTx2: ConfirmedTransaction =
+    ConfirmedTransaction(
       "txId2",
       "b0c0dc176eaf463a5cecf15f1f55af99a41edfd6e01685068c0db3cc779861c8",
       "",
@@ -87,10 +87,9 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
   "operation saved in db" should "be fetched" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationInterpreter = new OperationInterpreter(db)
+        val operationInterpreter = new OperationInterpreter(db, conf.maxConcurrent)
 
         for {
-          _ <- QueryUtils.saveBlock(db, accountId, block1)
           _ <- QueryUtils.saveTx(db, insertTx1, accountId)
           _ <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
           res <- operationInterpreter.getOperations(
@@ -124,11 +123,9 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
   it should "fetched only ops from a blockHeight cursor" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationInterpreter = new OperationInterpreter(db)
+        val operationInterpreter = new OperationInterpreter(db, conf.maxConcurrent)
 
         for {
-          _ <- QueryUtils.saveBlock(db, accountId, block1)
-          _ <- QueryUtils.saveBlock(db, accountId, block2)
           _ <- QueryUtils.saveTx(db, insertTx1, accountId)
           _ <- QueryUtils.saveTx(db, insertTx2, accountId)
           _ <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
@@ -163,10 +160,9 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
   it should "have made utxos" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationInterpreter = new OperationInterpreter(db)
+        val operationInterpreter = new OperationInterpreter(db, conf.maxConcurrent)
 
         for {
-          _   <- QueryUtils.saveBlock(db, accountId, block1)
           _   <- QueryUtils.saveTx(db, insertTx1, accountId)
           _   <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress1))
           res <- operationInterpreter.getUTXOs(accountId, 20, 0)
@@ -186,10 +182,9 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
   it should "have the correct balance" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationInterpreter = new OperationInterpreter(db)
+        val operationInterpreter = new OperationInterpreter(db, conf.maxConcurrent)
 
         for {
-          _  <- QueryUtils.saveBlock(db, accountId, block1)
           _  <- QueryUtils.saveTx(db, insertTx1, accountId)
           _  <- operationInterpreter.computeOperations(accountId, List(outputAddress1))
           ai <- operationInterpreter.getBalance(accountId)

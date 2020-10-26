@@ -58,7 +58,8 @@ object App extends IOApp {
         keychainService,
         explorerService,
         interpreterService,
-        cursorStateService
+        cursorStateService,
+        conf
       )
 
       for {

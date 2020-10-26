@@ -3,27 +3,26 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.data.NonEmptyList
-import cats.implicits._
 import cats.free.Free
+import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.service._
-import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
+import co.ledger.lama.bitcoin.interpreter.models.{OperationFull, OperationToSave}
 import co.ledger.lama.common.logging.IOLogging
-import doobie._
+import doobie.{ConnectionIO, _}
 import doobie.implicits._
 import doobie.postgres.implicits._
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import co.ledger.lama.common.models.Sort
-import doobie.free.connection
 
 object OperationQueries extends IOLogging {
 
-  def fetchTx(
+  def fetchTransaction(
       accountId: UUID,
       hash: String
-  ): Free[connection.ConnectionOp, Option[TransactionView]] = {
+  ): ConnectionIO[Option[TransactionView]] = {
     log.logger.debug(s"Fetching transaction for accountId $accountId and hash $hash")
     for {
-      tx <- fetchTxAndBlock(accountId, hash)
+      tx <- fetchTx(accountId, hash)
       _ = log.logger.debug(s"Transaction $tx")
       inputs <- fetchInputs(accountId, hash).compile.toList
       _ = log.logger.debug(s"Inputs $inputs")
@@ -39,7 +38,7 @@ object OperationQueries extends IOLogging {
     }
   }
 
-  def fetchTxsWithoutOperations(
+  def fetchTxHashesWithNoOperations(
       accountId: UUID
   ): fs2.Stream[doobie.ConnectionIO, String] =
     sql"""SELECT tx.hash
@@ -51,6 +50,27 @@ object OperationQueries extends IOLogging {
           AND tx.account_id = $accountId
           """
       .query[String]
+      .stream
+
+  def fetchTxWithComputedAmount(
+      accountId: UUID
+  ): fs2.Stream[doobie.ConnectionIO, OperationFull] =
+    sql"""SELECT tx.account_id,
+                 tx.hash,
+                 tx.block_hash,
+                 tx.block_height,
+                 tx.block_time,
+                 tx.input_amount,
+                 tx.output_amount,
+                 tx.change_amount
+          FROM transaction_amount tx
+            LEFT JOIN operation op
+              ON op.hash = tx.hash
+              AND op.account_id = tx.account_id
+          WHERE op.hash IS NULL
+          AND tx.account_id = $accountId
+          """
+      .query[OperationFull]
       .stream
 
   def fetchUTXOs(
@@ -67,6 +87,8 @@ object OperationQueries extends IOLogging {
             LEFT JOIN input i
               ON o.account_id = i.account_id
               AND o.address = i.address
+              AND o.output_index = i.output_index
+			        AND o.hash = i.output_hash
           WHERE o.account_id = $accountId
             AND o.belongs = true
             AND i.address IS NULL
@@ -74,14 +96,53 @@ object OperationQueries extends IOLogging {
     query.query[OutputView].stream
   }
 
-  private def fetchTxAndBlock(
+  def fetchBalance(
+      accountId: UUID
+  ): ConnectionIO[(Int, BigInt)] = {
+    sql"""SELECT COUNT(o.value), SUM(COALESCE(o.value, 0))
+          FROM output o
+            LEFT JOIN input i
+              ON o.account_id = i.account_id
+              AND o.address = i.address
+              AND o.output_index = i.output_index
+			        AND o.hash = i.output_hash
+          WHERE o.account_id = $accountId
+            AND o.belongs = true
+            AND i.address IS NULL
+      """
+      .query[(Option[Int], Option[BigDecimal])]
+      .map {
+        case (count, balance) => (count.getOrElse(0), balance.getOrElse(BigDecimal(0)).toBigInt)
+      }
+      .unique
+  }
+
+  def fetchSpendAndReceivedAmount(
+      accountId: UUID
+  ): doobie.ConnectionIO[(BigInt, BigInt)] = {
+    val query = sql"""SELECT
+                  SUM(CASE WHEN operation_type = 'sent' THEN value ELSE 0 END) as sent,
+                  SUM(CASE WHEN operation_type = 'received' THEN value ELSE 0 END) as received
+          FROM operation
+          WHERE account_id = $accountId
+          """
+    query
+      .query[(Option[BigDecimal], Option[BigDecimal])]
+      .map {
+        case (sent, received) =>
+          (sent.getOrElse(BigDecimal(0)).toBigInt, received.getOrElse(BigDecimal(0)).toBigInt)
+      }
+      .unique
+  }
+
+  private def fetchTx(
       accountId: UUID,
       hash: String
   ): ConnectionIO[Option[TransactionView]] =
-    sql"""SELECT tx.id, tx.hash, tx.received_at, tx.lock_time, tx.fees, tx.block_hash, tx.confirmations, bk.height, bk.time
-          FROM transaction tx INNER JOIN block bk ON tx.block_hash = bk.hash AND tx.account_id = bk.account_id
-          WHERE tx.hash = $hash
-          AND tx.account_id = $accountId
+    sql"""SELECT id, hash, block_hash, block_height, block_time, received_at, lock_time, fees, confirmations
+          FROM transaction
+          WHERE hash = $hash
+          AND account_id = $accountId
           """
       .query[TransactionView]
       .option
@@ -139,21 +200,32 @@ object OperationQueries extends IOLogging {
     Update[OperationToSave](query).updateMany(operation)
   }
 
-  def flagInputs(accountId: UUID, addresses: List[String]): ConnectionIO[Int] = {
-    val query = sql"""UPDATE input
+  def flagBelongingInputs(accountId: UUID, addresses: List[String]): ConnectionIO[Int] = {
+    addresses match {
+      case Nil => Free.pure(0)
+      case list =>
+        val query =
+          sql"""UPDATE input
           SET belongs = true
           WHERE account_id = $accountId
-          AND belongs = false
-          AND """ ++ Fragments.in(fr"address", NonEmptyList.fromListUnsafe(addresses))
-    query.update.run
+          AND """ ++ Fragments.in(fr"address", NonEmptyList.fromListUnsafe(list))
+        query.update.run
+    }
   }
 
-  def flagOutputsForAddress(accountId: UUID, address: AccountAddress): ConnectionIO[Int] = {
-    sql"""UPDATE output
-          SET belongs = true, change_type = ${address.changeType}
+  def flagBelongingOutputs(
+      accountId: UUID,
+      addresses: List[String],
+      changeType: ChangeType
+  ): ConnectionIO[Int] = {
+    addresses match {
+      case Nil => Free.pure(0)
+      case list =>
+        val query = sql"""UPDATE output
+          SET belongs = true, change_type = $changeType
           WHERE account_id = $accountId
-          AND belongs = false
-          AND address = ${address.accountAddress}
-       """.update.run
+          AND """ ++ Fragments.in(fr"address", NonEmptyList.fromListUnsafe(list))
+        query.update.run
+    }
   }
 }

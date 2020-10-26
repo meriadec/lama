@@ -2,11 +2,12 @@ package co.ledger.lama.bitcoin.worker
 
 import java.util.UUID
 
-import cats.effect.{ConcurrentEffect, IO, Timer}
+import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.explorer.DefaultInput
 import co.ledger.lama.bitcoin.interpreter.protobuf.AccountAddress
 import co.ledger.lama.bitcoin.interpreter.protobuf.ChangeType.{EXTERNAL, INTERNAL}
+import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.logging.IOLogging
@@ -23,10 +24,11 @@ class Worker(
     keychainService: KeychainService,
     explorerService: ExplorerService,
     interpreterService: InterpreterService,
-    cursorStateService: CursorStateService
+    cursorStateService: CursorStateService,
+    conf: Config
 ) extends IOLogging {
 
-  def run(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): Stream[IO, Unit] =
+  def run(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, Unit] =
     syncEventService.consumeWorkableEvents
       .evalMap { workableEvent =>
         val reportableEvent =
@@ -60,7 +62,7 @@ class Worker(
 
   def synchronizeAccount(
       workableEvent: WorkableEvent
-  )(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): IO[ReportableEvent] = {
+  )(implicit cs: ContextShift[IO], t: Timer[IO]): IO[ReportableEvent] = {
     val account = workableEvent.payload.account
 
     val previousBlockState =
@@ -139,7 +141,7 @@ class Worker(
       blockHashCursor: Option[String],
       fromAddrIndex: Int,
       toAddrIndex: Int
-  )(implicit ce: ConcurrentEffect[IO], t: Timer[IO]): Pull[IO, BatchResult, Unit] =
+  )(implicit cs: ContextShift[IO], t: Timer[IO]): Pull[IO, BatchResult, Unit] =
     Pull
       .eval {
         for {
@@ -151,13 +153,21 @@ class Worker(
           _ <- log.info("Fetching transactions from explorer")
           transactions <-
             explorerService
-              .getTransactions(addressInfos.map(_.address), blockHashCursor)
+              .getConfirmedTransactions(addressInfos.map(_.address), blockHashCursor)
+              .prefetch
+              .chunkN(conf.maxTxsToSavePerBatch)
+              .map(_.toList)
+              .parEvalMapUnordered(conf.maxConcurrent) { txs =>
+                // Ask to interpreter to save transactions.
+                for {
+                  _             <- log.info(s"Sending ${txs.size} transactions to interpreter")
+                  savedTxsCount <- interpreterService.saveTransactions(accountId, txs)
+                  _             <- log.info(s"$savedTxsCount new transactions saved")
+                } yield txs
+              }
+              .flatMap(Stream.emits(_))
               .compile
               .toList
-
-          // Ask to interpreter to save transactions.
-          txsCount <- interpreterService.saveTransactions(accountId, transactions)
-          _        <- log.info(s"$txsCount transactions saved")
 
           // Filter only used addresses.
           usedAddressesInfos = addressInfos.filter { a =>

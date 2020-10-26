@@ -15,7 +15,7 @@ object App extends IOApp {
       db <- postgresTransactor(conf.postgres)
 
       serviceDefinitions = List(
-        new DbInterpreter(db).definition,
+        new DbInterpreter(db, conf.maxConcurrent).definition,
         new HealthUtils().definition
       )
 

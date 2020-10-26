@@ -2,36 +2,38 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import doobie.Transactor
 import doobie.implicits._
-import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.explorer.{Block, Transaction}
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction}
+import fs2._
 
-class TransactionInterpreter(db: Transactor[IO]) {
+class TransactionInterpreter(
+    db: Transactor[IO],
+    maxConcurrent: Int
+) {
 
-  def saveTransactions(accountId: UUID, transactions: List[Transaction]): IO[Int] =
-    for {
-      res <-
-        transactions
-          .traverse(tx =>
-            (
-              TransactionQueries.upsertBlock(accountId, tx.block),
-              TransactionQueries.saveTransaction(tx, accountId)
-            ).tupled.transact(db).map(_._2)
-          )
-
-    } yield res.sum
+  def saveTransactions(
+      accountId: UUID,
+      transactions: List[ConfirmedTransaction]
+  )(implicit cs: ContextShift[IO]): IO[Int] = {
+    Stream
+      .emits[IO, ConfirmedTransaction](transactions)
+      .parEvalMapUnordered(maxConcurrent) { tx =>
+        TransactionQueries
+          .saveTransaction(tx, accountId)
+          .transact(db)
+      }
+      .compile
+      .fold(0)(_ + _)
+  }
 
   def removeDataFromCursor(accountId: UUID, blockHeight: Long): IO[Int] =
     TransactionQueries.deleteFromCursor(accountId, blockHeight).transact(db)
 
-  def getLastBlocks(accountId: UUID): IO[List[Block]] = {
+  def getLastBlocks(accountId: UUID): Stream[IO, Block] =
     TransactionQueries
-      .fetchBlocks(accountId)
+      .fetchMostRecentBlocks(accountId)
       .transact(db)
-      .compile
-      .toList
-  }
 
 }

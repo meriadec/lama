@@ -45,18 +45,18 @@ object implicits {
       }
 
   implicit lazy val readTransactionView: Read[TransactionView] =
-    Read[(String, String, String, Long, BigDecimal, String, Int, Long, String)]
+    Read[(String, String, String, Long, String, String, Long, BigDecimal, Int)]
       .map {
         case (
               id,
               hash,
+              blockHash,
+              blockHeight,
+              blockTime,
               receivedAt,
               lockTime,
               fees,
-              blockHash,
-              confirmations,
-              blockHeight,
-              blockTime
+              confirmations
             ) =>
           TransactionView(
             id = id,
@@ -128,5 +128,41 @@ object implicits {
           op.blockHash,
           op.blockHeight
         )
+      }
+
+  implicit lazy val ReadOperationFull: Read[OperationFull] =
+    Read[
+      (
+          UUID,
+          String,
+          String,
+          Long,
+          String,
+          Option[BigDecimal],
+          Option[BigDecimal],
+          Option[BigDecimal]
+      )
+    ]
+      .map {
+        case (
+              accountId,
+              hash,
+              blockHash,
+              blockHeight,
+              blockTime,
+              input_amount,
+              output_amount,
+              change_amount
+            ) =>
+          OperationFull(
+            accountId,
+            hash,
+            blockHash,
+            blockHeight,
+            blockTime,
+            input_amount.map(_.toBigInt).getOrElse(BigInt(0)),
+            output_amount.map(_.toBigInt).getOrElse(BigInt(0)),
+            change_amount.map(_.toBigInt).getOrElse(BigInt(0))
+          )
       }
 }

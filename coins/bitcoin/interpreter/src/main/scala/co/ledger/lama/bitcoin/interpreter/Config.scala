@@ -7,7 +7,9 @@ import pureconfig.generic.semiauto.deriveReader
 case class Config(
     postgres: PostgresConfig,
     grpcServer: GrpcServerConfig
-)
+) {
+  lazy val maxConcurrent = Runtime.getRuntime.availableProcessors() * 2
+}
 
 object Config {
   implicit val configReader: ConfigReader[Config] = deriveReader[Config]

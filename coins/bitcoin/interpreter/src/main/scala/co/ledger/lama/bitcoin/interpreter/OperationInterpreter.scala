@@ -2,21 +2,21 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
-import cats.effect.IO
-import cats.implicits._
+import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.service.{
   AccountAddress,
   AccountBalance,
+  External,
+  Internal,
   Operation,
-  OutputView,
-  Received,
-  Sent
+  OutputView
 }
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Sort
 import doobie.Transactor
 import doobie.implicits._
 
-class OperationInterpreter(db: Transactor[IO]) {
+class OperationInterpreter(db: Transactor[IO], maxConcurrent: Int) extends IOLogging {
 
   def getOperations(
       accountId: UUID,
@@ -24,24 +24,20 @@ class OperationInterpreter(db: Transactor[IO]) {
       limit: Int,
       offset: Int,
       sort: Sort
-  ): IO[(List[Operation], Boolean)] =
+  )(implicit cs: ContextShift[IO]): IO[(List[Operation], Boolean)] =
     for {
-
-      // We fetch limit + 1 operations to know if there's more to fetch.
-      ops <-
+      opsWithTx <-
         OperationQueries
           .fetchOperations(accountId, blockHeight, sort, Some(limit + 1), Some(offset))
           .transact(db)
+          .parEvalMap(maxConcurrent) { op =>
+            OperationQueries
+              .fetchTransaction(op.accountId, op.hash)
+              .transact(db)
+              .map(tx => op.copy(transaction = tx))
+          }
           .compile
           .toList
-
-      // We fetch the transaction for each operation
-      opsWithTx <- ops.traverse(op =>
-        OperationQueries
-          .fetchTx(op.accountId, op.hash)
-          .transact(db)
-          .map(tx => op.copy(transaction = tx))
-      )
 
       // we get 1 more than necessary to know if there's more, then we return the correct number
       truncated = opsWithTx.size > limit
@@ -63,69 +59,79 @@ class OperationInterpreter(db: Transactor[IO]) {
       truncated = utxos.size > limit
     } yield (utxos.slice(0, limit), truncated)
 
-  def computeOperations(accountId: UUID, addresses: List[AccountAddress]): IO[Int] =
+  def computeOperations(
+      accountId: UUID,
+      addresses: List[AccountAddress]
+  )(implicit cs: ContextShift[IO]): IO[Int] =
     for {
+      _        <- log.info(s"Flagging inputs and outputs belong to account=$accountId")
+      _        <- flagInputsAndOutputs(accountId, addresses)
+      _        <- log.info("Computing and saving ops")
+      opsCount <- computeAndSaveOperations(accountId)
+    } yield opsCount
 
-      _ <- flagInputsAndOutputs(accountId, addresses)
-
-      hashs <-
-        OperationQueries
-          .fetchTxsWithoutOperations(accountId)
-          .transact(db)
-          .compile
-          .toList
-
-      txsO <- hashs.traverse { hash =>
-        OperationQueries
-          .fetchTx(accountId, hash)
-          .transact(db)
+  private def computeAndSaveOperations(
+      accountId: UUID
+  )(implicit cs: ContextShift[IO]): IO[Int] =
+    OperationQueries
+      .fetchTxWithComputedAmount(accountId)
+      .transact(db)
+      .chunkN(100)
+      .parEvalMapUnordered(maxConcurrent) { chunkOps =>
+        OperationQueries.saveOperations(chunkOps.toList.flatMap(_.computeOperations())).transact(db)
       }
+      .compile
+      .fold(0)(_ + _)
 
-      txs <- IO.pure(txsO collect {
-        case Some(tx) => tx
-      })
+  private def flagInputsAndOutputs(
+      accountId: UUID,
+      addresses: List[AccountAddress]
+  )(implicit cs: ContextShift[IO]): IO[Unit] = {
 
-      opCount <-
-        OperationQueries
-          .saveOperations(
-            txs.flatMap { transaction =>
-              OperationComputer.compute(transaction, accountId, addresses)
-            }
-          )
-          .transact(db)
+    val (internalAddresses, externalAddresses) = addresses.partition(_.changeType == Internal)
 
-    } yield opCount
+    val flagInputs =
+      OperationQueries
+        .flagBelongingInputs(
+          accountId,
+          addresses.map(_.accountAddress)
+        )
+        .transact(db)
 
-  private def flagInputsAndOutputs(accountId: UUID, addresses: List[AccountAddress]): IO[Int] = {
-    val query = for {
-      // Flag inputs with known addresses
-      inputs <- OperationQueries.flagInputs(accountId, addresses.map(_.accountAddress))
+    // Flag outputs with known addresses and update address type (INTERNAL / EXTERNAL)
+    val flagInternalOutputs = OperationQueries
+      .flagBelongingOutputs(
+        accountId,
+        internalAddresses.map(_.accountAddress),
+        Internal
+      )
+      .transact(db)
 
-      // Flag outputs with known addresses and update address type (INTERNAL / EXTERNAL)
-      outputs <-
-        addresses
-          .traverse { address =>
-            OperationQueries.flagOutputsForAddress(accountId, address)
-          }
-    } yield (inputs :: outputs).sum
+    val flagExternalOutputs = OperationQueries
+      .flagBelongingOutputs(
+        accountId,
+        externalAddresses.map(_.accountAddress),
+        External
+      )
+      .transact(db)
 
-    query.transact(db)
+    (flagInputs &> flagInternalOutputs &> flagExternalOutputs).void
   }
 
+  // TODO: optimize (compute the sum in sql)
   def getBalance(accountId: UUID): IO[AccountBalance] =
     for {
-      utxo <- OperationQueries.fetchUTXOs(accountId).transact(db).compile.toList
-      ops  <- OperationQueries.fetchOperations(accountId).transact(db).compile.toList
+      utxoBalances <- OperationQueries.fetchBalance(accountId).transact(db)
+      opAmounts    <- OperationQueries.fetchSpendAndReceivedAmount(accountId).transact(db)
     } yield {
+      val (count, balance)             = utxoBalances
+      val (amountSent, amountReceived) = opAmounts
+
       AccountBalance(
-        utxo.map(_.value).sum,
-        utxo.size,
-        ops.collect {
-          case op if op.operationType == Sent => op.value
-        }.sum,
-        ops.collect {
-          case op if op.operationType == Received => op.value
-        }.sum
+        balance,
+        count,
+        amountSent,
+        amountReceived
       )
     }
 

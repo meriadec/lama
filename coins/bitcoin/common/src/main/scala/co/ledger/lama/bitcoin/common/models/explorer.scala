@@ -153,7 +153,30 @@ object explorer {
       )
   }
 
-  case class Transaction(
+  sealed trait Transaction {
+    def id: String
+    def hash: String
+    def receivedAt: String
+    def lockTime: Long
+    def fees: BigInt
+    def inputs: Seq[Input]
+    def outputs: Seq[Output]
+    def confirmations: Int
+  }
+
+  object Transaction {
+    implicit val encoder: Encoder[Transaction] =
+      Encoder.instance {
+        case confirmedTx: ConfirmedTransaction     => confirmedTx.asJson
+        case unconfirmedTx: UnconfirmedTransaction => unconfirmedTx.asJson
+      }
+
+    implicit val decoder: Decoder[Transaction] = Decoder[ConfirmedTransaction]
+      .map[Transaction](identity)
+      .or(Decoder[UnconfirmedTransaction].map[Transaction](identity))
+  }
+
+  case class ConfirmedTransaction(
       id: String,
       hash: String,
       receivedAt: String,
@@ -163,7 +186,7 @@ object explorer {
       outputs: Seq[Output],
       block: Block,
       confirmations: Int
-  ) {
+  ) extends Transaction {
     def toProto: protobuf.Transaction =
       protobuf.Transaction(
         id,
@@ -178,12 +201,15 @@ object explorer {
       )
   }
 
-  object Transaction {
-    implicit val encoder: Encoder[Transaction] = deriveConfiguredEncoder[Transaction]
-    implicit val decoder: Decoder[Transaction] = deriveConfiguredDecoder[Transaction]
+  object ConfirmedTransaction {
+    implicit val encoder: Encoder[ConfirmedTransaction] =
+      deriveConfiguredEncoder[ConfirmedTransaction]
 
-    def fromProto(proto: protobuf.Transaction): Transaction =
-      Transaction(
+    implicit val decoder: Decoder[ConfirmedTransaction] =
+      deriveConfiguredDecoder[ConfirmedTransaction]
+
+    def fromProto(proto: protobuf.Transaction): ConfirmedTransaction =
+      ConfirmedTransaction(
         proto.id,
         proto.hash,
         proto.receivedAt,
@@ -196,6 +222,25 @@ object explorer {
         ), // block should never be missing, it's because of protobuf cc generator
         proto.confirmations
       )
+  }
+
+  case class UnconfirmedTransaction(
+      id: String,
+      hash: String,
+      receivedAt: String,
+      lockTime: Long,
+      fees: BigInt,
+      inputs: Seq[Input],
+      outputs: Seq[Output],
+      confirmations: Int
+  ) extends Transaction
+
+  object UnconfirmedTransaction {
+    implicit val encoder: Encoder[UnconfirmedTransaction] =
+      deriveConfiguredEncoder[UnconfirmedTransaction]
+
+    implicit val decoder: Decoder[UnconfirmedTransaction] =
+      deriveConfiguredDecoder[UnconfirmedTransaction]
   }
 
 }

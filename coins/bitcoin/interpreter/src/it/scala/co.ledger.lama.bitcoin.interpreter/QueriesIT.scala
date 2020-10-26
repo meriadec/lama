@@ -35,8 +35,8 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
       4294967295L
     )
   )
-  val transactionToInsert: Transaction =
-    Transaction(
+  val transactionToInsert: ConfirmedTransaction =
+    ConfirmedTransaction(
       "txId",
       "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1f",
       "",
@@ -52,8 +52,6 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     setup() *>
       appResources.use { db =>
         for {
-          _   <- QueryUtils.saveBlock(db, accountId, block)
-          _   <- QueryUtils.saveBlock(db, accountId, block)            // check upsert (shouldn't throw error)
           _   <- QueryUtils.saveTx(db, transactionToInsert, accountId)
           _   <- QueryUtils.saveTx(db, transactionToInsert, accountId) // check upsert
           txO <- QueryUtils.fetchTx(db, accountId, transactionToInsert.hash)
@@ -90,7 +88,6 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     setup() *>
       appResources.use { db =>
         for {
-          _  <- QueryUtils.saveBlock(db, accountId, block)
           _  <- QueryUtils.saveTx(db, transactionToInsert, accountId)
           _  <- QueryUtils.saveOp(db, opToSave)
           op <- QueryUtils.fetchOps(db, accountId)

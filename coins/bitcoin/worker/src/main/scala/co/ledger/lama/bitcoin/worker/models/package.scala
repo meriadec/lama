@@ -1,7 +1,7 @@
 package co.ledger.lama.bitcoin.worker
 
 import co.ledger.lama.common.models.implicits._
-import co.ledger.lama.bitcoin.common.models.explorer.{Block, Transaction}
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, Transaction}
 import co.ledger.protobuf.bitcoin.AddressInfo
 import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
@@ -29,7 +29,7 @@ package object models {
 
   case class BatchResult(
       addresses: Seq[AddressInfo],
-      transactions: Seq[Transaction],
+      transactions: Seq[ConfirmedTransaction],
       continue: Boolean
   )
 

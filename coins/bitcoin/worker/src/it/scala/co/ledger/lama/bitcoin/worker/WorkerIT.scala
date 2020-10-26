@@ -70,7 +70,8 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
               keychainService,
               explorerService,
               interpreterService,
-              cursorStateService
+              cursorStateService,
+              conf
             )
 
             val accountManager = new SimpleAccountManager(

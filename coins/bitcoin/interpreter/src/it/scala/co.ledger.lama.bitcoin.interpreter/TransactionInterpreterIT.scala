@@ -40,8 +40,8 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
       4294967295L
     )
   )
-  val insertTx: Transaction =
-    Transaction(
+  val insertTx: ConfirmedTransaction =
+    ConfirmedTransaction(
       "txId",
       "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1f",
       "",
@@ -67,8 +67,8 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
   "data in db" should "be deleted from cursor" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationInterpreter   = new OperationInterpreter(db)
-        val transactionInterpreter = new TransactionInterpreter(db)
+        val operationInterpreter   = new OperationInterpreter(db, conf.maxConcurrent)
+        val transactionInterpreter = new TransactionInterpreter(db, conf.maxConcurrent)
 
         val block2 = Block(
           "0000000000000000000cc9cc204cf3b314d106e69afbea68f2ae7f9e5047ba74",
@@ -85,9 +85,10 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
         val blocksToSave = List(block2, block, block3)
 
         for {
-          _      <- blocksToSave.map(QueryUtils.saveBlock(db, accountId, _)).sequence
           _      <- QueryUtils.saveTx(db, insertTx, accountId)
-          blocks <- transactionInterpreter.getLastBlocks(accountId)
+          _      <- QueryUtils.saveTx(db, insertTx.copy(hash = "toto", block = block2), accountId)
+          _      <- QueryUtils.saveTx(db, insertTx.copy(hash = "tata", block = block3), accountId)
+          blocks <- transactionInterpreter.getLastBlocks(accountId).compile.toList
           _      <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
           _      <- transactionInterpreter.removeDataFromCursor(accountId, block.height)
           res <- operationInterpreter.getOperations(
@@ -98,7 +99,7 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
             Sort.Ascending
           )
           (ops, trunc) = res
-          blocksAfterDelete <- transactionInterpreter.getLastBlocks(accountId)
+          blocksAfterDelete <- transactionInterpreter.getLastBlocks(accountId).compile.toList
         } yield {
           blocks should be(blocksToSave.sortBy(_.height)(Ordering[Long].reverse))
 

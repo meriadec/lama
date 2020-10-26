@@ -8,7 +8,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
   GetLastBlocksResult,
   GetOperationsResult
 }
-import co.ledger.lama.bitcoin.common.models.explorer.{Block, Transaction}
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction}
 import co.ledger.lama.bitcoin.common.models.service.{Operation, Sent}
 import co.ledger.lama.bitcoin.worker.services.{InterpreterService, SortingEnum}
 import co.ledger.lama.bitcoin.worker.services.SortingEnum.SortingEnum
@@ -17,11 +17,11 @@ import scala.collection.mutable
 
 class InterpreterServiceMock extends InterpreterService {
 
-  var savedTransactions: mutable.Map[UUID, List[Transaction]] = mutable.Map.empty
+  var savedTransactions: mutable.Map[UUID, List[ConfirmedTransaction]] = mutable.Map.empty
 
   def saveTransactions(
       accountId: UUID,
-      txs: List[Transaction]
+      txs: List[ConfirmedTransaction]
   ): IO[Int] =
     IO.delay {
       savedTransactions.update(
