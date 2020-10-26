@@ -5,14 +5,10 @@ ThisBuild / organization := "co.ledger"
 ThisBuild / scalaVersion := "2.13.3"
 ThisBuild / resolvers += Resolver.sonatypeRepo("releases")
 ThisBuild / scalacOptions ++= CompilerFlags.all
-ThisBuild / buildInfoPackage := "buildinfo"
-ThisBuild / buildInfoKeys := Seq[BuildInfoKey](
-  name,
-  version,
-  scalaVersion,
-  sbtVersion,
-  git.gitHeadCommit
-)
+
+// Dynver custom version formatting to remove the dirty suffix
+ThisBuild / dynverSeparator := "-"
+ThisBuild / version ~= (s => s.take(s.lastIndexOf('-')))
 
 // Shared Plugins
 enablePlugins(BuildInfoPlugin)

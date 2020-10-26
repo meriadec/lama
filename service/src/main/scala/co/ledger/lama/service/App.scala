@@ -15,6 +15,8 @@ import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
 import pureconfig.ConfigSource
 
+import scala.concurrent.ExecutionContext
+
 object App extends IOApp {
 
   case class ServiceResources(
@@ -68,7 +70,7 @@ object App extends IOApp {
         )
       ).orNotFound
 
-      BlazeServerBuilder[IO]
+      BlazeServerBuilder[IO](ExecutionContext.global)
         .bindHttp(conf.server.port, conf.server.host)
         .withHttpApp(httpRoutes)
         .serve
