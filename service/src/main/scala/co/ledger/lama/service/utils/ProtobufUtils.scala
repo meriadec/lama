@@ -104,7 +104,7 @@ object ProtobufUtils {
       info.lastSyncEvent.flatMap(fromSyncEvent(accountId, _)),
       BigInt(balance.balance),
       balance.utxosCount,
-      BigInt(balance.amountSpent),
+      BigInt(balance.amountSent),
       BigInt(balance.amountReceived)
     )
   }

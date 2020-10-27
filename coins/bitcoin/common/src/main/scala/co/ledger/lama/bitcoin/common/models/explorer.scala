@@ -154,14 +154,14 @@ object explorer {
   }
 
   sealed trait Transaction {
-    def id: String
-    def hash: String
-    def receivedAt: String
-    def lockTime: Long
-    def fees: BigInt
-    def inputs: Seq[Input]
-    def outputs: Seq[Output]
-    def confirmations: Int
+    val id: String
+    val hash: String
+    val receivedAt: String
+    val lockTime: Long
+    val fees: BigInt
+    val inputs: Seq[Input]
+    val outputs: Seq[Output]
+    val confirmations: Int
   }
 
   object Transaction {

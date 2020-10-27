@@ -130,7 +130,7 @@ object implicits {
         )
       }
 
-  implicit lazy val ReadOperationFull: Read[OperationFull] =
+  implicit lazy val ReadOperationFull: Read[TransactionAmounts] =
     Read[
       (
           UUID,
@@ -154,7 +154,7 @@ object implicits {
               output_amount,
               change_amount
             ) =>
-          OperationFull(
+          TransactionAmounts(
             accountId,
             hash,
             blockHash,

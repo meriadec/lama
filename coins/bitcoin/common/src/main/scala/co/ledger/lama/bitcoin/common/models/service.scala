@@ -286,14 +286,14 @@ object service {
   case class AccountBalance(
       balance: BigInt,
       utxoCount: Int,
-      amountSpent: BigInt,
+      amountSent: BigInt,
       amountReceived: BigInt
   ) {
     def toProto: protobuf.GetBalanceResult = {
       protobuf.GetBalanceResult(
         balance.toLong,
         utxoCount,
-        amountSpent.toLong,
+        amountSent.toLong,
         amountReceived.toLong
       )
     }

@@ -8,7 +8,6 @@ ThisBuild / scalacOptions ++= CompilerFlags.all
 
 // Dynver custom version formatting to remove the dirty suffix
 ThisBuild / dynverSeparator := "-"
-ThisBuild / version ~= (s => s.take(s.lastIndexOf('-')))
 
 // Shared Plugins
 enablePlugins(BuildInfoPlugin)
@@ -26,7 +25,7 @@ lazy val assemblySettings = Seq(
   test in assembly := {},
   assemblyOutputPath in assembly := file(
     target.value.getAbsolutePath
-  ) / "assembly" / (name.value + "-" + version.value + ".jar"),
+  ) / "assembly" / (name.value + "-latest.jar"),
   cleanFiles += file(target.value.getAbsolutePath) / "assembly",
   // Remove resources files from the JAR (they will be copied to an external folder)
   assemblyMergeStrategy in assembly := {

@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.interpreter.models
 import java.util.UUID
 
 import co.ledger.lama.bitcoin.common.models.service.{OperationType, Received, Sent}
+import fs2.Chunk
 
 case class OperationToSave(
     accountId: UUID,
@@ -14,7 +15,7 @@ case class OperationToSave(
     blockHeight: Long
 )
 
-case class OperationFull(
+case class TransactionAmounts(
     accountId: UUID,
     hash: String,
     blockHash: String,
@@ -25,16 +26,19 @@ case class OperationFull(
     changeAmount: BigInt
 ) {
 
-  def computeOperations(): List[OperationToSave] = {
+  def computeOperations(): Chunk[OperationToSave] = {
     (inputAmount > 0, outputAmount > 0) match {
       // only input, consider changeAmount as deducted from spent
-      case (true, false) => List(makeOperation(inputAmount - changeAmount, Sent))
+      case (true, false) => Chunk(makeOperation(inputAmount - changeAmount, Sent))
       // only output, consider changeAmount as received
-      case (false, true) => List(makeOperation(outputAmount + changeAmount, Received))
+      case (false, true) => Chunk(makeOperation(outputAmount + changeAmount, Received))
       // both input and output, consider change as deducted from spend
       case (true, true) =>
-        List(makeOperation(inputAmount - changeAmount, Sent), makeOperation(outputAmount, Received))
-      case _ => Nil
+        Chunk(
+          makeOperation(inputAmount - changeAmount, Sent),
+          makeOperation(outputAmount, Received)
+        )
+      case _ => Chunk.empty
     }
   }
 
@@ -50,3 +54,6 @@ case class OperationFull(
     )
   }
 }
+
+case class BalanceInfo(utxoCount: Int, balance: BigInt)
+case class OperationAmounts(sent: BigInt, received: BigInt)

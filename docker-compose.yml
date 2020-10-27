@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3'
 
 services:
   account-manager:
@@ -21,7 +21,7 @@ services:
       REDIS_PORT: ${REDIS_PORT}
       BITCOIN_SYNC_FREQUENCY: ${BITCOIN_SYNC_FREQUENCY}
     ports:
-      - "${ACCOUNT_MANAGER_PORT}:${ACCOUNT_MANAGER_PORT}"
+      - ${ACCOUNT_MANAGER_PORT}:${ACCOUNT_MANAGER_PORT}
     depends_on:
       - postgres
       - rabbitmq
@@ -43,7 +43,7 @@ services:
       BITCOIN_INTERPRETER_PORT: ${BITCOIN_INTERPRETER_PORT}
       BITCOIN_INTERPRETER_SSL: ${BITCOIN_INTERPRETER_SSL}
     ports:
-      - "${SERVICE_PORT}:${SERVICE_PORT}"
+      - ${SERVICE_PORT}:${SERVICE_PORT}
     depends_on:
       - account-manager
       - bitcoin-keychain-svc
@@ -58,7 +58,7 @@ services:
     volumes:
       - "./tooling/postgres:/docker-entrypoint-initdb.d"
     ports:
-      - "5432:5432"
+      - 5432:5432
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -83,7 +83,7 @@ services:
   redis:
     image: redis:${REDIS_VERSION}
     ports:
-      - "6379:6379"
+      - 6379:6379
 
   flyway-account-manager:
     image: flyway/flyway:${FLYWAY_VERSION}

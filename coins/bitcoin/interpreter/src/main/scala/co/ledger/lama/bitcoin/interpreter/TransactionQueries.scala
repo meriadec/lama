@@ -17,7 +17,7 @@ object TransactionQueries {
           FROM transaction
           WHERE account_id = $accountId
           ORDER BY block_height DESC
-          LIMIT 53 -- the biggest reorg that happened on bitcoin was 53 blocks long
+          LIMIT 200 -- the biggest reorg that happened on bitcoin was 53 blocks long
        """.query[Block].stream
   }
 

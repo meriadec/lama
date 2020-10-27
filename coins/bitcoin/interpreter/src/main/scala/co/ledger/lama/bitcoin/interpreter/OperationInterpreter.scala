@@ -2,7 +2,10 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.util.UUID
 
+import cats.data.NonEmptyList
+import fs2.{Pipe, Stream}
 import cats.effect.{ContextShift, IO}
+import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.service.{
   AccountAddress,
   AccountBalance,
@@ -11,6 +14,7 @@ import co.ledger.lama.bitcoin.common.models.service.{
   Operation,
   OutputView
 }
+import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Sort
 import doobie.Transactor
@@ -59,79 +63,102 @@ class OperationInterpreter(db: Transactor[IO], maxConcurrent: Int) extends IOLog
       truncated = utxos.size > limit
     } yield (utxos.slice(0, limit), truncated)
 
+  // TODO : Stream this
   def computeOperations(
       accountId: UUID,
       addresses: List[AccountAddress]
   )(implicit cs: ContextShift[IO]): IO[Int] =
     for {
-      _        <- log.info(s"Flagging inputs and outputs belong to account=$accountId")
-      _        <- flagInputsAndOutputs(accountId, addresses)
-      _        <- log.info("Computing and saving ops")
-      opsCount <- computeAndSaveOperations(accountId)
+      _ <- log.info(s"Flagging inputs and outputs belong to account=$accountId")
+      _ <- flagInputsAndOutputs(accountId, addresses)
+      _ <- log.info("Computing and saving ops")
+      opsCount <-
+        operationSource(accountId)
+          .flatMap(op => Stream.chunk(op.computeOperations()))
+          .through(saveOperationSink)
+          .compile
+          .fold(0)(_ + _)
     } yield opsCount
 
-  private def computeAndSaveOperations(
-      accountId: UUID
-  )(implicit cs: ContextShift[IO]): IO[Int] =
+  private def operationSource(accountId: UUID): Stream[IO, TransactionAmounts] =
     OperationQueries
-      .fetchTxWithComputedAmount(accountId)
+      .fetchTransactionAmounts(accountId)
       .transact(db)
-      .chunkN(100)
-      .parEvalMapUnordered(maxConcurrent) { chunkOps =>
-        OperationQueries.saveOperations(chunkOps.toList.flatMap(_.computeOperations())).transact(db)
-      }
-      .compile
-      .fold(0)(_ + _)
+
+  private def saveOperationSink(implicit cs: ContextShift[IO]): Pipe[IO, OperationToSave, Int] =
+    in =>
+      in.chunkN(1000) // TODO : in conf
+        .prefetch
+        .parEvalMapUnordered(maxConcurrent) { batch =>
+          OperationQueries.saveOperations(batch).transact(db)
+        }
 
   private def flagInputsAndOutputs(
       accountId: UUID,
-      addresses: List[AccountAddress]
+      accountAddresses: List[AccountAddress]
   )(implicit cs: ContextShift[IO]): IO[Unit] = {
 
-    val (internalAddresses, externalAddresses) = addresses.partition(_.changeType == Internal)
+    val (internalAddresses, externalAddresses) =
+      accountAddresses
+        .partition(_.changeType == Internal)
+        .bimap(_.map(_.accountAddress), _.map(_.accountAddress))
 
     val flagInputs =
-      OperationQueries
-        .flagBelongingInputs(
-          accountId,
-          addresses.map(_.accountAddress)
-        )
-        .transact(db)
+      NonEmptyList
+        .fromList(accountAddresses.map(_.accountAddress))
+        .map { addresses =>
+          OperationQueries
+            .flagBelongingInputs(
+              accountId,
+              addresses
+            )
+            .transact(db)
+        }
+        .getOrElse(IO.pure(0))
 
     // Flag outputs with known addresses and update address type (INTERNAL / EXTERNAL)
-    val flagInternalOutputs = OperationQueries
-      .flagBelongingOutputs(
-        accountId,
-        internalAddresses.map(_.accountAddress),
-        Internal
-      )
-      .transact(db)
+    val flagInternalOutputs =
+      NonEmptyList
+        .fromList(internalAddresses)
+        .map { addresses =>
+          OperationQueries
+            .flagBelongingOutputs(
+              accountId,
+              addresses,
+              Internal
+            )
+            .transact(db)
+        }
+        .getOrElse(IO.pure(0))
 
-    val flagExternalOutputs = OperationQueries
-      .flagBelongingOutputs(
-        accountId,
-        externalAddresses.map(_.accountAddress),
-        External
-      )
-      .transact(db)
+    val flagExternalOutputs =
+      NonEmptyList
+        .fromList(externalAddresses)
+        .map { addresses =>
+          OperationQueries
+            .flagBelongingOutputs(
+              accountId,
+              addresses,
+              External
+            )
+            .transact(db)
+        }
+        .getOrElse(IO.pure(0))
 
-    (flagInputs &> flagInternalOutputs &> flagExternalOutputs).void
+    (flagInputs, flagInternalOutputs, flagExternalOutputs).parTupled.void
   }
 
   // TODO: optimize (compute the sum in sql)
   def getBalance(accountId: UUID): IO[AccountBalance] =
     for {
-      utxoBalances <- OperationQueries.fetchBalance(accountId).transact(db)
-      opAmounts    <- OperationQueries.fetchSpendAndReceivedAmount(accountId).transact(db)
+      utxoBalance <- OperationQueries.fetchBalance(accountId).transact(db)
+      opAmounts   <- OperationQueries.fetchSpendAndReceivedAmount(accountId).transact(db)
     } yield {
-      val (count, balance)             = utxoBalances
-      val (amountSent, amountReceived) = opAmounts
-
       AccountBalance(
-        balance,
-        count,
-        amountSent,
-        amountReceived
+        utxoBalance.balance,
+        utxoBalance.utxoCount,
+        opAmounts.sent,
+        opAmounts.received
       )
     }
 

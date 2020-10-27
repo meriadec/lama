@@ -21,7 +21,7 @@ case class AccountExpectedResult(
     lastTxHash: String,
     balance: Long,
     amountReceived: Long,
-    amountSpent: Long
+    amountSent: Long
 )
 
 object AccountExpectedResult {

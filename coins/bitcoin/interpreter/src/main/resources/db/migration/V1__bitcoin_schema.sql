@@ -23,8 +23,6 @@ CREATE TABLE transaction (
     PRIMARY KEY (account_id, hash)
 );
 
-CREATE INDEX ON transaction(account_id);
-
 CREATE TABLE input (
     account_id UUID NOT NULL,
     hash VARCHAR NOT NULL,
@@ -42,7 +40,6 @@ CREATE TABLE input (
     FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash) ON DELETE CASCADE
 );
 
-CREATE INDEX ON input(account_id);
 CREATE INDEX on input(address);
 
 CREATE TABLE output (
@@ -59,7 +56,6 @@ CREATE TABLE output (
     FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash) ON DELETE CASCADE
 );
 
-CREATE INDEX ON output(account_id);
 CREATE INDEX on output(address);
 
 CREATE TABLE operation (
@@ -74,8 +70,6 @@ CREATE TABLE operation (
     PRIMARY KEY (account_id, hash, operation_type),
     FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash) ON DELETE CASCADE
 );
-
-CREATE INDEX ON operation(account_id);
 
 -- View for SpentAmount et ReceivedAmount computation
 CREATE VIEW transaction_amount AS

@@ -3,16 +3,20 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.data.NonEmptyList
-import cats.free.Free
-import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.service._
-import co.ledger.lama.bitcoin.interpreter.models.{OperationFull, OperationToSave}
+import co.ledger.lama.bitcoin.interpreter.models.{
+  BalanceInfo,
+  OperationAmounts,
+  OperationToSave,
+  TransactionAmounts
+}
 import co.ledger.lama.common.logging.IOLogging
 import doobie.{ConnectionIO, _}
 import doobie.implicits._
 import doobie.postgres.implicits._
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import co.ledger.lama.common.models.Sort
+import fs2.Chunk
 
 object OperationQueries extends IOLogging {
 
@@ -48,13 +52,13 @@ object OperationQueries extends IOLogging {
               AND op.account_id = tx.account_id
           WHERE op.hash IS NULL
           AND tx.account_id = $accountId
-          """
+       """
       .query[String]
       .stream
 
-  def fetchTxWithComputedAmount(
+  def fetchTransactionAmounts(
       accountId: UUID
-  ): fs2.Stream[doobie.ConnectionIO, OperationFull] =
+  ): fs2.Stream[doobie.ConnectionIO, TransactionAmounts] =
     sql"""SELECT tx.account_id,
                  tx.hash,
                  tx.block_hash,
@@ -69,8 +73,8 @@ object OperationQueries extends IOLogging {
               AND op.account_id = tx.account_id
           WHERE op.hash IS NULL
           AND tx.account_id = $accountId
-          """
-      .query[OperationFull]
+       """
+      .query[TransactionAmounts]
       .stream
 
   def fetchUTXOs(
@@ -83,23 +87,23 @@ object OperationQueries extends IOLogging {
 
     val query =
       sql"""SELECT o.output_index, o.value, o.address, o.script_hex, o.belongs, o.change_type
-          FROM output o
-            LEFT JOIN input i
-              ON o.account_id = i.account_id
-              AND o.address = i.address
-              AND o.output_index = i.output_index
-			        AND o.hash = i.output_hash
-          WHERE o.account_id = $accountId
-            AND o.belongs = true
-            AND i.address IS NULL
-      """ ++ limitF ++ offsetF
+            FROM output o
+              LEFT JOIN input i
+                ON o.account_id = i.account_id
+                AND o.address = i.address
+                AND o.output_index = i.output_index
+			          AND o.hash = i.output_hash
+            WHERE o.account_id = $accountId
+              AND o.belongs = true
+              AND i.address IS NULL
+         """ ++ limitF ++ offsetF
     query.query[OutputView].stream
   }
 
   def fetchBalance(
       accountId: UUID
-  ): ConnectionIO[(Int, BigInt)] = {
-    sql"""SELECT COUNT(o.value), SUM(COALESCE(o.value, 0))
+  ): ConnectionIO[BalanceInfo] = {
+    sql"""SELECT COALESCE(COUNT(o.value), 0), COALESCE(SUM(o.value), 0)
           FROM output o
             LEFT JOIN input i
               ON o.account_id = i.account_id
@@ -110,27 +114,29 @@ object OperationQueries extends IOLogging {
             AND o.belongs = true
             AND i.address IS NULL
       """
-      .query[(Option[Int], Option[BigDecimal])]
+      .query[(Int, BigDecimal)]
       .map {
-        case (count, balance) => (count.getOrElse(0), balance.getOrElse(BigDecimal(0)).toBigInt)
+        case (utxoCount, balance) => BalanceInfo(utxoCount, balance.toBigInt)
       }
       .unique
   }
 
   def fetchSpendAndReceivedAmount(
       accountId: UUID
-  ): doobie.ConnectionIO[(BigInt, BigInt)] = {
-    val query = sql"""SELECT
-                  SUM(CASE WHEN operation_type = 'sent' THEN value ELSE 0 END) as sent,
-                  SUM(CASE WHEN operation_type = 'received' THEN value ELSE 0 END) as received
-          FROM operation
-          WHERE account_id = $accountId
-          """
+  ): doobie.ConnectionIO[OperationAmounts] = {
+
+    val query =
+      sql"""SELECT
+              COALESCE(SUM(CASE WHEN operation_type = 'sent' THEN value ELSE 0 END), 0) as sent,
+              COALESCE(SUM(CASE WHEN operation_type = 'received' THEN value ELSE 0 END), 0) as received
+            FROM operation
+            WHERE account_id = $accountId
+         """
     query
-      .query[(Option[BigDecimal], Option[BigDecimal])]
+      .query[(BigDecimal, BigDecimal)]
       .map {
         case (sent, received) =>
-          (sent.getOrElse(BigDecimal(0)).toBigInt, received.getOrElse(BigDecimal(0)).toBigInt)
+          OperationAmounts(sent.toBigInt, received.toBigInt)
       }
       .unique
   }
@@ -143,7 +149,7 @@ object OperationQueries extends IOLogging {
           FROM transaction
           WHERE hash = $hash
           AND account_id = $accountId
-          """
+       """
       .query[TransactionView]
       .option
 
@@ -155,7 +161,7 @@ object OperationQueries extends IOLogging {
           FROM input
           WHERE account_id = $accountId
           AND hash = $hash
-          """
+       """
       .query[InputView]
       .stream
   }
@@ -168,7 +174,7 @@ object OperationQueries extends IOLogging {
           FROM output
           WHERE account_id = $accountId
           AND hash = $hash
-          """
+       """
       .query[OutputView]
       .stream
 
@@ -183,49 +189,44 @@ object OperationQueries extends IOLogging {
     val limitF  = limit.map(l => fr"LIMIT $l").getOrElse(Fragment.empty)
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
 
-    val query = sql"""SELECT account_id, hash, operation_type, value, time
-          FROM operation
-          WHERE account_id = $accountId
-          AND block_height >= $blockHeight
-          """ ++ orderF ++ limitF ++ offsetF
+    val query =
+      sql"""SELECT account_id, hash, operation_type, value, time
+            FROM operation
+            WHERE account_id = $accountId
+            AND block_height >= $blockHeight
+         """ ++ orderF ++ limitF ++ offsetF
     query.query[Operation].stream
   }
 
-  def saveOperations(operation: List[OperationToSave]): ConnectionIO[Int] = {
-    val query = """INSERT INTO operation (
-            account_id, hash, operation_type, value, time, block_hash, block_height
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
-        """
+  def saveOperations(operation: Chunk[OperationToSave]): ConnectionIO[Int] = {
+    val query =
+      """INSERT INTO operation (
+         account_id, hash, operation_type, value, time, block_hash, block_height
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
+    """
     Update[OperationToSave](query).updateMany(operation)
   }
 
-  def flagBelongingInputs(accountId: UUID, addresses: List[String]): ConnectionIO[Int] = {
-    addresses match {
-      case Nil => Free.pure(0)
-      case list =>
-        val query =
-          sql"""UPDATE input
-          SET belongs = true
-          WHERE account_id = $accountId
-          AND """ ++ Fragments.in(fr"address", NonEmptyList.fromListUnsafe(list))
-        query.update.run
-    }
+  def flagBelongingInputs(accountId: UUID, addresses: NonEmptyList[String]): ConnectionIO[Int] = {
+    val query =
+      sql"""UPDATE input
+            SET belongs = true
+            WHERE account_id = $accountId
+            AND """ ++ Fragments.in(fr"address", addresses)
+    query.update.run
   }
 
   def flagBelongingOutputs(
       accountId: UUID,
-      addresses: List[String],
+      addresses: NonEmptyList[String],
       changeType: ChangeType
   ): ConnectionIO[Int] = {
-    addresses match {
-      case Nil => Free.pure(0)
-      case list =>
-        val query = sql"""UPDATE output
-          SET belongs = true, change_type = $changeType
-          WHERE account_id = $accountId
-          AND """ ++ Fragments.in(fr"address", NonEmptyList.fromListUnsafe(list))
-        query.update.run
-    }
+    val query =
+      sql"""UPDATE output
+            SET belongs = true, change_type = $changeType
+            WHERE account_id = $accountId
+            AND """ ++ Fragments.in(fr"address", addresses)
+    query.update.run
   }
 }

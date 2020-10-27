@@ -36,7 +36,7 @@ case class AccountInfo(
     lastSyncEvent: Option[SyncEvent],
     balance: BigInt,
     utxosCount: Int,
-    amountSpent: BigInt,
+    amountSent: BigInt,
     amountReceived: BigInt
 )
 

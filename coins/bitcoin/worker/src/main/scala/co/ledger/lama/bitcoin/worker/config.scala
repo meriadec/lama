@@ -27,7 +27,7 @@ object config {
     def queueName(exchangeName: ExchangeName): QueueName =
       QueueName(s"${exchangeName.value}.${routingKey.value}")
 
-    val maxConcurrent: Int = Runtime.getRuntime.availableProcessors() * 2
+    val maxConcurrent: Int = 50 // TODO : bench [Runtime.getRuntime.availableProcessors() * x]
 
     val maxTxsToSavePerBatch: Int = 100 // to avoid gRPC message exceeds maximum size
   }

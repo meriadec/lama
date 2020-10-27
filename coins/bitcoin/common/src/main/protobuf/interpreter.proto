@@ -77,7 +77,7 @@ message GetBalanceRequest {
 message GetBalanceResult {
   int64 balance = 1;
   int32 utxos_count = 2;
-  int64 amount_spent = 3;
+  int64 amount_sent = 3;
   int64 amount_received = 4;
 }
 

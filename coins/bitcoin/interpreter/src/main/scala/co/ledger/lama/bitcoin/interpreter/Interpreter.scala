@@ -25,7 +25,6 @@ class DbInterpreter(
   val transactionInterpreter = new TransactionInterpreter(db, maxConcurrent)
   val operationInterpreter   = new OperationInterpreter(db, maxConcurrent)
 
-  // TODO: flag has_op
   def saveTransactions(
       request: protobuf.SaveTransactionsRequest,
       ctx: Metadata

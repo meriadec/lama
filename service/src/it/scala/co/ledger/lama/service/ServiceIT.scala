@@ -177,8 +177,8 @@ class ServiceIT extends AnyFlatSpecLike with Matchers {
                 accountInfoAfterSync.amountReceived shouldBe account.expected.amountReceived
               }
 
-              it should s"have ${account.expected.amountSpent} amount spent" in {
-                accountInfoAfterSync.amountSpent shouldBe account.expected.amountSpent
+              it should s"have ${account.expected.amountSent} amount spent" in {
+                accountInfoAfterSync.amountSent shouldBe account.expected.amountSent
               }
 
               it should s"have ${account.expected.utxosSize} utxos in UTXO API" in {

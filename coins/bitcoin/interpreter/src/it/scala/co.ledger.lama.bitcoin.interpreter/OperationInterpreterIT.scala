@@ -191,7 +191,7 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
         } yield {
           ai.balance shouldBe BigInt(50000)
           ai.amountReceived shouldBe BigInt(50000)
-          ai.amountSpent shouldBe BigInt(0)
+          ai.amountSent shouldBe BigInt(0)
           ai.utxoCount shouldBe 1
         }
       }

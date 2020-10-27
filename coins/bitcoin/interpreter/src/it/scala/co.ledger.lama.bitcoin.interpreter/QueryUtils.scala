@@ -3,10 +3,11 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.explorer.{ConfirmedTransaction}
+import co.ledger.lama.bitcoin.common.models.explorer.ConfirmedTransaction
 import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
-import doobie.util.transactor.Transactor
 import doobie.implicits._
+import doobie.util.transactor.Transactor
+import fs2.Chunk
 
 object QueryUtils {
 
@@ -33,7 +34,7 @@ object QueryUtils {
 
   def saveOp(db: Transactor[IO], operation: OperationToSave) = {
     OperationQueries
-      .saveOperations(List(operation))
+      .saveOperations(Chunk(operation))
       .transact(db)
       .void
   }

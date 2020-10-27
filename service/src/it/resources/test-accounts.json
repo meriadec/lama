@@ -14,7 +14,7 @@
       "last_tx_hash": "87c56939aafe72cd9dafa23379444c5c771f9e02ea014da79748a6b5cc320ba9",
       "balance": 0,
       "amount_received": 2324546,
-      "amount_spent": 2324546
+      "amount_sent": 2324546
     }
   },
   {
@@ -32,7 +32,7 @@
       "last_tx_hash": "d8b60f324c652ed78d97e8673355a8d411bd2a80a9914420a82db706e2838ed2",
       "balance": 0,
       "amount_received": 1133622,
-      "amount_spent": 1133622
+      "amount_sent": 1133622
     }
   },
   {
@@ -50,7 +50,7 @@
       "last_tx_hash": "865ff00af6407d053252356b69dcb8dfe6ea477208b76031243b33307bc3abf9",
       "balance": 2717,
       "amount_received": 1787929,
-      "amount_spent": 1785212
+      "amount_sent": 1785212
     }
   },
   {
@@ -68,7 +68,7 @@
       "last_tx_hash": "7dba629e308995d5280f2abe011d4e849cdd1e25e08215d51fbe7df6e53e101d",
       "balance": 2757,
       "amount_received": 1628156,
-      "amount_spent": 1625399
+      "amount_sent": 1625399
     }
   }
 ]

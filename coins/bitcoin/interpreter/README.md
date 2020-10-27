@@ -6,10 +6,6 @@
 
 ### Save Transactions
 
->TODO : 
->If the block height given in this sync conflicts with a block height exiting from previous sync for this user,
->delete all transactions and operations from these previous block and mark these blocks as "deleted"
-
 This will upsert all blocks and transactions with their inputs and outputs in DB for this user.
 If another user is synchronised and is also present in the same transaction, the transaction will be saved twice, one for each user.
 
@@ -22,8 +18,6 @@ You need to provide the list of all known addresses from this account and his ac
 An operation is the "account view" of a transaction. If your account is an ouput of a transaction, the total amount send to your your account will be considered "RECEIVED".
 
 ### Get Operations
-
->TODO : ordering
 
 Send all "operations" in a paginated response.
 
