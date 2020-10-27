@@ -2,6 +2,7 @@
 .bloop
 .idea
 .sbt
+.bsp
 .DS_Store
 
 *.iml
