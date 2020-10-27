@@ -6,8 +6,9 @@ ThisBuild / scalaVersion := "2.13.3"
 ThisBuild / resolvers += Resolver.sonatypeRepo("releases")
 ThisBuild / scalacOptions ++= CompilerFlags.all
 
-// Dynver custom version formatting to remove the dirty suffix
+// Dynver custom version formatting to remove the dirty suffix and prefix
 ThisBuild / dynverSeparator := "-"
+ThisBuild / dynverVTagPrefix := false
 
 // Shared Plugins
 enablePlugins(BuildInfoPlugin)
@@ -25,7 +26,7 @@ lazy val assemblySettings = Seq(
   test in assembly := {},
   assemblyOutputPath in assembly := file(
     target.value.getAbsolutePath
-  ) / "assembly" / (name.value + "-latest.jar"),
+  ) / "assembly" / (name.value + ".jar"),
   cleanFiles += file(target.value.getAbsolutePath) / "assembly",
   // Remove resources files from the JAR (they will be copied to an external folder)
   assemblyMergeStrategy in assembly := {
@@ -41,12 +42,13 @@ lazy val assemblySettings = Seq(
 
 lazy val dockerSettings = Seq(
   imageNames in docker := {
-    // Sets the latest tag
+    // Tagging only to the latest
     if (isSnapshot.value)
       Seq(ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:latest"))
-    // Sets a name with a tag that contains the project version
+    // Tagging latest + specific version
     else
       Seq(
+        ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:latest"),
         ImageName(
           namespace = Some("docker.pkg.github.com/ledgerhq/lama"),
           repository = name.value,
