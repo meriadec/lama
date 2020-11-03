@@ -1,15 +1,32 @@
 package co.ledger.lama.bitcoin.interpreter.models
 
+import java.sql.Timestamp
 import java.util.UUID
 
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, DefaultInput, Output}
 import co.ledger.lama.bitcoin.common.models.service._
 import doobie._
 import doobie.postgres.implicits._
+import doobie.implicits.javasql._
+
+import scala.math.BigDecimal.javaBigDecimal2bigDecimal
 
 object implicits {
 
-  implicit val bigIntType: Meta[BigInt] = Meta.Advanced.other[BigInt]("bigint")
+  implicit val bigIntType: Meta[BigInt] =
+    Meta.BigDecimalMeta.imap[BigInt](_.toBigInt)(BigDecimal(_).bigDecimal)
+
+  implicit lazy val readBalanceHistory: Read[BalanceHistory] =
+    Read[(BigDecimal, Int, BigDecimal, BigDecimal, Timestamp)]
+      .map { case (balance, utxos, received, sent, time) =>
+        BalanceHistory(
+          balance = balance.toBigInt,
+          utxos = utxos,
+          received = received.toBigInt,
+          sent = sent.toBigInt,
+          time = time.toInstant
+        )
+      }
 
   implicit val operationTypeMeta: Meta[OperationType] =
     pgEnumStringOpt("operation_type", OperationType.fromKey, _.toString.toLowerCase())
@@ -24,7 +41,7 @@ object implicits {
           i.outputHash,
           i.outputIndex,
           i.inputIndex,
-          i.value.toLong,
+          i.value,
           i.address,
           i.scriptSignature,
           i.txinwitness.toList,
@@ -39,9 +56,8 @@ object implicits {
 
   implicit val readBlock: Read[Block] =
     Read[(String, Long, String)]
-      .map {
-        case (hash, height, time) =>
-          Block(hash, height, time)
+      .map { case (hash, height, time) =>
+        Block(hash, height, time)
       }
 
   implicit lazy val readTransactionView: Read[TransactionView] =
@@ -111,9 +127,8 @@ object implicits {
 
   implicit lazy val readOperation: Read[Operation] =
     Read[(UUID, String, OperationType, BigDecimal, String)]
-      .map {
-        case (accountId, hash, operationType, value, time) =>
-          Operation(accountId, hash, None, operationType, value.toBigInt, time)
+      .map { case (accountId, hash, operationType, value, time) =>
+        Operation(accountId, hash, None, operationType, value.toBigInt, time)
       }
 
   implicit lazy val writeOperation: Write[OperationToSave] =

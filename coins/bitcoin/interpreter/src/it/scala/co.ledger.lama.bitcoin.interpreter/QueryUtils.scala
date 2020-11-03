@@ -5,6 +5,7 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.explorer.ConfirmedTransaction
 import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
+import co.ledger.lama.bitcoin.interpreter.services.{OperationQueries, TransactionQueries}
 import doobie.implicits._
 import doobie.util.transactor.Transactor
 import fs2.Chunk

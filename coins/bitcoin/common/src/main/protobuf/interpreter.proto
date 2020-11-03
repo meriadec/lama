@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "google/protobuf/timestamp.proto";
+
 import "explorer.proto";
 import "operation.proto";
 
@@ -12,9 +14,10 @@ service BitcoinInterpreterService {
   rpc GetLastBlocks(GetLastBlocksRequest) returns (GetLastBlocksResult) {}
   rpc RemoveDataFromCursor(DeleteTransactionsRequest) returns (ResultCount) {}
   rpc GetOperations(GetOperationsRequest) returns (GetOperationsResult) {}
-  rpc ComputeOperations(ComputeOperationsRequest) returns (ResultCount) {}
+  rpc Compute(ComputeRequest) returns (ResultCount) {}
   rpc GetUTXOs(GetUTXOsRequest) returns (GetUTXOsResult) {}
-  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResult) {}
+  rpc GetBalance(GetBalanceRequest) returns (BalanceHistory) {}
+  rpc GetBalanceHistory(GetBalanceHistoryRequest) returns (GetBalanceHistoryResult) {}
 }
 
 // We sort by date
@@ -36,7 +39,7 @@ message GetLastBlocksResult {
   repeated Block blocks = 1;
 }
 
-message ComputeOperationsRequest {
+message ComputeRequest {
   bytes account_id = 1;
   repeated AccountAddress addresses = 2;
 }
@@ -74,11 +77,22 @@ message GetBalanceRequest {
   bytes account_id = 1;
 }
 
-message GetBalanceResult {
-  int64 balance = 1;
-  int32 utxos_count = 2;
-  int64 amount_sent = 3;
-  int64 amount_received = 4;
+message BalanceHistory {
+  string balance = 1;
+  int32 utxos = 2;
+  string received = 3;
+  string sent = 4;
+  google.protobuf.Timestamp time = 5;
+}
+
+message GetBalanceHistoryRequest {
+  bytes account_id = 1;
+  google.protobuf.Timestamp start = 2;
+  google.protobuf.Timestamp end = 3;
+}
+
+message GetBalanceHistoryResult {
+  repeated BalanceHistory balances = 1;
 }
 
 message ResultCount {

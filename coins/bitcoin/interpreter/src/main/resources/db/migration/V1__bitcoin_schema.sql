@@ -71,6 +71,20 @@ CREATE TABLE operation (
     FOREIGN KEY (account_id, hash) REFERENCES transaction (account_id, hash) ON DELETE CASCADE
 );
 
+CREATE TABLE balance_history (
+    id SERIAL PRIMARY KEY,
+    account_id UUID NOT NULL,
+    balance NUMERIC(30, 0) NOT NULL,
+    utxos INTEGER NOT NULL,
+    received NUMERIC(30, 0) NOT NULL,
+    sent NUMERIC(30, 0) NOT NULL,
+    block_height BIGINT NOT NULL,
+    time TIMESTAMP NOT NULL DEFAUlT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX balance_history_account_id_index ON balance_history(account_id);
+CREATE INDEX balance_history_time_index ON balance_history(time);
+
 -- View for SpentAmount et ReceivedAmount computation
 CREATE VIEW transaction_amount AS
 WITH inputs AS (

@@ -2,10 +2,12 @@ name: Tests
 
 on:
   push:
-    branches:
-      - '*'
-      - '!master'
+    branches-ignore:
+      - 'master'
+      - 'update/*'
   pull_request:
+    branches:
+      - 'update/*'
 
 jobs:
   unit-tests:

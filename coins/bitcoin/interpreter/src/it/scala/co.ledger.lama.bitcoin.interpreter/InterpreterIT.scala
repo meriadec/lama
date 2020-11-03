@@ -1,16 +1,23 @@
 package co.ledger.lama.bitcoin.interpreter
 
+import java.time.Instant
 import java.util.UUID
 
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.interpreter.services.{
+  BalanceService,
+  FlaggingService,
+  OperationService,
+  TransactionService
+}
 import co.ledger.lama.common.models.Sort
 import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
+class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
 
   val accountId: UUID = UUID.fromString("b723c553-3a9a-4130-8883-ee2f6c2f9202")
 
@@ -58,8 +65,8 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
     insertTx.hash,
     None,
     Sent,
-    insertTx.inputs.collect {
-      case i: DefaultInput => i.value
+    insertTx.inputs.collect { case i: DefaultInput =>
+      i.value
     }.sum,
     block.time
   )
@@ -67,8 +74,10 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
   "data in db" should "be deleted from cursor" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationInterpreter   = new OperationInterpreter(db, conf.maxConcurrent)
-        val transactionInterpreter = new TransactionInterpreter(db, conf.maxConcurrent)
+        val operationService   = new OperationService(db, conf.maxConcurrent)
+        val transactionService = new TransactionService(db, conf.maxConcurrent)
+        val flaggingService    = new FlaggingService(db)
+        val balanceService     = new BalanceService(db)
 
         val block2 = Block(
           "0000000000000000000cc9cc204cf3b314d106e69afbea68f2ae7f9e5047ba74",
@@ -85,26 +94,62 @@ class TransactionInterpreterIT extends AnyFlatSpecLike with Matchers with TestRe
         val blocksToSave = List(block2, block, block3)
 
         for {
-          _      <- QueryUtils.saveTx(db, insertTx, accountId)
-          _      <- QueryUtils.saveTx(db, insertTx.copy(hash = "toto", block = block2), accountId)
-          _      <- QueryUtils.saveTx(db, insertTx.copy(hash = "tata", block = block3), accountId)
-          blocks <- transactionInterpreter.getLastBlocks(accountId).compile.toList
-          _      <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
-          _      <- transactionInterpreter.removeDataFromCursor(accountId, block.height)
-          res <- operationInterpreter.getOperations(
+          _ <- QueryUtils.saveTx(db, insertTx, accountId)
+          _ <- QueryUtils.saveTx(db, insertTx.copy(hash = "toto", block = block2), accountId)
+          _ <- QueryUtils.saveTx(db, insertTx.copy(hash = "tata", block = block3), accountId)
+
+          blocks <- transactionService.getLastBlocks(accountId).compile.toList
+
+          _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress2))
+          _ <- operationService.compute(accountId)
+
+          // Compute twice to have 2 balances history
+          _ <- balanceService.compute(accountId)
+          _ <- balanceService.compute(accountId)
+
+          resOpsBeforeDeletion <- operationService.getOperations(
             accountId,
             blockHeight = 0L,
             limit = 20,
             offset = 0,
             Sort.Ascending
           )
-          (ops, trunc) = res
-          blocksAfterDelete <- transactionInterpreter.getLastBlocks(accountId).compile.toList
+
+          (opsBeforeDeletion, opsBeforeDeletionTrunc) = resOpsBeforeDeletion
+
+          now   = Instant.now()
+          start = now.minusSeconds(86400)
+          end   = now.plusSeconds(86400)
+          balancesBeforeDeletion <- balanceService.getBalancesHistory(accountId, start, end)
+
+          _ <- transactionService.removeFromCursor(accountId, block.height)
+          _ <- balanceService.removeBalancesHistoryFromCursor(accountId, block.height)
+
+          resOpsAfterDeletion <- operationService.getOperations(
+            accountId,
+            blockHeight = 0L,
+            limit = 20,
+            offset = 0,
+            Sort.Ascending
+          )
+
+          (opsAfterDeletion, opsAfterDeletionTrunc) = resOpsAfterDeletion
+
+          balancesAfterDeletion <- balanceService.getBalancesHistory(accountId, start, end)
+
+          blocksAfterDelete <- transactionService.getLastBlocks(accountId).compile.toList
         } yield {
           blocks should be(blocksToSave.sortBy(_.height)(Ordering[Long].reverse))
 
-          ops should have size 0
-          trunc shouldBe false
+          opsBeforeDeletion should have size 3
+          opsBeforeDeletionTrunc shouldBe false
+
+          balancesBeforeDeletion should have size 2
+
+          opsAfterDeletion shouldBe empty
+          opsAfterDeletionTrunc shouldBe false
+
+          balancesAfterDeletion shouldBe empty
 
           blocksAfterDelete shouldBe empty
         }

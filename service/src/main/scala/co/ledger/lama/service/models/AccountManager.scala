@@ -35,9 +35,9 @@ case class AccountInfo(
     syncFrequency: Long,
     lastSyncEvent: Option[SyncEvent],
     balance: BigInt,
-    utxosCount: Int,
-    amountSent: BigInt,
-    amountReceived: BigInt
+    utxos: Int,
+    received: BigInt,
+    sent: BigInt
 )
 
 object AccountInfo {

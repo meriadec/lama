@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.service.AccountBalance
+import co.ledger.lama.bitcoin.common.models.service.BalanceHistory
 import co.ledger.lama.bitcoin.interpreter.protobuf._
 import com.google.protobuf.ByteString
 import io.grpc.Metadata
@@ -63,7 +63,7 @@ class FakeInterpreter extends Interpreter {
           hash = transaction.hash,
           None,
           OperationType.SENT,
-          0L,
+          BigInt(0).toString,
           transaction.block.get.time
         )
       )
@@ -72,14 +72,20 @@ class FakeInterpreter extends Interpreter {
     }
   }
 
-  def computeOperations(request: ComputeOperationsRequest, ctx: Metadata): IO[ResultCount] =
+  def compute(request: ComputeRequest, ctx: Metadata): IO[ResultCount] =
     IO.pure(ResultCount(0))
 
   def getUTXOs(request: protobuf.GetUTXOsRequest, ctx: Metadata): IO[protobuf.GetUTXOsResult] =
     IO.pure(GetUTXOsResult(Nil))
 
-  def getBalance(request: GetBalanceRequest, ctx: Metadata): IO[protobuf.GetBalanceResult] =
-    IO.pure(AccountBalance(0, 0, 0, 0).toProto)
+  def getBalance(request: GetBalanceRequest, ctx: Metadata): IO[protobuf.BalanceHistory] =
+    IO.pure(BalanceHistory(0, 0, 0, 0).toProto)
+
+  def getBalanceHistory(
+      request: GetBalanceHistoryRequest,
+      ctx: Metadata
+  ): IO[GetBalanceHistoryResult] =
+    IO.pure(GetBalanceHistoryResult(balances = Seq(BalanceHistory(0, 0, 0, 0).toProto)))
 
   def getLastBlocks(request: GetLastBlocksRequest, ctx: Metadata): IO[GetLastBlocksResult] =
     IO.pure(GetLastBlocksResult(List(Block("hash", 1L, "time"))))

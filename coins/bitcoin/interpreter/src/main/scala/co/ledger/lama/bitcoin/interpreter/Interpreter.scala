@@ -1,12 +1,25 @@
 package co.ledger.lama.bitcoin.interpreter
 
+import java.time.Instant
+
 import cats.effect.{ConcurrentEffect, ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
-import co.ledger.lama.bitcoin.interpreter.protobuf.ResultCount
+import co.ledger.lama.bitcoin.interpreter.protobuf.{
+  ComputeRequest,
+  GetBalanceHistoryRequest,
+  GetBalanceHistoryResult,
+  ResultCount
+}
+import co.ledger.lama.bitcoin.interpreter.services.{
+  BalanceService,
+  FlaggingService,
+  OperationService,
+  TransactionService
+}
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Sort
-import co.ledger.lama.common.utils.UuidUtils
+import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import doobie.Transactor
 import io.grpc.{Metadata, ServerServiceDefinition}
 
@@ -22,8 +35,10 @@ class DbInterpreter(
     extends Interpreter
     with IOLogging {
 
-  val transactionInterpreter = new TransactionInterpreter(db, maxConcurrent)
-  val operationInterpreter   = new OperationInterpreter(db, maxConcurrent)
+  val transactionService = new TransactionService(db, maxConcurrent)
+  val operationService   = new OperationService(db, maxConcurrent)
+  val flaggingService    = new FlaggingService(db)
+  val balanceService     = new BalanceService(db)
 
   def saveTransactions(
       request: protobuf.SaveTransactionsRequest,
@@ -33,7 +48,7 @@ class DbInterpreter(
       accountId  <- UuidUtils.bytesToUuidIO(request.accountId)
       _          <- log.info(s"Saving transactions for $accountId")
       txs        <- IO(request.transactions.map(ConfirmedTransaction.fromProto).toList)
-      savedCount <- transactionInterpreter.saveTransactions(accountId, txs)
+      savedCount <- transactionService.saveTransactions(accountId, txs)
     } yield ResultCount(savedCount)
   }
 
@@ -47,7 +62,7 @@ class DbInterpreter(
                                - accountId: $accountId
                                """)
       blocks <-
-        transactionInterpreter
+        transactionService
           .getLastBlocks(accountId)
           .map(_.toProto)
           .compile
@@ -72,7 +87,7 @@ class DbInterpreter(
                   |- limit: $limit
                   |- offset: $offset
                   |- sort: $sort""".stripMargin)
-      opResult  <- operationInterpreter.getOperations(accountId, blockHeight, limit, offset, sort)
+      opResult  <- operationService.getOperations(accountId, blockHeight, limit, offset, sort)
       (operations, truncated) = opResult
     } yield protobuf.GetOperationsResult(operations.map(_.toProto), truncated)
   }
@@ -87,7 +102,7 @@ class DbInterpreter(
                                |- accountId: $accountId
                                |- limit: $limit
                                |- offset: $offset""".stripMargin)
-      res       <- operationInterpreter.getUTXOs(accountId, limit, offset)
+      res       <- operationService.getUTXOs(accountId, limit, offset)
       (utxos, truncated) = res
     } yield {
       protobuf.GetUTXOsResult(utxos.map(_.toProto), truncated)
@@ -100,36 +115,69 @@ class DbInterpreter(
   ): IO[protobuf.ResultCount] = {
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
-      _         <- log.info(s"""Deleting transactions with parameters:
+      blockHeight = request.blockHeight
+      _     <- log.info(s"""Deleting data with parameters:
                       |- accountId: $accountId
-                      |- blockHeight: ${request.blockHeight}""".stripMargin)
-      txRes     <- transactionInterpreter.removeDataFromCursor(accountId, request.blockHeight)
-      _         <- log.info(s"Deleted $txRes transactions")
+                      |- blockHeight: $blockHeight""".stripMargin)
+      txRes <- transactionService.removeFromCursor(accountId, blockHeight)
+      _     <- log.info(s"Deleted $txRes transactions")
+      balancesRes <- balanceService.removeBalancesHistoryFromCursor(
+        accountId,
+        blockHeight
+      )
+      _ <- log.info(s"Deleted $balancesRes balances history")
     } yield ResultCount(txRes)
   }
 
-  def computeOperations(
-      request: protobuf.ComputeOperationsRequest,
+  def compute(
+      request: ComputeRequest,
       ctx: Metadata
-  ): IO[protobuf.ResultCount] = {
+  ): IO[protobuf.ResultCount] =
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+
       addresses <- IO(request.addresses.map(AccountAddress.fromProto).toList)
-      _         <- log.info(s"Computing operations for $accountId")
-      savedOps  <- operationInterpreter.computeOperations(accountId, addresses)
+
+      _ <- log.info(s"Flagging inputs and outputs belong to account=$accountId")
+      _ <- flaggingService.flagInputsAndOutputs(accountId, addresses)
+
+      _        <- log.info("Computing operations")
+      savedOps <- operationService.compute(accountId)
+
+      _ <- log.info("Computing balance history")
+      _ <- balanceService.compute(accountId)
+
     } yield ResultCount(savedOps)
-  }
 
   def getBalance(
       request: protobuf.GetBalanceRequest,
       ctx: Metadata
-  ): IO[protobuf.GetBalanceResult] = {
+  ): IO[protobuf.BalanceHistory] =
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
-      info      <- operationInterpreter.getBalance(accountId)
-    } yield {
-      info.toProto
-    }
-  }
+      info      <- balanceService.getBalance(accountId)
+    } yield info.toProto
 
+  def getBalanceHistory(
+      request: GetBalanceHistoryRequest,
+      ctx: Metadata
+  ): IO[GetBalanceHistoryResult] =
+    for {
+      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+
+      start = request.start
+        .map(ProtobufUtils.toInstant)
+        .getOrElse(Instant.now().minusSeconds(86400))
+
+      end = request.end
+        .map(ProtobufUtils.toInstant)
+        .getOrElse(Instant.now().plusSeconds(86400))
+
+      _ <- log.info(s"""Getting balances with parameters:
+                       |- accountId: $accountId
+                       |- start: $start
+                       |- offset: $end""".stripMargin)
+
+      balances <- balanceService.getBalancesHistory(accountId, start, end)
+    } yield GetBalanceHistoryResult(balances.map(_.toProto))
 }

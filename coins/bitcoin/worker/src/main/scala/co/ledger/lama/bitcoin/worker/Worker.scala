@@ -105,7 +105,7 @@ class Worker(
         AccountAddress(a.address, if (a.change.isChangeExternal) EXTERNAL else INTERNAL)
       }
 
-      opsCount <- interpreterService.computeOperations(account.id, addresses)
+      opsCount <- interpreterService.compute(account.id, addresses)
 
       _ <- log.info(s"$opsCount operations computed")
 
@@ -125,8 +125,7 @@ class Worker(
     }
   }
 
-  /**
-    * Sync account algorithm:
+  /** Sync account algorithm:
     *   - 1) Get addresses per batch from the keychain
     *   - 2) Get transactions per batch from the explorer
     *   - 3a) If there are transactions for this batch of addresses:

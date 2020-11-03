@@ -4,12 +4,13 @@ import java.util.UUID
 
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.interpreter.services.{FlaggingService, OperationService}
 import co.ledger.lama.common.models.Sort
 import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
+class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
 
   val accountId: UUID = UUID.fromString("b723c553-3a9a-4130-8883-ee2f6c2f9202")
 
@@ -73,26 +74,17 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
       1
     )
 
-  val operation1: Operation = Operation(
-    accountId,
-    insertTx1.hash,
-    None,
-    Sent,
-    insertTx1.inputs.collect {
-      case i: DefaultInput => i.value
-    }.sum,
-    block1.time
-  )
-
   "operation saved in db" should "be fetched" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationInterpreter = new OperationInterpreter(db, conf.maxConcurrent)
+        val operationService = new OperationService(db, conf.maxConcurrent)
+        val flaggingService  = new FlaggingService(db)
 
         for {
           _ <- QueryUtils.saveTx(db, insertTx1, accountId)
-          _ <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
-          res <- operationInterpreter.getOperations(
+          _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress2))
+          _ <- operationService.compute(accountId)
+          res <- operationService.getOperations(
             accountId,
             blockHeight = 0L,
             limit = 20,
@@ -123,13 +115,15 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
   it should "fetched only ops from a blockHeight cursor" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationInterpreter = new OperationInterpreter(db, conf.maxConcurrent)
+        val operationService = new OperationService(db, conf.maxConcurrent)
+        val flaggingService  = new FlaggingService(db)
 
         for {
           _ <- QueryUtils.saveTx(db, insertTx1, accountId)
           _ <- QueryUtils.saveTx(db, insertTx2, accountId)
-          _ <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress2))
-          res <- operationInterpreter.getOperations(
+          _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress2))
+          _ <- operationService.compute(accountId)
+          res <- operationService.getOperations(
             accountId,
             blockHeight = block2.height,
             limit = 20,
@@ -160,12 +154,14 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
   it should "have made utxos" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationInterpreter = new OperationInterpreter(db, conf.maxConcurrent)
+        val operationService = new OperationService(db, conf.maxConcurrent)
+        val flaggingService  = new FlaggingService(db)
 
         for {
           _   <- QueryUtils.saveTx(db, insertTx1, accountId)
-          _   <- operationInterpreter.computeOperations(accountId, List(inputAddress, outputAddress1))
-          res <- operationInterpreter.getUTXOs(accountId, 20, 0)
+          _   <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress1))
+          _   <- operationService.compute(accountId)
+          res <- operationService.getUTXOs(accountId, 20, 0)
           (utxos, trunc) = res
         } yield {
           utxos should have size 1
@@ -178,23 +174,4 @@ class OperationInterpreterIT extends AnyFlatSpecLike with Matchers with TestReso
         }
       }
   }
-
-  it should "have the correct balance" in IOAssertion {
-    setup() *>
-      appResources.use { db =>
-        val operationInterpreter = new OperationInterpreter(db, conf.maxConcurrent)
-
-        for {
-          _  <- QueryUtils.saveTx(db, insertTx1, accountId)
-          _  <- operationInterpreter.computeOperations(accountId, List(outputAddress1))
-          ai <- operationInterpreter.getBalance(accountId)
-        } yield {
-          ai.balance shouldBe BigInt(50000)
-          ai.amountReceived shouldBe BigInt(50000)
-          ai.amountSent shouldBe BigInt(0)
-          ai.utxoCount shouldBe 1
-        }
-      }
-  }
-
 }

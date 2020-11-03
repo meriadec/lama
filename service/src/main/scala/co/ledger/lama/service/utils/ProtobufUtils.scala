@@ -95,7 +95,7 @@ object ProtobufUtils {
 
   def fromAccountInfo(
       info: pbManager.AccountInfoResult,
-      balance: pbInterpreter.GetBalanceResult
+      balance: pbInterpreter.BalanceHistory
   ): AccountInfo = {
     val accountId = UuidUtils.bytesToUuid(info.accountId).get
     AccountInfo(
@@ -103,9 +103,9 @@ object ProtobufUtils {
       info.syncFrequency,
       info.lastSyncEvent.flatMap(fromSyncEvent(accountId, _)),
       BigInt(balance.balance),
-      balance.utxosCount,
-      BigInt(balance.amountSent),
-      BigInt(balance.amountReceived)
+      balance.utxos,
+      BigInt(balance.received),
+      BigInt(balance.sent)
     )
   }
 

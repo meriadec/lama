@@ -1,18 +1,25 @@
-package co.ledger.lama.bitcoin.interpreter
+package co.ledger.lama.bitcoin.interpreter.services
 
 import java.util.UUID
 
-import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.explorer._
+import co.ledger.lama.bitcoin.common.models.explorer.{
+  Block,
+  ConfirmedTransaction,
+  DefaultInput,
+  Output
+}
+
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
-import doobie.Update
-import doobie.free.connection.ConnectionIO
+
+import doobie._
 import doobie.implicits._
 import doobie.postgres.implicits._
 
+import fs2.Stream
+
 object TransactionQueries {
 
-  def fetchMostRecentBlocks(accountId: UUID): fs2.Stream[doobie.ConnectionIO, Block] = {
+  def fetchMostRecentBlocks(accountId: UUID): Stream[ConnectionIO, Block] = {
     sql"""SELECT DISTINCT block_hash, block_height, block_time
           FROM transaction
           WHERE account_id = $accountId
@@ -29,8 +36,8 @@ object TransactionQueries {
       _ <- insertInputs(
         accountId,
         tx.hash,
-        tx.inputs.toList.collect {
-          case input: DefaultInput => input
+        tx.inputs.toList.collect { case input: DefaultInput =>
+          input
         }
       )
 
@@ -96,7 +103,7 @@ object TransactionQueries {
     Update[Output](query).updateMany(outputs)
   }
 
-  def deleteFromCursor(accountId: UUID, blockHeight: Long): ConnectionIO[Int] =
+  def removeFromCursor(accountId: UUID, blockHeight: Long): ConnectionIO[Int] =
     sql"""DELETE from transaction
           WHERE account_id = $accountId
           AND block_height >= $blockHeight

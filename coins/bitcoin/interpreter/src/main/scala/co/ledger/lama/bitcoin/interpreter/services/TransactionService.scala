@@ -1,14 +1,14 @@
-package co.ledger.lama.bitcoin.interpreter
+package co.ledger.lama.bitcoin.interpreter.services
 
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction}
 import doobie.Transactor
 import doobie.implicits._
-import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction}
 import fs2._
 
-class TransactionInterpreter(
+class TransactionService(
     db: Transactor[IO],
     maxConcurrent: Int
 ) {
@@ -28,8 +28,8 @@ class TransactionInterpreter(
       .fold(0)(_ + _)
   }
 
-  def removeDataFromCursor(accountId: UUID, blockHeight: Long): IO[Int] =
-    TransactionQueries.deleteFromCursor(accountId, blockHeight).transact(db)
+  def removeFromCursor(accountId: UUID, blockHeight: Long): IO[Int] =
+    TransactionQueries.removeFromCursor(accountId, blockHeight).transact(db)
 
   def getLastBlocks(accountId: UUID): Stream[IO, Block] =
     TransactionQueries

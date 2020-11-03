@@ -1,10 +1,11 @@
 package co.ledger.lama.bitcoin.common.models
 
+import java.time.Instant
 import java.util.UUID
 
 import co.ledger.lama.common.models.implicits.defaultCirceConfig
-import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.bitcoin.interpreter.protobuf
+import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
 
@@ -238,7 +239,7 @@ object service {
         hash,
         transaction.map(_.toProto),
         operationType.toProto,
-        value.toLong,
+        value.toString,
         time
       )
     }
@@ -283,20 +284,36 @@ object service {
     }
   }
 
-  case class AccountBalance(
+  case class BalanceHistory(
       balance: BigInt,
-      utxoCount: Int,
-      amountSent: BigInt,
-      amountReceived: BigInt
+      utxos: Int,
+      received: BigInt,
+      sent: BigInt,
+      time: Instant = Instant.now()
   ) {
-    def toProto: protobuf.GetBalanceResult = {
-      protobuf.GetBalanceResult(
-        balance.toLong,
-        utxoCount,
-        amountSent.toLong,
-        amountReceived.toLong
+    def toProto: protobuf.BalanceHistory =
+      protobuf.BalanceHistory(
+        balance = balance.toString,
+        utxos = utxos,
+        received = received.toString,
+        sent = sent.toString,
+        time = Some(ProtobufUtils.fromInstant(time))
       )
-    }
+  }
+
+  object BalanceHistory {
+    implicit val encoder: Encoder[BalanceHistory] = deriveConfiguredEncoder[BalanceHistory]
+    implicit val decoder: Decoder[BalanceHistory] = deriveConfiguredDecoder[BalanceHistory]
+
+    def fromProto(proto: protobuf.BalanceHistory): BalanceHistory =
+      BalanceHistory(
+        balance = BigInt(proto.balance),
+        utxos = proto.utxos,
+        received = BigInt(proto.received),
+        sent = BigInt(proto.sent),
+        time = proto.time.map(ProtobufUtils.toInstant).getOrElse(Instant.now)
+      )
+
   }
 
 }

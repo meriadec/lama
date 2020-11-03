@@ -6,7 +6,7 @@ import cats.effect.IO
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   AccountAddress,
   BitcoinInterpreterServiceFs2Grpc,
-  ComputeOperationsRequest,
+  ComputeRequest,
   DeleteTransactionsRequest,
   GetLastBlocksRequest,
   GetLastBlocksResult,
@@ -40,7 +40,7 @@ trait InterpreterService {
 
   def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult]
 
-  def computeOperations(
+  def compute(
       accountId: UUID,
       addresses: Seq[AccountAddress]
   ): IO[Int]
@@ -104,10 +104,10 @@ class InterpreterGrpcClientService(grpcClient: BitcoinInterpreterServiceFs2Grpc[
       new Metadata()
     )
 
-  def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Int] =
+  def compute(accountId: UUID, addresses: Seq[AccountAddress]): IO[Int] =
     grpcClient
-      .computeOperations(
-        new ComputeOperationsRequest(
+      .compute(
+        new ComputeRequest(
           UuidUtils.uuidToBytes(accountId),
           addresses
         ),

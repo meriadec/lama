@@ -1,22 +1,20 @@
-package co.ledger.lama.bitcoin.interpreter
+package co.ledger.lama.bitcoin.interpreter.services
 
 import java.util.UUID
 
 import cats.data.NonEmptyList
+
 import co.ledger.lama.bitcoin.common.models.service._
-import co.ledger.lama.bitcoin.interpreter.models.{
-  BalanceInfo,
-  OperationAmounts,
-  OperationToSave,
-  TransactionAmounts
-}
+import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
+import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import co.ledger.lama.common.logging.IOLogging
-import doobie.{ConnectionIO, _}
+import co.ledger.lama.common.models.Sort
+
+import doobie._
 import doobie.implicits._
 import doobie.postgres.implicits._
-import co.ledger.lama.bitcoin.interpreter.models.implicits._
-import co.ledger.lama.common.models.Sort
-import fs2.Chunk
+
+import fs2.{Chunk, Stream}
 
 object OperationQueries extends IOLogging {
 
@@ -44,7 +42,7 @@ object OperationQueries extends IOLogging {
 
   def fetchTxHashesWithNoOperations(
       accountId: UUID
-  ): fs2.Stream[doobie.ConnectionIO, String] =
+  ): Stream[ConnectionIO, String] =
     sql"""SELECT tx.hash
           FROM transaction tx
             LEFT JOIN operation op
@@ -58,7 +56,7 @@ object OperationQueries extends IOLogging {
 
   def fetchTransactionAmounts(
       accountId: UUID
-  ): fs2.Stream[doobie.ConnectionIO, TransactionAmounts] =
+  ): Stream[ConnectionIO, TransactionAmounts] =
     sql"""SELECT tx.account_id,
                  tx.hash,
                  tx.block_hash,
@@ -81,7 +79,7 @@ object OperationQueries extends IOLogging {
       accountId: UUID,
       limit: Option[Int] = None,
       offset: Option[Int] = None
-  ): fs2.Stream[doobie.ConnectionIO, OutputView] = {
+  ): Stream[ConnectionIO, OutputView] = {
     val limitF  = limit.map(l => fr"LIMIT $l").getOrElse(Fragment.empty)
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
 
@@ -100,45 +98,14 @@ object OperationQueries extends IOLogging {
     query.query[OutputView].stream
   }
 
-  def fetchBalance(
-      accountId: UUID
-  ): ConnectionIO[BalanceInfo] = {
-    sql"""SELECT COALESCE(COUNT(o.value), 0), COALESCE(SUM(o.value), 0)
-          FROM output o
-            LEFT JOIN input i
-              ON o.account_id = i.account_id
-              AND o.address = i.address
-              AND o.output_index = i.output_index
-			        AND o.hash = i.output_hash
-          WHERE o.account_id = $accountId
-            AND o.belongs = true
-            AND i.address IS NULL
-      """
-      .query[(Int, BigDecimal)]
-      .map {
-        case (utxoCount, balance) => BalanceInfo(utxoCount, balance.toBigInt)
-      }
-      .unique
-  }
-
-  def fetchSpendAndReceivedAmount(
-      accountId: UUID
-  ): doobie.ConnectionIO[OperationAmounts] = {
-
+  def saveOperations(operation: Chunk[OperationToSave]): ConnectionIO[Int] = {
     val query =
-      sql"""SELECT
-              COALESCE(SUM(CASE WHEN operation_type = 'sent' THEN value ELSE 0 END), 0) as sent,
-              COALESCE(SUM(CASE WHEN operation_type = 'received' THEN value ELSE 0 END), 0) as received
-            FROM operation
-            WHERE account_id = $accountId
-         """
-    query
-      .query[(BigDecimal, BigDecimal)]
-      .map {
-        case (sent, received) =>
-          OperationAmounts(sent.toBigInt, received.toBigInt)
-      }
-      .unique
+      """INSERT INTO operation (
+         account_id, hash, operation_type, value, time, block_hash, block_height
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
+    """
+    Update[OperationToSave](query).updateMany(operation)
   }
 
   private def fetchTx(
@@ -156,7 +123,7 @@ object OperationQueries extends IOLogging {
   private def fetchInputs(
       accountId: UUID,
       hash: String
-  ): fs2.Stream[doobie.ConnectionIO, InputView] = {
+  ): Stream[ConnectionIO, InputView] = {
     sql"""SELECT output_hash, output_index, input_index, value, address, script_signature, sequence, belongs
           FROM input
           WHERE account_id = $accountId
@@ -169,7 +136,7 @@ object OperationQueries extends IOLogging {
   private def fetchOutputs(
       accountId: UUID,
       hash: String
-  ): fs2.Stream[doobie.ConnectionIO, OutputView] =
+  ): Stream[ConnectionIO, OutputView] =
     sql"""SELECT output_index, value, address, script_hex, belongs, change_type
           FROM output
           WHERE account_id = $accountId
@@ -184,7 +151,7 @@ object OperationQueries extends IOLogging {
       sort: Sort = Sort.Descending,
       limit: Option[Int] = None,
       offset: Option[Int] = None
-  ): fs2.Stream[doobie.ConnectionIO, Operation] = {
+  ): Stream[ConnectionIO, Operation] = {
     val orderF  = Fragment.const(s"ORDER BY time $sort, hash $sort")
     val limitF  = limit.map(l => fr"LIMIT $l").getOrElse(Fragment.empty)
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
@@ -196,16 +163,6 @@ object OperationQueries extends IOLogging {
             AND block_height >= $blockHeight
          """ ++ orderF ++ limitF ++ offsetF
     query.query[Operation].stream
-  }
-
-  def saveOperations(operation: Chunk[OperationToSave]): ConnectionIO[Int] = {
-    val query =
-      """INSERT INTO operation (
-         account_id, hash, operation_type, value, time, block_hash, block_height
-       ) VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
-    """
-    Update[OperationToSave](query).updateMany(operation)
   }
 
   def flagBelongingInputs(accountId: UUID, addresses: NonEmptyList[String]): ConnectionIO[Int] = {

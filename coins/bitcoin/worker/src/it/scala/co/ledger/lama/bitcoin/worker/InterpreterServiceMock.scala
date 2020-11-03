@@ -85,7 +85,7 @@ class InterpreterServiceMock extends InterpreterService {
       )
     }
 
-  def computeOperations(accountId: UUID, addresses: Seq[AccountAddress]): IO[Int] = {
+  def compute(accountId: UUID, addresses: Seq[AccountAddress]): IO[Int] = {
     IO.pure(0)
   }
 

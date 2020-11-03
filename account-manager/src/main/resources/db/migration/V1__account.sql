@@ -34,7 +34,7 @@ CREATE TABLE account_sync_event(
     updated TIMESTAMP NOT NULL DEFAUlT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX account_sync_event_updated_index ON account_sync_event(updated);
+CREATE INDEX account_sync_event_updated_index ON account_sync_event(updated);
 
 CREATE VIEW account_sync_status AS (
     SELECT DISTINCT ON (account_id)

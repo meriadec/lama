@@ -1,7 +1,10 @@
 package co.ledger.lama.service.utils
 
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+
 import co.ledger.lama.common.models.Sort
-import org.http4s.QueryParamDecoder
+import org.http4s.{QueryParamCodec, QueryParamDecoder}
 import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 
 object RouterUtils {
@@ -10,7 +13,17 @@ object RouterUtils {
 
   object OptionalBlockHeightQueryParamMatcher
       extends OptionalQueryParamDecoderMatcher[Long]("blockHeight")
+
   object OptionalLimitQueryParamMatcher  extends OptionalQueryParamDecoderMatcher[Int]("limit")
   object OptionalOffsetQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("offset")
   object OptionalSortQueryParamMatcher   extends OptionalQueryParamDecoderMatcher[Sort]("sort")
+
+  implicit val isoInstantCodec: QueryParamCodec[Instant] =
+    QueryParamCodec.instantQueryParamCodec(DateTimeFormatter.ISO_INSTANT)
+
+  object OptionalStartInstantQueryParamMatcher
+      extends OptionalQueryParamDecoderMatcher[Instant]("start")
+
+  object OptionalEndInstantQueryParamMatcher
+      extends OptionalQueryParamDecoderMatcher[Instant]("end")
 }

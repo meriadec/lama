@@ -3,8 +3,10 @@ package co.ledger.lama.service.routes
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
+import co.ledger.lama.bitcoin.common.models.service.BalanceHistory
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   BitcoinInterpreterServiceFs2Grpc,
+  GetBalanceHistoryRequest,
   GetBalanceRequest,
   GetOperationsRequest,
   GetUTXOsRequest,
@@ -14,7 +16,7 @@ import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.{BitcoinNetwork, Coin, CoinFamily, Scheme, Sort}
 import co.ledger.lama.common.models.implicits._
-import co.ledger.lama.common.utils.UuidUtils
+import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import co.ledger.lama.manager.protobuf.{
   AccountInfoRequest,
   AccountManagerServiceFs2Grpc,
@@ -75,8 +77,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
                 new Metadata
               )
           )
-          .flatMap {
-            case (info, balance) => Ok(fromAccountInfo(info, balance))
+          .flatMap { case (info, balance) =>
+            Ok(fromAccountInfo(info, balance))
           }
 
       case req @ POST -> Root =>
@@ -198,6 +200,23 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
               new Metadata
             )
             .map(fromUtxosListingInfo)
+            .flatMap(Ok(_))
+
+      case GET -> Root / UUIDVar(
+            accountId
+          ) / "balances" :? OptionalStartInstantQueryParamMatcher(start)
+          +& OptionalEndInstantQueryParamMatcher(end) =>
+        log.info(s"Fetching balances history for account: $accountId") *>
+          interpreterClient
+            .getBalanceHistory(
+              GetBalanceHistoryRequest(
+                UuidUtils.uuidToBytes(accountId),
+                start.map(ProtobufUtils.fromInstant),
+                end.map(ProtobufUtils.fromInstant)
+              ),
+              new Metadata()
+            )
+            .map(_.balances.map(BalanceHistory.fromProto))
             .flatMap(Ok(_))
     }
 }

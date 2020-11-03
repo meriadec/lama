@@ -54,6 +54,3 @@ case class TransactionAmounts(
     )
   }
 }
-
-case class BalanceInfo(utxoCount: Int, balance: BigInt)
-case class OperationAmounts(sent: BigInt, received: BigInt)
