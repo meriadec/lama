@@ -1,8 +1,8 @@
-![GitHub release](https://img.shields.io/github/v/release/ledgerhq/lama?color=0366d6&include_prereleases)
-![Publish packages](https://github.com/LedgerHQ/lama/workflows/Publish%20and%20packages/badge.svg)
-![Tests](https://github.com/LedgerHQ/lama/workflows/Tests/badge.svg)
+[![release](https://img.shields.io/github/v/release/ledgerhq/lama?color=0366d6&include_prereleases)](https://github.com/LedgerHQ/lama/releases)
+[![build](https://github.com/LedgerHQ/lama/workflows/build/badge.svg?branch=master)](https://github.com/LedgerHQ/lama/actions?query=workflow%3Abuild+branch%3Amaster)
+[![publish](https://github.com/LedgerHQ/lama/workflows/publish/badge.svg?branch=master)](https://github.com/LedgerHQ/lama/actions?query=workflow%3Apublish+branch%3Amaster)
 
-# Ledger Account Manager API
+# Lama
 
 ![](./lama.jpg)
 
