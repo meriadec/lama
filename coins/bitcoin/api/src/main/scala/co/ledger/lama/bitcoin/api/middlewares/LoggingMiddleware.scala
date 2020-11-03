@@ -1,4 +1,4 @@
-package co.ledger.lama.service.middlewares
+package co.ledger.lama.bitcoin.api.middlewares
 
 import cats.data.Kleisli
 import cats.effect.IO

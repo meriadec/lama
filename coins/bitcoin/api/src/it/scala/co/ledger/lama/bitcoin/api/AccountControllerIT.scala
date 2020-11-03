@@ -1,17 +1,11 @@
-package co.ledger.lama.service
+package co.ledger.lama.bitcoin.api
 
 import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import co.ledger.lama.common.utils.{IOAssertion, IOUtils}
-import co.ledger.lama.service.ConfigSpec.ConfigSpec
-import co.ledger.lama.service.models.{
-  AccountInfo,
-  AccountRegistered,
-  GetOperationsResult,
-  GetUTXOsResult
-}
+import ConfigSpec.ConfigSpec
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.client.blaze.BlazeClientBuilder
@@ -19,10 +13,16 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 import cats.implicits._
+import co.ledger.lama.bitcoin.api.models.{
+  AccountInfo,
+  AccountRegistered,
+  GetOperationsResult,
+  GetUTXOsResult
+}
 import co.ledger.lama.bitcoin.common.models.service.BalanceHistory
 import co.ledger.lama.common.models.Status.{Deleted, Published, Registered, Synchronized}
 import co.ledger.lama.common.models.Sort
-import co.ledger.lama.service.routes.AccountController.UpdateRequest
+import co.ledger.lama.bitcoin.api.routes.AccountController.UpdateRequest
 import io.circe.parser._
 
 import scala.concurrent.ExecutionContext

@@ -1,4 +1,4 @@
-package co.ledger.lama.service.utils
+package co.ledger.lama.bitcoin.api.utils
 
 import java.time.Instant
 import java.time.format.DateTimeFormatter

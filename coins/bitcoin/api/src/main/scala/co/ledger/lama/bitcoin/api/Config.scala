@@ -1,4 +1,4 @@
-package co.ledger.lama.service
+package co.ledger.lama.bitcoin.api
 
 import co.ledger.lama.common.utils.GrpcClientConfig
 import pureconfig.ConfigReader
@@ -13,7 +13,8 @@ object Config {
 
   case class BitcoinServicesConfig(
       keychain: GrpcClientConfig,
-      interpreter: GrpcClientConfig
+      interpreter: GrpcClientConfig,
+      broadcaster: GrpcClientConfig
   )
 
   case class ServerConfig(

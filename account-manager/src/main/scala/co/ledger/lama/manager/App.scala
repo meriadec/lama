@@ -1,7 +1,8 @@
 package co.ledger.lama.manager
 
 import cats.effect.{ExitCode, IO, IOApp, Resource}
-import co.ledger.lama.common.utils.{HealthUtils, RabbitUtils, ResourceUtils}
+import co.ledger.lama.common.grpc.HealthService
+import co.ledger.lama.common.utils.{RabbitUtils, ResourceUtils}
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import co.ledger.lama.manager.config.{Config, OrchestratorConfig}
 import com.redis.RedisClient
@@ -30,7 +31,7 @@ object App extends IOApp {
       // define rpc service definitions
       serviceDefinitions = List(
         new Service(db, conf.orchestrator.coins).definition,
-        new HealthUtils().definition
+        new HealthService().definition
       )
 
       // create the grpc server
@@ -40,19 +41,18 @@ object App extends IOApp {
 
     // start the grpc server and run the orchestrator stream
     resources
-      .use {
-        case (db, rabbitClient, redisClient, server) =>
-          // create the orchestrator
-          val orchestrator = new CoinOrchestrator(
-            conf.orchestrator,
-            db,
-            rabbitClient,
-            redisClient
-          )
+      .use { case (db, rabbitClient, redisClient, server) =>
+        // create the orchestrator
+        val orchestrator = new CoinOrchestrator(
+          conf.orchestrator,
+          db,
+          rabbitClient,
+          redisClient
+        )
 
-          declareExchangesAndBindings(rabbitClient, conf.orchestrator) *>
-            IO(server.start()) *>
-            orchestrator.run().compile.drain
+        declareExchangesAndBindings(rabbitClient, conf.orchestrator) *>
+          IO(server.start()) *>
+          orchestrator.run().compile.drain
       }
       .as(ExitCode.Success)
   }

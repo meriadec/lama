@@ -1,0 +1,104 @@
+name: Publish packages
+
+on:
+  push:
+    branches:
+      - 'master'
+    tags:
+      - '*'
+
+jobs:
+  docker-publish-account-manager:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: Create docker image
+        run: |
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt accountManager/assembly
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt accountManager/docker
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: docker.pkg.github.com
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish docker image
+        run: docker push docker.pkg.github.com/ledgerhq/lama/lama-account-manager
+
+  docker-publish-bitcoin-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: Create docker image
+        run: |
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinApi/assembly
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinApi/docker
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: docker.pkg.github.com
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish docker image
+        run: docker push docker.pkg.github.com/ledgerhq/lama/lama-bitcoin-api
+
+  docker-publish-bitcoin-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: Create docker image
+        run: |
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinWorker/assembly
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinWorker/docker
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: docker.pkg.github.com
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish docker image
+        run: docker push docker.pkg.github.com/ledgerhq/lama/lama-bitcoin-worker
+
+  docker-publish-bitcoin-interpreter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: Create docker image
+        run: |
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinInterpreter/assembly
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinInterpreter/docker
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: docker.pkg.github.com
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish docker image
+        run: docker push docker.pkg.github.com/ledgerhq/lama/lama-bitcoin-interpreter
+
+  docker-publish-bitcoin-broadcaster:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: Create docker image
+        run: |
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinBroadcaster/assembly
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinBroadcaster/docker
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: docker.pkg.github.com
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish docker image
+        run: docker push docker.pkg.github.com/ledgerhq/lama/lama-bitcoin-broadcaster

@@ -1,4 +1,4 @@
-package co.ledger.lama.service.routes
+package co.ledger.lama.bitcoin.api.routes
 
 import java.util.UUID
 
@@ -24,8 +24,8 @@ import co.ledger.lama.manager.protobuf.{
   UnregisterAccountRequest,
   UpdateAccountRequest
 }
-import co.ledger.lama.service.utils.ProtobufUtils._
-import co.ledger.lama.service.utils.RouterUtils._
+import co.ledger.lama.bitcoin.api.utils.ProtobufUtils._
+import co.ledger.lama.bitcoin.api.utils.RouterUtils._
 import co.ledger.protobuf.bitcoin.{DeleteKeychainRequest, KeychainServiceFs2Grpc}
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.auto._

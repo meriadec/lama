@@ -1,4 +1,4 @@
-package co.ledger.lama.service.models
+package co.ledger.lama.bitcoin.api.models
 
 import java.util.UUID
 

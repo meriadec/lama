@@ -111,6 +111,7 @@ lazy val bitcoinApi = (project in file("coins/bitcoin/api"))
     // Proto config
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     PB.protoSources in Compile := Seq(
+      file("common/src/main/protobuf"),
       file("account-manager/src/main/protobuf"),
       file("coins/bitcoin/keychain/pb/keychain"),
       file("coins/bitcoin/common/src/main/protobuf")
@@ -154,5 +155,15 @@ lazy val bitcoinInterpreter = (project in file("coins/bitcoin/interpreter"))
     flywayUser := "lama",
     flywayPassword := "serge",
     parallelExecution in IntegrationTest := false
+  )
+  .dependsOn(common, bitcoinCommon)
+
+lazy val bitcoinBroadcaster = (project in file("coins/bitcoin/broadcaster"))
+  .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
+  .configs(IntegrationTest)
+  .settings(
+    name := "lama-bitcoin-broadcaster",
+    sharedSettings,
+    libraryDependencies ++= (Dependencies.btcCommon ++ Dependencies.test)
   )
   .dependsOn(common, bitcoinCommon)

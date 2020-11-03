@@ -1,5 +1,5 @@
 ![GitHub release](https://img.shields.io/github/v/release/ledgerhq/lama?color=0366d6&include_prereleases)
-![Tests and publish](https://github.com/LedgerHQ/lama/workflows/Tests%20and%20publish/badge.svg)
+![Publish packages](https://github.com/LedgerHQ/lama/workflows/Publish%20and%20packages/badge.svg)
 ![Tests](https://github.com/LedgerHQ/lama/workflows/Tests/badge.svg)
 
 # Ledger Account Manager API
@@ -16,6 +16,7 @@ Main features of Lama are:
   * Worker: fetching data from blockchain
   * Interpreter: computing and inserting data (operations, balance, ...)
   * Broadcaster: estimating fees and creating transactions
+  * Api: exposing endpoints to interact with coin components 
 
 ## How account synchronization works?
 

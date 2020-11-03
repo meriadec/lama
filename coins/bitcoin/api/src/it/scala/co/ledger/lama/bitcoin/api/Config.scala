@@ -1,4 +1,4 @@
-package co.ledger.lama.service
+package co.ledger.lama.bitcoin.api
 
 import pureconfig.ConfigReader
 import pureconfig.generic.semiauto.deriveReader

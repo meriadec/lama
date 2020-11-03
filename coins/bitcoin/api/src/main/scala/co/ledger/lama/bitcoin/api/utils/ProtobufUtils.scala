@@ -1,4 +1,4 @@
-package co.ledger.lama.service.utils
+package co.ledger.lama.bitcoin.api.utils
 
 import java.util.UUID
 
@@ -9,13 +9,13 @@ import co.ledger.lama.common.models.Scheme.{Bip44, Bip49, Bip84}
 import co.ledger.lama.common.models.{Coin, CoinFamily, Status, SyncEvent}
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.{protobuf => pbManager}
-import co.ledger.lama.service.models.{
+import co.ledger.lama.bitcoin.api.models.{
   AccountInfo,
   AccountRegistered,
   GetOperationsResult,
   GetUTXOsResult
 }
-import co.ledger.lama.service.routes.AccountController.CreationRequest
+import co.ledger.lama.bitcoin.api.routes.AccountController.CreationRequest
 import co.ledger.protobuf.bitcoin.{BitcoinNetwork, CreateKeychainRequest, Scheme}
 import io.circe.parser.parse
 

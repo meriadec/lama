@@ -117,12 +117,22 @@ services:
       BITCOIN_INTERPRETER_HOST: ${BITCOIN_INTERPRETER_HOST}
       BITCOIN_INTERPRETER_PORT: ${BITCOIN_INTERPRETER_PORT}
       BITCOIN_INTERPRETER_SSL: ${BITCOIN_INTERPRETER_SSL}
+      BITCOIN_BROADCASTER_HOST: ${BITCOIN_BROADCASTER_HOST}
+      BITCOIN_BROADCASTER_PORT: ${BITCOIN_BROADCASTER_PORT}
+      BITCOIN_BROADCASTER_SSL: ${BITCOIN_BROADCASTER_SSL}
     ports:
       - ${BITCOIN_API_PORT}:${BITCOIN_API_PORT}
     depends_on:
       - account-manager
       - bitcoin-keychain
       - bitcoin-interpreter
+
+  bitcoin-broadcaster:
+    image: docker.pkg.github.com/ledgerhq/lama/lama-bitcoin-broadcaster:${LAMA_VERSION}
+    environment:
+      BITCOIN_BROADCASTER_PORT: ${BITCOIN_BROADCASTER_PORT}
+    ports:
+      - ${BITCOIN_BROADCASTER_PORT}:${BITCOIN_BROADCASTER_PORT}
 
   bitcoin-interpreter:
     image: docker.pkg.github.com/ledgerhq/lama/lama-bitcoin-interpreter:${LAMA_VERSION}

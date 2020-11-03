@@ -3,8 +3,9 @@ name: Tests
 on:
   push:
     branches-ignore:
-      - 'master'
       - 'update/*'
+    tags:
+      - '*'
   pull_request:
     branches:
       - 'update/*'
@@ -37,6 +38,8 @@ jobs:
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinWorker/test
       - name: Run bitcoin interpreter unit tests
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinInterpreter/test
+      - name: Run bitcoin broadcaster unit tests
+        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinBroadcaster/test
 
   it-tests:
     runs-on: ubuntu-latest
@@ -114,6 +117,8 @@ jobs:
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinWorker/it:test
       - name: Run bitcoin interpreter it tests
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinInterpreter/it:test
+      - name: Run bitcoin broadcaster it tests
+        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinBroadcaster/it:test
 
   e2e-tests:
     runs-on: ubuntu-latest
@@ -144,6 +149,6 @@ jobs:
           wget https://github.com/jwilder/dockerize/releases/download/v0.6.1/dockerize-linux-amd64-v0.6.1.tar.gz \
           && sudo tar -C /usr/local/bin -xzvf dockerize-linux-amd64-v0.6.1.tar.gz \
           && rm dockerize-linux-amd64-v0.6.1.tar.gz
-          dockerize -wait http://localhost:8080/health -timeout 120s
+          dockerize -wait http://localhost:8080/_health -timeout 120s
       - name: Run e2e tests
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinApi/it:test

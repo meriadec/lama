@@ -1,13 +1,13 @@
-package co.ledger.lama.service
+package co.ledger.lama.bitcoin.api
 
 import cats.effect.{ExitCode, IO, IOApp}
-import co.ledger.lama.service.middlewares.LoggingMiddleware._
+import co.ledger.lama.bitcoin.api.middlewares.LoggingMiddleware._
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
-import co.ledger.lama.common.health.protobuf.HealthFs2Grpc
+import co.ledger.lama.common.protobuf.HealthFs2Grpc
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
-import co.ledger.lama.service.Config.Config
-import co.ledger.lama.service.routes._
+import Config.Config
+import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController}
 import co.ledger.protobuf.bitcoin.KeychainServiceFs2Grpc
 import io.grpc.Metadata
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
@@ -22,6 +22,7 @@ object App extends IOApp {
   case class ServiceResources(
       grpcAccountManagerHealthClient: HealthFs2Grpc[IO, Metadata],
       grpcBitcoinInterpreterHealthClient: HealthFs2Grpc[IO, Metadata],
+      grpcBitcoinBroadcasterHealthClient: HealthFs2Grpc[IO, Metadata],
       grpcAccountClient: AccountManagerServiceFs2Grpc[IO, Metadata],
       grpcKeychainClient: KeychainServiceFs2Grpc[IO, Metadata],
       grpcBitcoinInterpreterClient: BitcoinInterpreterServiceFs2Grpc[IO, Metadata]
@@ -47,9 +48,13 @@ object App extends IOApp {
       grpcBitcoinInterpreterHealthClient <- grpcManagedChannel(conf.bitcoin.interpreter)
         .map(HealthFs2Grpc.stub[IO](_))
 
+      grpcBitcoinBroadcasterHealthClient <- grpcManagedChannel(conf.bitcoin.broadcaster)
+        .map(HealthFs2Grpc.stub[IO](_))
+
     } yield ServiceResources(
       grpcAccountManagerHealthClient = grpcAccountManagerHealthClient,
       grpcBitcoinInterpreterHealthClient = grpcBitcoinInterpreterHealthClient,
+      grpcBitcoinBroadcasterHealthClient = grpcBitcoinBroadcasterHealthClient,
       grpcAccountClient = grpcAccountManagerClient,
       grpcKeychainClient = grpcKeychainClient,
       grpcBitcoinInterpreterClient = grpcBitcoinInterpreterClient
@@ -64,9 +69,10 @@ object App extends IOApp {
             serviceResources.grpcBitcoinInterpreterClient
           )
         ),
-        "health" -> HealthController.routes(
+        "_health" -> HealthController.routes(
           serviceResources.grpcAccountManagerHealthClient,
-          serviceResources.grpcBitcoinInterpreterHealthClient
+          serviceResources.grpcBitcoinInterpreterHealthClient,
+          serviceResources.grpcBitcoinBroadcasterHealthClient
         )
       ).orNotFound
 

@@ -1,7 +1,7 @@
-package co.ledger.lama.service
+package co.ledger.lama.bitcoin.api
 
 import co.ledger.lama.common.models.implicits._
-import co.ledger.lama.service.routes.AccountController.CreationRequest
+import co.ledger.lama.bitcoin.api.routes.AccountController.CreationRequest
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto._
 
