@@ -29,8 +29,8 @@ jobs:
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt common/test
       - name: Run account manager unit tests
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt accountManager/test
-      - name: Run service unit tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt service/test
+      - name: Run bitcoin api unit tests
+        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinApi/test
       - name: Run bitcoin worker unit tests
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinWorker/test
       - name: Run bitcoin interpreter unit tests
@@ -144,7 +144,7 @@ jobs:
           && rm dockerize-linux-amd64-v0.6.1.tar.gz
           dockerize -wait http://localhost:8080/health -timeout 120s
       - name: Run e2e tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt service/it:test
+        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinApi/it:test
 
   docker-publish-account-manager:
     runs-on: ubuntu-latest
@@ -166,7 +166,7 @@ jobs:
       - name: Publish docker image
         run: docker push docker.pkg.github.com/ledgerhq/lama/lama-account-manager
 
-  docker-publish-service:
+  docker-publish-bitcoin-api:
     runs-on: ubuntu-latest
     needs: [it-tests, unit-tests, e2e-tests]
     steps:
@@ -175,8 +175,8 @@ jobs:
           submodules: 'recursive'
       - name: Create docker image
         run: |
-          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt service/assembly
-          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt service/docker
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinApi/assembly
+          SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinApi/docker
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
         with:
@@ -184,7 +184,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish docker image
-        run: docker push docker.pkg.github.com/ledgerhq/lama/lama-service
+        run: docker push docker.pkg.github.com/ledgerhq/lama/lama-bitcoin-api
 
   docker-publish-bitcoin-worker:
     runs-on: ubuntu-latest

@@ -101,12 +101,12 @@ lazy val accountManager = (project in file("account-manager"))
   )
   .dependsOn(common)
 
-lazy val service = (project in file("service"))
+lazy val bitcoinApi = (project in file("coins/bitcoin/api"))
   .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
   .configs(IntegrationTest)
   .settings(
-    name := "lama-service",
-    libraryDependencies ++= (Dependencies.service ++ Dependencies.test),
+    name := "lama-bitcoin-api",
+    libraryDependencies ++= (Dependencies.btcApi ++ Dependencies.test),
     sharedSettings,
     // Proto config
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,

@@ -28,27 +28,6 @@ services:
       - redis
       - flyway-account-manager
 
-  service:
-    image: docker.pkg.github.com/ledgerhq/lama/lama-service:${LAMA_VERSION}
-    environment:
-      SERVICE_HOST: ${SERVICE_HOST}
-      SERVICE_PORT: ${SERVICE_PORT}
-      ACCOUNT_MANAGER_HOST: ${ACCOUNT_MANAGER_HOST}
-      ACCOUNT_MANAGER_PORT: ${ACCOUNT_MANAGER_PORT}
-      ACCOUNT_MANAGER_SSL: ${ACCOUNT_MANAGER_SSL}
-      BITCOIN_KEYCHAIN_HOST: ${BITCOIN_KEYCHAIN_HOST}
-      BITCOIN_KEYCHAIN_PORT: ${BITCOIN_KEYCHAIN_PORT}
-      BITCOIN_KEYCHAIN_SSL: ${BITCOIN_KEYCHAIN_SSL}
-      BITCOIN_INTERPRETER_HOST: ${BITCOIN_INTERPRETER_HOST}
-      BITCOIN_INTERPRETER_PORT: ${BITCOIN_INTERPRETER_PORT}
-      BITCOIN_INTERPRETER_SSL: ${BITCOIN_INTERPRETER_SSL}
-    ports:
-      - ${SERVICE_PORT}:${SERVICE_PORT}
-    depends_on:
-      - account-manager
-      - bitcoin-keychain-svc
-      - bitcoin-interpreter
-
   postgres:
     image: postgres:${POSTGRES_VERSION}
     environment:
@@ -101,28 +80,49 @@ services:
     depends_on:
       - postgres
 
-  bitcoin-svc:
-    image: ledgerhq/bitcoin-svc:${BITCOIN_SVC_VERSION}
+  bitcoin-lib-grpc:
+    image: ledgerhq/bitcoin-lib-grpc:${BITCOIN_LIB_GRPC_VERSION}
     environment:
-      BITCOIN_HOST: ${BITCOIN_SVC_HOST}
-      BITCOIN_PORT: ${BITCOIN_SVC_PORT}
+      BITCOIN_HOST: ${BITCOIN_LIB_GRPC_HOST}
+      BITCOIN_PORT: ${BITCOIN_LIB_GRPC_PORT}
     ports:
-      - ${BITCOIN_SVC_PORT}:${BITCOIN_SVC_PORT}
+      - ${BITCOIN_LIB_GRPC_PORT}:${BITCOIN_LIB_GRPC_PORT}
 
-  bitcoin-keychain-svc:
-    image: ledgerhq/bitcoin-keychain-svc:${BITCOIN_KEYCHAIN_VERSION}
+  bitcoin-keychain:
+    image: ledgerhq/bitcoin-keychain:${BITCOIN_KEYCHAIN_VERSION}
     environment:
       BITCOIN_KEYCHAIN_HOST: ${BITCOIN_KEYCHAIN_HOST}
       BITCOIN_KEYCHAIN_PORT: ${BITCOIN_KEYCHAIN_PORT}
-      BITCOIN_HOST: ${BITCOIN_SVC_HOST}
-      BITCOIN_PORT: ${BITCOIN_SVC_PORT}
+      BITCOIN_HOST: ${BITCOIN_LIB_GRPC_HOST}
+      BITCOIN_PORT: ${BITCOIN_LIB_GRPC_PORT}
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
       REDIS_DB: 1
     depends_on:
-      - bitcoin-svc
+      - bitcoin-lib-grpc
     ports:
       - ${BITCOIN_KEYCHAIN_PORT}:${BITCOIN_KEYCHAIN_PORT}
+
+  bitcoin-api:
+    image: docker.pkg.github.com/ledgerhq/lama/lama-bitcoin-api:${LAMA_VERSION}
+    environment:
+      BITCOIN_API_HOST: ${BITCOIN_API_HOST}
+      BITCOIN_API_PORT: ${BITCOIN_API_PORT}
+      ACCOUNT_MANAGER_HOST: ${ACCOUNT_MANAGER_HOST}
+      ACCOUNT_MANAGER_PORT: ${ACCOUNT_MANAGER_PORT}
+      ACCOUNT_MANAGER_SSL: ${ACCOUNT_MANAGER_SSL}
+      BITCOIN_KEYCHAIN_HOST: ${BITCOIN_KEYCHAIN_HOST}
+      BITCOIN_KEYCHAIN_PORT: ${BITCOIN_KEYCHAIN_PORT}
+      BITCOIN_KEYCHAIN_SSL: ${BITCOIN_KEYCHAIN_SSL}
+      BITCOIN_INTERPRETER_HOST: ${BITCOIN_INTERPRETER_HOST}
+      BITCOIN_INTERPRETER_PORT: ${BITCOIN_INTERPRETER_PORT}
+      BITCOIN_INTERPRETER_SSL: ${BITCOIN_INTERPRETER_SSL}
+    ports:
+      - ${BITCOIN_API_PORT}:${BITCOIN_API_PORT}
+    depends_on:
+      - account-manager
+      - bitcoin-keychain
+      - bitcoin-interpreter
 
   bitcoin-interpreter:
     image: docker.pkg.github.com/ledgerhq/lama/lama-bitcoin-interpreter:${LAMA_VERSION}
@@ -161,5 +161,5 @@ services:
       BITCOIN_INTERPRETER_SSL: ${BITCOIN_INTERPRETER_SSL}
     depends_on:
       - rabbitmq
-      - bitcoin-keychain-svc
+      - bitcoin-keychain
       - bitcoin-interpreter

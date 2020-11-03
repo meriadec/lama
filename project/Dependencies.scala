@@ -83,8 +83,7 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
   val btcCommon: Seq[ModuleID]      = lamaCommon ++ commonProtos
   val btcWorker: Seq[ModuleID]      = btcCommon ++ http4s
   val btcInterpreter: Seq[ModuleID] = btcCommon
-  val btcService: Seq[ModuleID]     = lamaCommon ++ http4s
+  val btcApi: Seq[ModuleID]     = btcCommon ++ http4s
 
-  val accountManager: Seq[ModuleID] = btcCommon ++ redis
-  val service: Seq[ModuleID]        = lamaCommon ++ commonProtos ++ http4s
+  val accountManager: Seq[ModuleID] = lamaCommon ++ commonProtos ++ redis
 }

@@ -4,9 +4,11 @@
 .sbt
 .bsp
 .DS_Store
+.vscode
 
 *.iml
 assembly
 target
 project/project
 project/target
+project/metals.sbt

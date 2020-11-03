@@ -1,15 +1,15 @@
-# REST API Service
+# Lama - Bitcoin REST API
 
 ## Getting started
 1. Install [sbt][sbt]
 
-## Run the service
+## Run the api
 
 > A shared `build.sbt` file is used at the root of the lama project to share common libraries and handle multiple sub projects.
 >
 >All following sbt commands should be done at the root path of the lama project.
 
-Run the app: `sbt service/run`
+Run the app: `sbt bitcoinApi/run`
 
 ### Endpoints
 
@@ -44,7 +44,7 @@ GET /accounts/:id/utxos?offset=0&limit=100
 
 ### Testing
 
-`sbt service/it:test`
+`sbt bitcoinApi/it:test`
 
 ## Docker
 
@@ -52,19 +52,19 @@ The plugin [sbt-docker][sbt-docker] is used to build, run and publish the docker
 
 The plugin provides these useful commands:
 
-- `sbt service/docker`:
+- `sbt bitcoinApi/docker`:
 Builds an image.
 
-- `sbt service/docker:stage`:
+- `sbt bitcoinApi/docker:stage`:
 Generates a directory with the Dockerfile and environment prepared for creating a Docker image.
 
-- `sbt service/docker:publishLocal`:
+- `sbt bitcoinApi/docker:publishLocal`:
 Builds an image using the local Docker server.
 
-- `sbt service/docker:publish`
+- `sbt bitcoinApi/docker:publish`
 Builds an image using the local Docker server, and pushes it to the configured remote repository.
 
-- `sbt service/docker:clean`
+- `sbt bitcoinApi/docker:clean`
 Removes the built image from the local Docker server.
 
 [sbt]: http://www.scala-sbt.org/1.x/docs/Setup.html
