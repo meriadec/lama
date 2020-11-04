@@ -4,7 +4,9 @@ import io.circe.{Decoder, Encoder}
 import pureconfig.ConfigReader
 import pureconfig.error.CannotConvert
 
-abstract class CoinFamily(val name: String)
+abstract class CoinFamily(val name: String) {
+  override def toString: String = name
+}
 
 object CoinFamily {
   case object Bitcoin extends CoinFamily("bitcoin")

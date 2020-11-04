@@ -55,7 +55,7 @@ object config {
       coin: Coin,
       syncFrequency: FiniteDuration
   ) {
-    val routingKey: RoutingKey = RoutingKey(s"${coinFamily.name}.${coin.name}")
+    val routingKey: RoutingKey = RoutingKey(s"$coinFamily.$coin")
 
     def queueName(exchangeName: ExchangeName): QueueName =
       QueueName(s"${exchangeName.value}.${routingKey.value}")

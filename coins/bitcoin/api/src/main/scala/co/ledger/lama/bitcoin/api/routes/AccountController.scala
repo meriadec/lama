@@ -13,8 +13,16 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
 }
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models.{BitcoinNetwork, Coin, CoinFamily, Scheme, Sort}
+import co.ledger.lama.common.models.{
+  AccountIdentifier,
+  BitcoinNetwork,
+  Coin,
+  CoinFamily,
+  Scheme,
+  Sort
+}
 import co.ledger.lama.common.models.implicits._
+import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import co.ledger.lama.manager.protobuf.{
   AccountInfoRequest,
@@ -61,6 +69,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
   }
 
   def routes(
+      notificationService: NotificationService,
       keychainClient: KeychainServiceFs2Grpc[IO, Metadata],
       accountManagerClient: AccountManagerServiceFs2Grpc[IO, Metadata],
       interpreterClient: BitcoinInterpreterServiceFs2Grpc[IO, Metadata]
@@ -100,21 +109,27 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             ),
             new Metadata
           )
-          _ <- log.info(
-            s"Account registered with id: ${UuidUtils.bytesToUuid(registeredAccount.accountId).getOrElse("")}"
-          )
-        } yield registeredAccount
 
-        ra
-          .map(fromRegisterAccount)
-          .flatMap(Ok(_))
+          account = fromRegisterAccount(registeredAccount)
+
+          // This creates a new queue for this account notifications
+          _ <- notificationService.createQueue(
+            AccountIdentifier(keychainId.toString, CoinFamily.Bitcoin, Coin.Btc)
+          )
+
+          _ <- log.info(
+            s"Account registered with id: ${account.accountId}"
+          )
+        } yield account
+
+        ra.flatMap(Ok(_))
 
       case req @ PUT -> Root / UUIDVar(accountId) =>
         val r = for {
           updateRequest <- req.as[UpdateRequest]
 
           _ <- log.info(
-            s"Updating account ${accountId} sync frequency with value ${updateRequest.syncFrequency}"
+            s"Updating account $accountId sync frequency with value ${updateRequest.syncFrequency}"
           )
 
           _ <- accountManagerClient.updateAccount(

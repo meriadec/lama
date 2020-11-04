@@ -1,14 +1,17 @@
 package co.ledger.lama.bitcoin.api
 
+import co.ledger.lama.common.services.RabbitNotificationService
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.api.middlewares.LoggingMiddleware._
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
 import co.ledger.lama.common.protobuf.HealthFs2Grpc
+import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import Config.Config
 import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController}
 import co.ledger.protobuf.bitcoin.KeychainServiceFs2Grpc
+import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import io.grpc.Metadata
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
 import org.http4s.server.Router
@@ -20,6 +23,7 @@ import scala.concurrent.ExecutionContext
 object App extends IOApp {
 
   case class ServiceResources(
+      rabbitClient: RabbitClient[IO],
       grpcAccountManagerHealthClient: HealthFs2Grpc[IO, Metadata],
       grpcBitcoinInterpreterHealthClient: HealthFs2Grpc[IO, Metadata],
       grpcBitcoinBroadcasterHealthClient: HealthFs2Grpc[IO, Metadata],
@@ -32,6 +36,8 @@ object App extends IOApp {
     val conf = ConfigSource.default.loadOrThrow[Config]
 
     val resources = for {
+
+      rabbitClient <- RabbitUtils.createClient(conf.rabbit)
 
       grpcAccountManagerClient <-
         grpcManagedChannel(conf.accountManager).map(AccountManagerServiceFs2Grpc.stub[IO](_))
@@ -52,6 +58,7 @@ object App extends IOApp {
         .map(HealthFs2Grpc.stub[IO](_))
 
     } yield ServiceResources(
+      rabbitClient = rabbitClient,
       grpcAccountManagerHealthClient = grpcAccountManagerHealthClient,
       grpcBitcoinInterpreterHealthClient = grpcBitcoinInterpreterHealthClient,
       grpcBitcoinBroadcasterHealthClient = grpcBitcoinBroadcasterHealthClient,
@@ -61,9 +68,15 @@ object App extends IOApp {
     )
 
     resources.use { serviceResources =>
+      val notificationService = new RabbitNotificationService(
+        serviceResources.rabbitClient,
+        conf.lamaNotificationsExchangeName
+      )
+
       val httpRoutes = Router[IO](
         "accounts" -> loggingMiddleWare(
           AccountController.routes(
+            notificationService,
             serviceResources.grpcKeychainClient,
             serviceResources.grpcAccountClient,
             serviceResources.grpcBitcoinInterpreterClient

@@ -20,7 +20,6 @@ object App extends IOApp {
       )
 
       grpcServer <- grpcServer(conf.grpcServer, serviceDefinitions)
-
     } yield grpcServer
 
     Stream
@@ -30,6 +29,5 @@ object App extends IOApp {
       .compile
       .drain
       .as(ExitCode.Success)
-
   }
 }
