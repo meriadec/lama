@@ -9,8 +9,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
   GetBalanceHistoryRequest,
   GetBalanceRequest,
   GetOperationsRequest,
-  GetUTXOsRequest,
-  SortingOrder
+  GetUTXOsRequest
 }
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
@@ -175,10 +174,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
                 blockHeight = blockHeight.getOrElse(0L),
                 limit = limit.getOrElse(0),
                 offset = offset.getOrElse(0),
-                sort = sort.getOrElse(Sort.Descending) match {
-                  case Sort.Ascending => SortingOrder.ASC
-                  case _              => SortingOrder.DESC
-                }
+                sort = parseSorting(sort)
               ),
               new Metadata
             )
@@ -188,14 +184,16 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       case GET -> Root / UUIDVar(
             accountId
           ) / "utxos" :? OptionalLimitQueryParamMatcher(limit)
-          +& OptionalOffsetQueryParamMatcher(offset) =>
+          +& OptionalOffsetQueryParamMatcher(offset)
+          +& OptionalSortQueryParamMatcher(sort) =>
         log.info(s"Fetching UTXOs for account: $accountId") *>
           interpreterClient
             .getUTXOs(
               new GetUTXOsRequest(
                 accountId = UuidUtils.uuidToBytes(accountId),
                 limit = limit.getOrElse(0),
-                offset = offset.getOrElse(0)
+                offset = offset.getOrElse(0),
+                sort = parseSorting(sort, Sort.Ascending)
               ),
               new Metadata
             )
@@ -219,4 +217,5 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             .map(_.balances.map(BalanceHistory.fromProto))
             .flatMap(Ok(_))
     }
+
 }

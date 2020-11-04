@@ -28,7 +28,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
   val block = Block(
     "00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379",
     570153,
-    "2019-04-04 10:03:22"
+    Instant.parse("2019-04-04T10:03:22Z")
   )
 
   val outputs = List(
@@ -43,7 +43,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
       80000,
       inputAddress.accountAddress,
       "script",
-      Seq(),
+      List(),
       4294967295L
     )
   )
@@ -51,7 +51,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
     ConfirmedTransaction(
       "txId",
       "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1f",
-      "",
+      Instant.parse("2019-04-04T10:03:22Z"),
       0,
       20566,
       inputs,
@@ -60,18 +60,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
       1
     )
 
-  val operation: Operation = Operation(
-    accountId,
-    insertTx.hash,
-    None,
-    Sent,
-    insertTx.inputs.collect { case i: DefaultInput =>
-      i.value
-    }.sum,
-    block.time
-  )
-
-  "data in db" should "be deleted from cursor" in IOAssertion {
+  "a transaction" should "have a full lifecycle" in IOAssertion {
     setup() *>
       appResources.use { db =>
         val operationService   = new OperationService(db, conf.maxConcurrent)
@@ -82,12 +71,12 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
         val block2 = Block(
           "0000000000000000000cc9cc204cf3b314d106e69afbea68f2ae7f9e5047ba74",
           block.height + 1,
-          "time"
+          Instant.parse("2019-04-04T10:03:22Z")
         )
         val block3 = Block(
           "0000000000000000000bf68b57eacbff287ceafecb54a30dc3fd19630c9a3883",
           block.height + 2,
-          "time"
+          Instant.parse("2019-04-04T10:03:22Z")
         )
 
         // intentionally disordered
@@ -117,6 +106,15 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
 
           (opsBeforeDeletion, opsBeforeDeletionTrunc) = resOpsBeforeDeletion
 
+          resUtxoBeforeDeletion <- operationService.getUTXOs(
+            accountId,
+            Sort.Ascending,
+            limit = 20,
+            offset = 0
+          )
+
+          (utxosBeforeDeletion, utxosBeforeDeletionTrunc) = resUtxoBeforeDeletion
+
           now   = Instant.now()
           start = now.minusSeconds(86400)
           end   = now.plusSeconds(86400)
@@ -143,6 +141,9 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
 
           opsBeforeDeletion should have size 3
           opsBeforeDeletionTrunc shouldBe false
+
+          utxosBeforeDeletion should have size 3
+          utxosBeforeDeletionTrunc shouldBe false
 
           balancesBeforeDeletion should have size 2
 

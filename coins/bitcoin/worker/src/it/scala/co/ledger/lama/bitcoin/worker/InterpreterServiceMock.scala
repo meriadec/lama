@@ -1,5 +1,6 @@
 package co.ledger.lama.bitcoin.worker
 
+import java.time.Instant
 import java.util.UUID
 
 import cats.effect.IO
@@ -74,7 +75,7 @@ class InterpreterServiceMock extends InterpreterService {
               None,
               Sent,
               BigInt(0),
-              ""
+              Instant.now()
             )
           )
       val hasMore = filteredTransactions.drop(offset.getOrElse(0) + limit.getOrElse(0)).nonEmpty
@@ -96,27 +97,27 @@ class InterpreterServiceMock extends InterpreterService {
           Block(
             "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608371", //invalid
             559035L,
-            "time"
+            Instant.now()
           ),
           Block(
             "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608372", //invalid
             559034L,
-            "time"
+            Instant.now()
           ),
           Block(
             "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379", //last valid
             559033L,
-            "time"
+            Instant.now()
           ),
           Block(
             "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608373", //invalid
             559032L,
-            "time"
+            Instant.now()
           ),
           Block(
             "0000000000000000000bf68b57eacbff287ceafecb54a30dc3fd19630c9a3883", //valid but not last
             559031L,
-            "time"
+            Instant.now()
           )
         ).map(_.toProto)
       )

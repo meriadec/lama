@@ -8,13 +8,10 @@ import co.ledger.lama.bitcoin.common.models.explorer.{
   DefaultInput,
   Output
 }
-
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
-
 import doobie._
 import doobie.implicits._
 import doobie.postgres.implicits._
-
 import fs2.Stream
 
 object TransactionQueries {
@@ -50,7 +47,7 @@ object TransactionQueries {
   private def insertTx(
       accountId: UUID,
       tx: ConfirmedTransaction
-  ) = {
+  ) =
     sql"""INSERT INTO transaction (
             account_id, id, hash, block_hash, block_height, block_time, received_at, lock_time, fees, confirmations
           ) VALUES (
@@ -66,7 +63,6 @@ object TransactionQueries {
             ${tx.confirmations}
           ) ON CONFLICT ON CONSTRAINT transaction_pkey DO NOTHING
        """.update.run
-  }
 
   private def insertInputs(
       accountId: UUID,

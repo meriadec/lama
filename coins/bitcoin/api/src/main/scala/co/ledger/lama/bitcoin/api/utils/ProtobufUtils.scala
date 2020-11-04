@@ -2,7 +2,7 @@ package co.ledger.lama.bitcoin.api.utils
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.service.{Operation, OutputView}
+import co.ledger.lama.bitcoin.common.models.service.{Operation, Utxo}
 import co.ledger.lama.bitcoin.interpreter.{protobuf => pbInterpreter}
 import co.ledger.lama.common.models.BitcoinNetwork.{MainNet, RegTest, TestNet3, Unspecified}
 import co.ledger.lama.common.models.Scheme.{Bip44, Bip49, Bip84}
@@ -75,7 +75,7 @@ object ProtobufUtils {
   def fromUtxosListingInfo(txs: pbInterpreter.GetUTXOsResult): GetUTXOsResult =
     GetUTXOsResult(
       truncated = txs.truncated,
-      utxos = txs.utxos.map(OutputView.fromProto),
+      utxos = txs.utxos.map(Utxo.fromProto),
       size = txs.utxos.size
     )
 

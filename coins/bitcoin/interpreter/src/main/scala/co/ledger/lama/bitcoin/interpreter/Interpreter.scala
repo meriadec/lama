@@ -95,14 +95,16 @@ class DbInterpreter(
   def getUTXOs(request: protobuf.GetUTXOsRequest, ctx: Metadata): IO[protobuf.GetUTXOsResult] = {
     val limit  = if (request.limit <= 0) 20 else request.limit
     val offset = if (request.offset < 0) 0 else request.offset
+    val sort   = Sort.fromIsAsc(request.sort.isAsc)
 
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
       _         <- log.info(s"""Getting UTXOs with parameters:
                                |- accountId: $accountId
                                |- limit: $limit
-                               |- offset: $offset""".stripMargin)
-      res       <- operationService.getUTXOs(accountId, limit, offset)
+                               |- offset: $offset
+                               |- sort: $sort""".stripMargin)
+      res       <- operationService.getUTXOs(accountId, sort, limit, offset)
       (utxos, truncated) = res
     } yield {
       protobuf.GetUTXOsResult(utxos.map(_.toProto), truncated)
@@ -167,11 +169,11 @@ class DbInterpreter(
 
       start = request.start
         .map(ProtobufUtils.toInstant)
-        .getOrElse(Instant.now().minusSeconds(86400))
+        .getOrElse(Instant.parse("2019-04-04T10:03:22Z").minusSeconds(86400))
 
       end = request.end
         .map(ProtobufUtils.toInstant)
-        .getOrElse(Instant.now().plusSeconds(86400))
+        .getOrElse(Instant.parse("2019-04-04T10:03:22Z").plusSeconds(86400))
 
       _ <- log.info(s"""Getting balances with parameters:
                        |- accountId: $accountId

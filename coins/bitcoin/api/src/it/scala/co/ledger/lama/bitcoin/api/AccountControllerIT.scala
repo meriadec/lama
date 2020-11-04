@@ -69,11 +69,11 @@ class AccountControllerIT extends AnyFlatSpecLike with Matchers {
       uri = Uri.unsafeFromString(s"$serverUrl/accounts/$accountId")
     )
 
-  def getUTXOsRequest(accountId: UUID, offset: Int, limit: Int) =
+  def getUTXOsRequest(accountId: UUID, offset: Int, limit: Int, sort: Sort = Sort.Ascending) =
     Request[IO](
       method = Method.GET,
       uri = Uri.unsafeFromString(
-        s"$serverUrl/accounts/$accountId/utxos?limit=$limit&offset=$offset"
+        s"$serverUrl/accounts/$accountId/utxos?limit=$limit&offset=$offset&sort=$sort"
       )
     )
 
@@ -131,7 +131,7 @@ class AccountControllerIT extends AnyFlatSpecLike with Matchers {
                 .fetchPaginatedItems[GetUTXOsResult](
                   (offset, limit) =>
                     client.expect[GetUTXOsResult](
-                      getUTXOsRequest(accountRegistered.accountId, offset, limit)
+                      getUTXOsRequest(accountRegistered.accountId, offset, limit, Sort.Ascending)
                     ),
                   _.truncated,
                   0,

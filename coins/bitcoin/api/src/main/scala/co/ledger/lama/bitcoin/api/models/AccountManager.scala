@@ -5,7 +5,7 @@ import java.util.UUID
 import co.ledger.lama.common.models.implicits._
 import io.circe.Decoder
 import io.circe.generic.extras.semiauto._
-import co.ledger.lama.bitcoin.common.models.service.{Operation, OutputView}
+import co.ledger.lama.bitcoin.common.models.service.{Operation, Utxo}
 import co.ledger.lama.common.models.SyncEvent
 
 case class GetOperationsResult(
@@ -21,7 +21,7 @@ object GetOperationsResult {
 
 case class GetUTXOsResult(
     truncated: Boolean,
-    utxos: Seq[OutputView],
+    utxos: Seq[Utxo],
     size: Int
 )
 

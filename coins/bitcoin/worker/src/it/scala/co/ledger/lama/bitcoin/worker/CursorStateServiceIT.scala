@@ -1,5 +1,6 @@
 package co.ledger.lama.bitcoin.worker
 
+import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
@@ -39,7 +40,7 @@ class CursorStateServiceIT extends AnyFlatSpecLike with Matchers with IOLogging 
       for {
         block <- cursorStateService.getLastValidState(
           accountId,
-          Block(invalidHash, 0L, "time")
+          Block(invalidHash, 0L, Instant.now())
         )
       } yield {
         block.hash shouldBe lastValidHash

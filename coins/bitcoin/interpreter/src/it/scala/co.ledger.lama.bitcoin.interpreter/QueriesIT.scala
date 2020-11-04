@@ -1,5 +1,6 @@
 package co.ledger.lama.bitcoin.interpreter
 
+import java.time.Instant
 import java.util.UUID
 
 import co.ledger.lama.bitcoin.common.models.explorer._
@@ -14,7 +15,7 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
   val block = Block(
     "00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379",
     570153,
-    "2019-04-04 10:03:22"
+    Instant.parse("2019-04-04T10:03:22Z")
   )
 
   val accountId: UUID = UUID.fromString("b723c553-3a9a-4130-8883-ee2f6c2f9201")
@@ -31,7 +32,7 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
       80000,
       "1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ",
       "script",
-      Seq(),
+      List(),
       4294967295L
     )
   )
@@ -39,7 +40,7 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     ConfirmedTransaction(
       "txId",
       "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1f",
-      "",
+      Instant.parse("2019-04-04T10:03:22Z"),
       0,
       20566,
       inputs,
@@ -76,8 +77,8 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     accountId,
     transactionToInsert.hash,
     Sent,
-    transactionToInsert.inputs.collect {
-      case i: DefaultInput => i.value
+    transactionToInsert.inputs.collect { case i: DefaultInput =>
+      i.value
     }.sum,
     block.time,
     block.hash,

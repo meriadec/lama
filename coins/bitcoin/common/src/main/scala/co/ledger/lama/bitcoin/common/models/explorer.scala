@@ -1,7 +1,10 @@
 package co.ledger.lama.bitcoin.common.models
 
+import java.time.Instant
+
 import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.bitcoin.interpreter.protobuf
+import co.ledger.lama.common.utils.ProtobufUtils
 import io.circe.generic.extras.semiauto._
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
@@ -11,13 +14,13 @@ object explorer {
   case class Block(
       hash: String,
       height: Long,
-      time: String
+      time: Instant
   ) {
     def toProto: protobuf.Block =
       protobuf.Block(
         hash,
         height,
-        time
+        Some(ProtobufUtils.fromInstant(time))
       )
   }
 
@@ -26,7 +29,11 @@ object explorer {
     implicit val decoder: Decoder[Block] = deriveConfiguredDecoder[Block]
 
     def fromProto(proto: protobuf.Block): Block =
-      Block(proto.hash, proto.height, proto.time)
+      Block(
+        proto.hash,
+        proto.height,
+        proto.time.map(ProtobufUtils.toInstant).getOrElse(Instant.now)
+      )
   }
 
   sealed trait Input {
@@ -40,7 +47,7 @@ object explorer {
       value: BigInt,
       address: String,
       scriptSignature: String,
-      txinwitness: Seq[String],
+      txinwitness: List[String],
       sequence: Long
   ) extends Input {
     def toProto: protobuf.Input =
@@ -69,7 +76,7 @@ object explorer {
         BigInt(proto.value),
         proto.address,
         proto.scriptSignature,
-        proto.txinwitness,
+        proto.txinwitness.toList,
         proto.sequence
       )
 
@@ -156,7 +163,7 @@ object explorer {
   sealed trait Transaction {
     val id: String
     val hash: String
-    val receivedAt: String
+    val receivedAt: Instant
     val lockTime: Long
     val fees: BigInt
     val inputs: Seq[Input]
@@ -179,7 +186,7 @@ object explorer {
   case class ConfirmedTransaction(
       id: String,
       hash: String,
-      receivedAt: String,
+      receivedAt: Instant,
       lockTime: Long,
       fees: BigInt,
       inputs: Seq[Input],
@@ -191,7 +198,7 @@ object explorer {
       protobuf.Transaction(
         id,
         hash,
-        receivedAt,
+        Some(ProtobufUtils.fromInstant(receivedAt)),
         lockTime,
         fees.toString,
         inputs.map(_.toProto),
@@ -212,7 +219,7 @@ object explorer {
       ConfirmedTransaction(
         proto.id,
         proto.hash,
-        proto.receivedAt,
+        proto.receivedAt.map(ProtobufUtils.toInstant).getOrElse(Instant.now),
         proto.lockTime,
         BigInt(proto.fees),
         proto.inputs.map(Input.fromProto),
@@ -227,7 +234,7 @@ object explorer {
   case class UnconfirmedTransaction(
       id: String,
       hash: String,
-      receivedAt: String,
+      receivedAt: Instant,
       lockTime: Long,
       fees: BigInt,
       inputs: Seq[Input],

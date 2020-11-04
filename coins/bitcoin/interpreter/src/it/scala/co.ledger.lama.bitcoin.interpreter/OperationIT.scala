@@ -1,5 +1,6 @@
 package co.ledger.lama.bitcoin.interpreter
 
+import java.time.Instant
 import java.util.UUID
 
 import co.ledger.lama.bitcoin.common.models.explorer._
@@ -21,13 +22,13 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
   val block1 = Block(
     "00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379",
     570153,
-    "2019-04-04 10:03:22"
+    Instant.parse("2019-04-04T10:03:22Z")
   )
 
   val block2 = Block(
     "00000000000000000003d16980a4ec530adf4bcefc74ca149a2b1788444e9c3a",
     650909,
-    "2020-10-02 11:17:48"
+    Instant.parse("2020-10-02T11:17:48Z")
   )
 
   val outputs = List(
@@ -43,7 +44,7 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
       80000,
       inputAddress.accountAddress,
       "script",
-      Seq(),
+      List(),
       4294967295L
     )
   )
@@ -52,7 +53,7 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
     ConfirmedTransaction(
       "txId1",
       "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1f",
-      "",
+      Instant.parse("2019-04-04T10:03:22Z"),
       0,
       20566,
       inputs,
@@ -65,7 +66,7 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
     ConfirmedTransaction(
       "txId2",
       "b0c0dc176eaf463a5cecf15f1f55af99a41edfd6e01685068c0db3cc779861c8",
-      "",
+      Instant.parse("2019-04-04T10:03:22Z"),
       0,
       30566,
       inputs,
@@ -161,7 +162,7 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
           _   <- QueryUtils.saveTx(db, insertTx1, accountId)
           _   <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress1))
           _   <- operationService.compute(accountId)
-          res <- operationService.getUTXOs(accountId, 20, 0)
+          res <- operationService.getUTXOs(accountId, Sort.Ascending, 20, 0)
           (utxos, trunc) = res
         } yield {
           utxos should have size 1

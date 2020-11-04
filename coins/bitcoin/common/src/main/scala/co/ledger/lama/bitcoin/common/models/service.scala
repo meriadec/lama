@@ -14,13 +14,13 @@ object service {
   case class BlockView(
       hash: String,
       height: Long,
-      time: String
+      time: Instant
   ) {
     def toProto: protobuf.BlockView =
       protobuf.BlockView(
         hash,
         height,
-        time
+        Some(ProtobufUtils.fromInstant(time))
       )
   }
 
@@ -29,7 +29,11 @@ object service {
     implicit val decoder: Decoder[BlockView] = deriveConfiguredDecoder[BlockView]
 
     def fromProto(proto: protobuf.BlockView): BlockView =
-      BlockView(proto.hash, proto.height, proto.time)
+      BlockView(
+        proto.hash,
+        proto.height,
+        proto.time.map(ProtobufUtils.toInstant).getOrElse(Instant.now)
+      )
   }
 
   case class InputView(
@@ -39,7 +43,7 @@ object service {
       value: BigInt,
       address: String,
       scriptSignature: String,
-      txinwitness: Seq[String],
+      txinwitness: List[String],
       sequence: Long,
       belongs: Boolean
   ) {
@@ -66,7 +70,7 @@ object service {
         BigInt(proto.value),
         proto.address,
         proto.scriptSignature,
-        proto.txinwitness,
+        proto.txinwitness.toList,
         proto.sequence,
         proto.belongs
       )
@@ -111,6 +115,43 @@ object service {
     }
   }
 
+  case class Utxo(
+      outputIndex: Int,
+      value: BigInt,
+      address: String,
+      scriptHex: String,
+      belongs: Boolean,
+      changeType: Option[ChangeType],
+      time: Instant
+  ) {
+    def toProto: protobuf.Utxo =
+      protobuf.Utxo(
+        outputIndex,
+        value.toString,
+        address,
+        scriptHex,
+        belongs,
+        changeType.getOrElse(External).toProto,
+        Some(ProtobufUtils.fromInstant(time))
+      )
+  }
+
+  object Utxo {
+    implicit val encoder: Encoder[Utxo] = deriveConfiguredEncoder[Utxo]
+    implicit val decoder: Decoder[Utxo] = deriveConfiguredDecoder[Utxo]
+
+    def fromProto(proto: protobuf.Utxo): Utxo =
+      Utxo(
+        proto.outputIndex,
+        BigInt(proto.value),
+        proto.address,
+        proto.scriptHex,
+        proto.belongs,
+        Some(ChangeType.fromProto(proto.changeType)),
+        proto.time.map(ProtobufUtils.toInstant).getOrElse(Instant.now())
+      )
+  }
+
   case class OutputView(
       outputIndex: Int,
       value: BigInt,
@@ -148,7 +189,7 @@ object service {
   case class TransactionView(
       id: String,
       hash: String,
-      receivedAt: String,
+      receivedAt: Instant,
       lockTime: Long,
       fees: BigInt,
       inputs: Seq[InputView],
@@ -160,7 +201,7 @@ object service {
       protobuf.TransactionView(
         id,
         hash,
-        receivedAt,
+        Some(ProtobufUtils.fromInstant(receivedAt)),
         lockTime,
         fees.toString,
         inputs.map(_.toProto),
@@ -178,7 +219,7 @@ object service {
       TransactionView(
         proto.id,
         proto.hash,
-        proto.receivedAt,
+        proto.receivedAt.map(ProtobufUtils.toInstant).getOrElse(Instant.now),
         proto.lockTime,
         BigInt(proto.fees),
         proto.inputs.map(InputView.fromProto),
@@ -231,7 +272,7 @@ object service {
       transaction: Option[TransactionView],
       operationType: OperationType,
       value: BigInt,
-      time: String
+      time: Instant
   ) {
     def toProto: protobuf.Operation = {
       protobuf.Operation(
@@ -240,7 +281,7 @@ object service {
         transaction.map(_.toProto),
         operationType.toProto,
         value.toString,
-        time
+        Some(ProtobufUtils.fromInstant(time))
       )
     }
   }
@@ -258,7 +299,7 @@ object service {
         proto.transaction.map(TransactionView.fromProto),
         OperationType.fromProto(proto.operationType),
         BigInt(proto.value),
-        proto.time
+        proto.time.map(ProtobufUtils.toInstant).getOrElse(Instant.now)
       )
     }
   }

@@ -1,6 +1,5 @@
 package co.ledger.lama.bitcoin.interpreter.services
 
-import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
 
@@ -11,7 +10,6 @@ import co.ledger.lama.bitcoin.interpreter.models.implicits._
 
 import doobie._
 import doobie.implicits._
-import doobie.implicits.javasql._
 import doobie.postgres.implicits._
 
 import fs2.Stream
@@ -65,17 +63,14 @@ object BalanceQueries {
       accountId: UUID,
       start: Instant,
       end: Instant
-  ): Stream[ConnectionIO, BalanceHistory] = {
-    val startTs = Timestamp.from(start)
-    val endTs   = Timestamp.from(end)
+  ): Stream[ConnectionIO, BalanceHistory] =
     sql"""SELECT balance, utxos, received, sent, time
           FROM balance_history
           WHERE account_id = $accountId
-          AND time >= $startTs
-          AND time <= $endTs
+          AND time >= $start
+          AND time <= $end
           ORDER BY time
        """.query[BalanceHistory].stream
-  }
 
   def removeBalancesHistoryFromCursor(accountId: UUID, blockHeight: Long): ConnectionIO[Int] =
     sql"""DELETE from balance_history

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 option java_package = "co.ledger.lama.bitcoin.interpreter.protobuf";
 
+import "google/protobuf/timestamp.proto";
+
 package pb.v1;
 
 enum OperationType {
@@ -20,13 +22,13 @@ message Operation {
   TransactionView transaction = 3;
   OperationType operation_type = 4;
   string value = 5;
-  string time = 6;
+  google.protobuf.Timestamp time = 6;
 }
 
 message TransactionView {
   string id = 1;
   string hash = 2;
-  string received_at = 3;
+  google.protobuf.Timestamp received_at = 3;
   int64 lock_time = 4;
   string fees = 5;
   repeated InputView inputs = 6;
@@ -56,14 +58,32 @@ message OutputView {
   ChangeType changeType = 6;
 }
 
+message Utxo {
+  int32 output_index = 1;
+  string value = 2;
+  string address = 3;
+  string script_hex = 4;
+  bool belongs = 5;
+  ChangeType changeType = 6;
+  google.protobuf.Timestamp time = 7;
+}
+
 message BlockView {
   string hash = 1;
   int64 height = 2;
-  string time = 3;
+  google.protobuf.Timestamp time = 3;
 }
 
 message AccountAddress {
   string account_address = 1;
   ChangeType change_type = 2;
+}
+
+message BalanceHistory {
+  string balance = 1;
+  int32 utxos = 2;
+  string received = 3;
+  string sent = 4;
+  google.protobuf.Timestamp time = 5;
 }
 

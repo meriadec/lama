@@ -2,12 +2,14 @@ syntax = "proto3";
 
 package pb.v1;
 
+import "google/protobuf/timestamp.proto";
+
 option java_package = "co.ledger.lama.bitcoin.interpreter.protobuf";
 
 message Transaction {
   string id = 1;
   string hash = 2;
-  string received_at = 3;
+  google.protobuf.Timestamp received_at = 3;
   int64 lock_time = 4;
   string fees = 5;
   repeated Input inputs = 6;
@@ -50,5 +52,5 @@ message Output {
 message Block {
   string hash = 1;
   int64 height = 2;
-  string time = 3;
+  google.protobuf.Timestamp time = 3;
 }

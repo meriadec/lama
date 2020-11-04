@@ -3,14 +3,12 @@ package co.ledger.lama.bitcoin.interpreter.services
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
-import co.ledger.lama.bitcoin.common.models.service.{Operation, OutputView}
+import co.ledger.lama.bitcoin.common.models.service.{Operation, Utxo}
 import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Sort
-
 import doobie._
 import doobie.implicits._
-
 import fs2._
 
 class OperationService(db: Transactor[IO], maxConcurrent: Int) extends IOLogging {
@@ -43,11 +41,16 @@ class OperationService(db: Transactor[IO], maxConcurrent: Int) extends IOLogging
       (operations, truncated)
     }
 
-  def getUTXOs(accountId: UUID, limit: Int, offset: Int): IO[(List[OutputView], Boolean)] =
+  def getUTXOs(
+      accountId: UUID,
+      sort: Sort,
+      limit: Int,
+      offset: Int
+  ): IO[(List[Utxo], Boolean)] =
     for {
       utxos <-
         OperationQueries
-          .fetchUTXOs(accountId, Some(limit + 1), Some(offset))
+          .fetchUTXOs(accountId, sort, Some(limit + 1), Some(offset))
           .transact(db)
           .compile
           .toList

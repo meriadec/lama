@@ -1,5 +1,6 @@
 package co.ledger.lama.bitcoin.interpreter.models
 
+import java.time.Instant
 import java.util.UUID
 
 import co.ledger.lama.bitcoin.common.models.service.{OperationType, Received, Sent}
@@ -10,7 +11,7 @@ case class OperationToSave(
     hash: String,
     operationType: OperationType,
     value: BigInt,
-    time: String,
+    time: Instant,
     blockHash: String,
     blockHeight: Long
 )
@@ -20,7 +21,7 @@ case class TransactionAmounts(
     hash: String,
     blockHash: String,
     blockHeight: Long,
-    blockTime: String,
+    blockTime: Instant,
     inputAmount: BigInt,
     outputAmount: BigInt,
     changeAmount: BigInt

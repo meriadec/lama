@@ -66,23 +66,16 @@ message GetUTXOsRequest {
   bytes account_id = 1;
   int32 limit = 2;
   int32 offset = 3;
+  SortingOrder sort = 4;
 }
 
 message GetUTXOsResult {
-  repeated OutputView utxos = 1;
+  repeated Utxo utxos = 1;
   bool truncated = 2;
 }
 
 message GetBalanceRequest {
   bytes account_id = 1;
-}
-
-message BalanceHistory {
-  string balance = 1;
-  int32 utxos = 2;
-  string received = 3;
-  string sent = 4;
-  google.protobuf.Timestamp time = 5;
 }
 
 message GetBalanceHistoryRequest {

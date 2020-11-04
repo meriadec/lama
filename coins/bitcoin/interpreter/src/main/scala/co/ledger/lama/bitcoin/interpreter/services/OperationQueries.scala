@@ -62,9 +62,9 @@ object OperationQueries extends IOLogging {
                  tx.block_hash,
                  tx.block_height,
                  tx.block_time,
-                 tx.input_amount,
-                 tx.output_amount,
-                 tx.change_amount
+                 COALESCE(tx.input_amount, 0),
+                 COALESCE(tx.output_amount, 0),
+                 COALESCE(tx.change_amount, 0)
           FROM transaction_amount tx
             LEFT JOIN operation op
               ON op.hash = tx.hash
@@ -77,25 +77,30 @@ object OperationQueries extends IOLogging {
 
   def fetchUTXOs(
       accountId: UUID,
+      sort: Sort = Sort.Ascending,
       limit: Option[Int] = None,
       offset: Option[Int] = None
-  ): Stream[ConnectionIO, OutputView] = {
+  ): Stream[ConnectionIO, Utxo] = {
+    val orderF  = Fragment.const(s"ORDER BY tx.block_time $sort, tx.hash $sort")
     val limitF  = limit.map(l => fr"LIMIT $l").getOrElse(Fragment.empty)
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
 
     val query =
-      sql"""SELECT o.output_index, o.value, o.address, o.script_hex, o.belongs, o.change_type
+      sql"""SELECT o.output_index, o.value, o.address, o.script_hex, o.belongs, o.change_type, tx.block_time
             FROM output o
               LEFT JOIN input i
                 ON o.account_id = i.account_id
                 AND o.address = i.address
                 AND o.output_index = i.output_index
 			          AND o.hash = i.output_hash
+              INNER JOIN transaction tx
+                ON o.account_id = tx.account_id
+                AND o.hash = tx.hash
             WHERE o.account_id = $accountId
               AND o.belongs = true
               AND i.address IS NULL
-         """ ++ limitF ++ offsetF
-    query.query[OutputView].stream
+         """ ++ orderF ++ limitF ++ offsetF
+    query.query[Utxo].stream
   }
 
   def saveOperations(operation: Chunk[OperationToSave]): ConnectionIO[Int] = {
@@ -124,7 +129,7 @@ object OperationQueries extends IOLogging {
       accountId: UUID,
       hash: String
   ): Stream[ConnectionIO, InputView] = {
-    sql"""SELECT output_hash, output_index, input_index, value, address, script_signature, sequence, belongs
+    sql"""SELECT output_hash, output_index, input_index, value, address, script_signature, txinwitness, sequence, belongs
           FROM input
           WHERE account_id = $accountId
           AND hash = $hash

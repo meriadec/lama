@@ -16,16 +16,18 @@ import co.ledger.lama.bitcoin.interpreter.services.{
 
 class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
 
+  private val time: Instant = Instant.parse("2019-04-04T10:03:22Z")
+
   val block1 = Block(
     "block1",
     500153,
-    "2019-04-01 10:03:22"
+    time
   )
 
   val block2 = Block(
     "block2",
     570153,
-    "2019-04-04 10:03:22"
+    time
   )
 
   val accountId: UUID = UUID.fromString("b723c553-3a9a-4130-8883-ee2f6c2f9201")
@@ -40,10 +42,10 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
     ConfirmedTransaction(
       "txId1",
       "txId1",
-      "",
+      time,
       0,
       0,
-      Nil,
+      List(DefaultInput("txId0", 0, 0, 60000, "anotherAccount", "script", List(), 1L)),
       List(Output(0, 60000, address1.accountAddress, "script")),
       block1,
       1
@@ -63,7 +65,7 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
       60000,
       address1.accountAddress,
       "script",
-      Seq(),
+      List(),
       4294967295L
     )
   )
@@ -72,7 +74,7 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
     ConfirmedTransaction(
       "txId2",
       "txId2",
-      "",
+      time,
       0,
       566,
       inputs,
