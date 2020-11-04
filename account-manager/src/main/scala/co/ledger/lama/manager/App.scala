@@ -2,7 +2,7 @@ package co.ledger.lama.manager
 
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import co.ledger.lama.common.grpc.HealthService
-import co.ledger.lama.common.utils.{RabbitUtils, ResourceUtils}
+import co.ledger.lama.common.utils.{DbUtils, RabbitUtils, ResourceUtils}
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import co.ledger.lama.manager.config.{Config, OrchestratorConfig}
 import com.redis.RedisClient
@@ -51,6 +51,7 @@ object App extends IOApp {
         )
 
         declareExchangesAndBindings(rabbitClient, conf.orchestrator) *>
+          DbUtils.flywayMigrate(conf.postgres) *>
           IO(server.start()) *>
           orchestrator.run().compile.drain
       }

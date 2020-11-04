@@ -3,7 +3,7 @@ package co.ledger.lama.manager
 import cats.effect.{Blocker, ContextShift, IO, Resource, Timer}
 import cats.implicits._
 import co.ledger.lama.common.models.{AccountIdentifier, Coin, CoinFamily}
-import co.ledger.lama.common.utils.RabbitUtils
+import co.ledger.lama.common.utils.{DbUtils, RabbitUtils}
 import co.ledger.lama.manager.config.Config
 import com.redis.RedisClient
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
@@ -54,11 +54,7 @@ trait TestResources {
       rabbitClient <- rabbit
     } yield (db, redisClient, rabbitClient)
 
-  private val flyway: Flyway = Flyway
-    .configure()
-    .dataSource(dbUrl, dbUser, dbPassword)
-    .locations(s"classpath:/db/migration")
-    .load
+  val flyway: Flyway = DbUtils.flyway(conf.postgres)
 
   private def cleanDb(): IO[Unit] =
     IO(flyway.clean()) *> IO(flyway.migrate())

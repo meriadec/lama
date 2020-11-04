@@ -1,5 +1,3 @@
-import sbt.Keys.libraryDependencies
-
 // Build shared info
 ThisBuild / organization := "co.ledger"
 ThisBuild / scalaVersion := "2.13.3"
@@ -83,7 +81,7 @@ lazy val common = (project in file("common"))
   )
 
 lazy val accountManager = (project in file("account-manager"))
-  .enablePlugins(Fs2Grpc, FlywayPlugin, sbtdocker.DockerPlugin)
+  .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
   .configs(IntegrationTest)
   .settings(
     name := "lama-account-manager",
@@ -92,12 +90,7 @@ lazy val accountManager = (project in file("account-manager"))
     libraryDependencies ++= (Dependencies.accountManager ++ Dependencies.test),
     // Proto config
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    PB.protoSources in Compile += file("coins/bitcoin/common/src/main/protobuf"),
-    // Flyway credentials to migrate sql scripts
-    flywayLocations += "db/migration",
-    flywayUrl := "jdbc:postgresql://localhost:5432/lama",
-    flywayUser := "lama",
-    flywayPassword := "serge"
+    PB.protoSources in Compile += file("coins/bitcoin/common/src/main/protobuf")
   )
   .dependsOn(common)
 
@@ -143,17 +136,12 @@ lazy val bitcoinWorker = (project in file("coins/bitcoin/worker"))
   .dependsOn(common, bitcoinCommon)
 
 lazy val bitcoinInterpreter = (project in file("coins/bitcoin/interpreter"))
-  .enablePlugins(FlywayPlugin, sbtdocker.DockerPlugin)
+  .enablePlugins(sbtdocker.DockerPlugin)
   .configs(IntegrationTest)
   .settings(
     name := "lama-bitcoin-interpreter",
     sharedSettings,
     libraryDependencies ++= (Dependencies.btcInterpreter ++ Dependencies.test),
-    // Flyway credentials to migrate sql scripts
-    flywayLocations += "db/migration",
-    flywayUrl := "jdbc:postgresql://localhost:5433/lama_btc",
-    flywayUser := "lama",
-    flywayPassword := "serge",
     parallelExecution in IntegrationTest := false
   )
   .dependsOn(common, bitcoinCommon)

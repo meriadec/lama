@@ -26,7 +26,6 @@ services:
       - postgres
       - rabbitmq
       - redis
-      - flyway-account-manager
 
   postgres:
     image: postgres:${POSTGRES_VERSION}
@@ -63,22 +62,6 @@ services:
     image: redis:${REDIS_VERSION}
     ports:
       - 6379:6379
-
-  flyway-account-manager:
-    image: flyway/flyway:${FLYWAY_VERSION}
-    command: -url=${ACCOUNT_MANAGER_JDBC_URL} -user=${POSTGRES_USER} -password=${POSTGRES_PASSWORD} -connectRetries=60 migrate
-    volumes:
-      - "./account-manager/src/main/resources/db/migration:/flyway/sql"
-    depends_on:
-      - postgres
-
-  flyway-bitcoin-interpreter:
-    image: flyway/flyway:${FLYWAY_VERSION}
-    command: -url=${BITCOIN_INTERPRETER_JDBC_URL} -user=${POSTGRES_USER} -password=${POSTGRES_PASSWORD} -connectRetries=60 migrate
-    volumes:
-      - "./coins/bitcoin/interpreter/src/main/resources/db/migration:/flyway/sql"
-    depends_on:
-      - postgres
 
   bitcoin-lib-grpc:
     image: ledgerhq/bitcoin-lib-grpc:${BITCOIN_LIB_GRPC_VERSION}
@@ -151,7 +134,6 @@ services:
       BITCOIN_INTERPRETER_PORT: ${BITCOIN_INTERPRETER_PORT}
     depends_on:
       - postgres
-      - flyway-bitcoin-interpreter
     ports:
       - ${BITCOIN_INTERPRETER_PORT}:${BITCOIN_INTERPRETER_PORT}
 

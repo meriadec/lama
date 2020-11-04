@@ -4,13 +4,13 @@ import java.util.UUID
 
 import cats.effect.{Blocker, ContextShift, IO, Resource}
 import co.ledger.lama.common.models._
-import co.ledger.lama.common.utils.{IOAssertion, UuidUtils}
+import co.ledger.lama.common.utils.{DbUtils, IOAssertion, PostgresConfig, UuidUtils}
 import co.ledger.lama.manager.Exceptions.AccountNotFoundException
 import co.ledger.lama.manager.config.CoinConfig
 import co.ledger.lama.manager.protobuf.{AccountInfoRequest, BlockHeightState, UpdateAccountRequest}
 import co.ledger.lama.manager.utils.ProtobufUtils
 import co.ledger.lama.manager.{protobuf => pb}
-import com.opentable.db.postgres.embedded.{EmbeddedPostgres, FlywayPreparer}
+import com.opentable.db.postgres.embedded.EmbeddedPostgres
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import io.grpc.Metadata
@@ -32,17 +32,21 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
 
   val conf: TestServiceConfig = ConfigSource.default.loadOrThrow[TestServiceConfig]
 
+  val dbUser     = "postgres"
+  val dbPassword = ""
+  val dbUrl      = db.getJdbcUrl(dbUser, "postgres")
+
   val transactor: Resource[IO, HikariTransactor[IO]] =
     for {
       ce <- ExecutionContexts.fixedThreadPool[IO](32) // our connect EC
       te <- ExecutionContexts.cachedThreadPool[IO] // our transaction EC
       xa <- HikariTransactor.newHikariTransactor[IO](
-        "org.postgresql.Driver",               // driver classname
-        db.getJdbcUrl("postgres", "postgres"), // connect URL
-        "postgres",                            // username
-        "",                                    // password
-        ce,                                    // await connection here
-        Blocker.liftExecutionContext(te)       // execute JDBC operations here
+        "org.postgresql.Driver",         // driver classname
+        dbUrl,                           // connect URL
+        dbUser,                          // username
+        dbPassword,                      // password
+        ce,                              // await connection here
+        Blocker.liftExecutionContext(te) // execute JDBC operations here
       )
     } yield xa
 
@@ -236,13 +240,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
         } yield result
       }
 
-  private val migrateDB: IO[Unit] =
-    IO {
-      // Run migration
-      FlywayPreparer
-        .forClasspathLocation("db/migration")
-        .prepare(db.getPostgresDatabase)
-    }
+  private val migrateDB: IO[Unit] = DbUtils.flywayMigrate(PostgresConfig(dbUrl, dbUrl, dbPassword))
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
