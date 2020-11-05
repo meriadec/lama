@@ -1,9 +1,11 @@
 package co.ledger.lama.common.services
 
+import java.util.UUID
+
 import cats.effect.{ContextShift, IO}
 import io.circe.syntax._
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models.{AccountIdentifier, Notification}
+import co.ledger.lama.common.models.{Coin, CoinFamily, Notification}
 import co.ledger.lama.common.utils.RabbitUtils
 import dev.profunktor.fs2rabbit.config.declaration.DeclarationQueueConfig
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
@@ -12,8 +14,10 @@ import fs2.Stream
 
 trait NotificationService {
   def notify(notification: Notification): IO[Unit]
-  def createQueue(account: AccountIdentifier): IO[Unit]
-  def deleteQueue(account: AccountIdentifier)(implicit cs: ContextShift[IO]): IO[Unit]
+  def createQueue(accountId: UUID, coinFamily: CoinFamily, coin: Coin): IO[Unit]
+  def deleteQueue(accountId: UUID, coinFamily: CoinFamily, coin: Coin)(implicit
+      cs: ContextShift[IO]
+  ): IO[Unit]
 }
 
 class RabbitNotificationService(
@@ -22,32 +26,38 @@ class RabbitNotificationService(
 ) extends IOLogging
     with NotificationService {
 
-  def createQueue(account: AccountIdentifier): IO[Unit] =
+  def createQueue(accountId: UUID, coinFamily: CoinFamily, coin: Coin): IO[Unit] =
     rabbitClient.createConnectionChannel.use { implicit channel =>
       rabbitClient.declareExchange(exchangeName, ExchangeType.Topic) *>
-        rabbitClient.declareQueue(DeclarationQueueConfig.default(queueName(account))) *>
-        rabbitClient.bindQueue(queueName(account), exchangeName, routingKey(account))
+        rabbitClient.declareQueue(
+          DeclarationQueueConfig.default(queueName(accountId, coinFamily, coin))
+        ) *>
+        rabbitClient.bindQueue(
+          queueName(accountId, coinFamily, coin),
+          exchangeName,
+          routingKey(accountId, coinFamily, coin)
+        )
     }.void
 
-  def deleteQueue(account: AccountIdentifier)(implicit
+  def deleteQueue(accountId: UUID, coinFamily: CoinFamily, coin: Coin)(implicit
       cs: ContextShift[IO]
   ): IO[Unit] =
-    RabbitUtils.deleteBindings(rabbitClient, List(queueName(account)))
+    RabbitUtils.deleteBindings(rabbitClient, List(queueName(accountId, coinFamily, coin)))
 
   private def publisher(routingKey: RoutingKey): Stream[IO, Notification => IO[Unit]] =
     RabbitUtils
       .createPublisher[Notification](rabbitClient, exchangeName, routingKey)
 
-  def queueName(account: AccountIdentifier): QueueName =
+  def queueName(accountId: UUID, coinFamily: CoinFamily, coin: Coin): QueueName =
     QueueName(
-      s"${exchangeName.value}.${routingKey(account).value}"
+      s"${exchangeName.value}.${routingKey(accountId, coinFamily, coin).value}"
     )
 
-  def routingKey(account: AccountIdentifier): RoutingKey =
-    RoutingKey(s"${account.coinFamily}.${account.coin}.${account.id}")
+  def routingKey(accountId: UUID, coinFamily: CoinFamily, coin: Coin): RoutingKey =
+    RoutingKey(s"$coinFamily.$coin.$accountId")
 
   def notify(notification: Notification): IO[Unit] =
-    publisher(routingKey(notification.account))
+    publisher(routingKey(notification.accountId, notification.coinFamily, notification.coin))
       .evalMap(p =>
         p(notification) *> log.info(s"Published notification: ${notification.asJson.toString}")
       )

@@ -26,6 +26,9 @@ class BalanceService(db: Transactor[IO]) extends IOLogging {
   def getBalancesHistory(accountId: UUID, start: Instant, end: Instant): IO[Seq[BalanceHistory]] =
     BalanceQueries.getBalancesHistory(accountId, start, end).transact(db).compile.toList
 
+  def getBalancesHistoryCount(accountId: UUID): IO[Int] =
+    BalanceQueries.getBalancesHistoryCount(accountId).transact(db)
+
   def removeBalancesHistoryFromCursor(accountId: UUID, blockHeight: Long): IO[Int] =
     BalanceQueries.removeBalancesHistoryFromCursor(accountId, blockHeight).transact(db)
 

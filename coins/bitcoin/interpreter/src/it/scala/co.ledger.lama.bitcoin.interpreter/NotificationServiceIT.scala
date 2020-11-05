@@ -1,5 +1,7 @@
 package co.ledger.lama.bitcoin.interpreter
 
+import java.util.UUID
+
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import co.ledger.lama.common.models._
 import co.ledger.lama.common.services.RabbitNotificationService
@@ -29,26 +31,30 @@ class NotificationServiceIT extends AnyFlatSpecLike with Matchers {
         val notificationService =
           new RabbitNotificationService(rabbitClient, conf.lamaNotificationsExchangeName)
 
-        val account: AccountIdentifier =
-          AccountIdentifier("testKey", CoinFamily.Bitcoin, Coin.Btc)
+        val accountId: UUID    = UUID.randomUUID()
         val computedOperations = 4
         val operationsComputedNotification =
-          OperationsComputedNotification(account, computedOperations)
+          OperationsComputedNotification(
+            accountId,
+            CoinFamily.Bitcoin,
+            Coin.Btc,
+            computedOperations
+          )
 
         val consumer = RabbitUtils
           .createAutoAckConsumer[OperationsComputedNotification](
             rabbitClient,
-            notificationService.queueName(account)
+            notificationService.queueName(accountId, CoinFamily.Bitcoin, Coin.Btc)
           )
 
         for {
-          _     <- notificationService.deleteQueue(account)
-          _     <- notificationService.createQueue(account)
+          _     <- notificationService.deleteQueue(accountId, CoinFamily.Bitcoin, Coin.Btc)
+          _     <- notificationService.createQueue(accountId, CoinFamily.Bitcoin, Coin.Btc)
           _     <- notificationService.notify(operationsComputedNotification)
           notif <- consumeNotification[OperationsComputedNotification](consumer)
         } yield {
           it should "contain the pushed notification" in {
-            notif.account shouldBe account
+            notif.accountId shouldBe accountId
             notif.operationsCount shouldBe computedOperations
           }
         }

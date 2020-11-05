@@ -72,6 +72,14 @@ object BalanceQueries {
           ORDER BY time
        """.query[BalanceHistory].stream
 
+  def getBalancesHistoryCount(
+      accountId: UUID
+  ): ConnectionIO[Int] =
+    sql"""SELECT COUNT(balance)
+          FROM balance_history
+          WHERE account_id = $accountId
+       """.query[Int].unique
+
   def removeBalancesHistoryFromCursor(accountId: UUID, blockHeight: Long): ConnectionIO[Int] =
     sql"""DELETE from balance_history
           WHERE account_id = $accountId

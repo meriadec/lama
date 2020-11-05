@@ -2,7 +2,8 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.time.Instant
 
-import cats.effect.{ConcurrentEffect, ContextShift, IO}
+import fs2.Stream
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
@@ -18,10 +19,12 @@ import co.ledger.lama.bitcoin.interpreter.services.{
   TransactionService
 }
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models.Sort
+import co.ledger.lama.common.models.{Coin, CoinFamily, Sort, TransactionNotification}
+import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import doobie.Transactor
 import io.grpc.{Metadata, ServerServiceDefinition}
+import io.circe.syntax._
 
 trait Interpreter extends protobuf.BitcoinInterpreterServiceFs2Grpc[IO, Metadata] {
   def definition(implicit ce: ConcurrentEffect[IO]): ServerServiceDefinition =
@@ -29,9 +32,10 @@ trait Interpreter extends protobuf.BitcoinInterpreterServiceFs2Grpc[IO, Metadata
 }
 
 class DbInterpreter(
+    notificationService: NotificationService,
     db: Transactor[IO],
     maxConcurrent: Int
-)(implicit cs: ContextShift[IO])
+)(implicit cs: ContextShift[IO], c: Concurrent[IO])
     extends Interpreter
     with IOLogging {
 
@@ -45,10 +49,35 @@ class DbInterpreter(
       ctx: Metadata
   ): IO[protobuf.ResultCount] = {
     for {
-      accountId  <- UuidUtils.bytesToUuidIO(request.accountId)
-      _          <- log.info(s"Saving transactions for $accountId")
-      txs        <- IO(request.transactions.map(ConfirmedTransaction.fromProto).toList)
+      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+      _         <- log.info(s"Saving transactions for $accountId")
+      txs       <- IO(request.transactions.map(ConfirmedTransaction.fromProto).toList)
+
+      balanceHistoryCount <- balanceService.getBalancesHistoryCount(accountId)
+
       savedCount <- transactionService.saveTransactions(accountId, txs)
+
+      _ <- {
+        if (balanceHistoryCount > 1) {
+          Stream
+            .emits(txs)
+            .covary[IO]
+            .parEvalMap(maxConcurrent) { tx =>
+              notificationService.notify(
+                TransactionNotification(
+                  accountId,
+                  CoinFamily.Bitcoin,
+                  Coin.Btc,
+                  tx.asJson
+                )
+              )
+            }
+            .compile
+            .drain
+        } else {
+          IO.unit
+        }
+      }
     } yield ResultCount(savedCount)
   }
 

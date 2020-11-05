@@ -13,14 +13,7 @@ import co.ledger.lama.bitcoin.interpreter.protobuf.{
 }
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models.{
-  AccountIdentifier,
-  BitcoinNetwork,
-  Coin,
-  CoinFamily,
-  Scheme,
-  Sort
-}
+import co.ledger.lama.common.models.{BitcoinNetwork, Coin, CoinFamily, Scheme, Sort}
 import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
@@ -113,9 +106,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           account = fromRegisterAccount(registeredAccount)
 
           // This creates a new queue for this account notifications
-          _ <- notificationService.createQueue(
-            AccountIdentifier(keychainId.toString, CoinFamily.Bitcoin, Coin.Btc)
-          )
+          _ <- notificationService.createQueue(account.accountId, CoinFamily.Bitcoin, Coin.Btc)
 
           _ <- log.info(
             s"Account registered with id: ${account.accountId}"
