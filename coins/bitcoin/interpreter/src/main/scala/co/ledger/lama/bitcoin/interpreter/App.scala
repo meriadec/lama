@@ -17,7 +17,11 @@ object App extends IOApp {
       rabbit <- RabbitUtils.createClient(conf.rabbit)
 
       notificationService =
-        new RabbitNotificationService(rabbit, conf.lamaNotificationsExchangeName)
+        new RabbitNotificationService(
+          rabbit,
+          conf.lamaNotificationsExchangeName,
+          conf.maxConcurrent
+        )
 
       // create the db transactor
       db <- postgresTransactor(conf.postgres)

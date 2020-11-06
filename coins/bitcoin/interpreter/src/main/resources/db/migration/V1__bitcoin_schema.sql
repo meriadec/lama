@@ -109,6 +109,7 @@ SELECT t.account_id,
     t.block_hash,
     t.block_height,
     t.block_time,
+    t.fees,
     i.input_amount,
     o.output_amount,
     o.change_amount

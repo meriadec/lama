@@ -84,7 +84,12 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
         for {
           _ <- QueryUtils.saveTx(db, insertTx1, accountId)
           _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress2))
-          _ <- operationService.compute(accountId)
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .fold(0)(_ + _)
+
           res <- operationService.getOperations(
             accountId,
             blockHeight = 0L,
@@ -123,7 +128,11 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
           _ <- QueryUtils.saveTx(db, insertTx1, accountId)
           _ <- QueryUtils.saveTx(db, insertTx2, accountId)
           _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress2))
-          _ <- operationService.compute(accountId)
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .fold(0)(_ + _)
           res <- operationService.getOperations(
             accountId,
             blockHeight = block2.height,
@@ -159,9 +168,13 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
         val flaggingService  = new FlaggingService(db)
 
         for {
-          _   <- QueryUtils.saveTx(db, insertTx1, accountId)
-          _   <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress1))
-          _   <- operationService.compute(accountId)
+          _ <- QueryUtils.saveTx(db, insertTx1, accountId)
+          _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress1))
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .fold(0)(_ + _)
           res <- operationService.getUTXOs(accountId, Sort.Ascending, 20, 0)
           (utxos, trunc) = res
         } yield {

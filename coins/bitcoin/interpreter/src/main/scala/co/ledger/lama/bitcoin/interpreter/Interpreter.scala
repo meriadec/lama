@@ -2,10 +2,10 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.time.Instant
 
-import fs2.Stream
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.interpreter.models.OperationToSave._
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   ComputeRequest,
   GetBalanceHistoryRequest,
@@ -153,32 +153,31 @@ class DbInterpreter(
       _ <- log.info(s"Flagging inputs and outputs belong to account=$accountId")
       _ <- flaggingService.flagInputsAndOutputs(accountId, addresses)
 
-      _        <- log.info("Computing operations")
-      savedOps <- operationService.compute(accountId)
+      _ <- log.info("Computing operations")
 
       balanceHistoryCount <- balanceService.getBalancesHistoryCount(accountId)
 
-      _ <- {
-        if (balanceHistoryCount > 0) {
-          Stream
-            .emits(savedOps)
-            .covary[IO]
-            .parEvalMap(maxConcurrent) { op =>
-              notificationService.notify(
-                OperationNotification(
-                  accountId = accountId,
-                  coinFamily = CoinFamily.Bitcoin,
-                  coin = Coin.Btc,
-                  operation = op.asJson
-                )
+      nbSavedOps <- operationService
+        .compute(accountId)
+        .through(operationService.saveOperationSink)
+        .parEvalMap(maxConcurrent) { op =>
+          if (balanceHistoryCount > 0) {
+            notificationService.notify(
+              OperationNotification(
+                accountId = accountId,
+                coinFamily = CoinFamily.Bitcoin,
+                coin = Coin.Btc,
+                operation = op.asJson
               )
-            }
-            .compile
-            .drain
-        } else {
-          IO.unit
+            )
+          } else {
+            IO.unit
+          }
         }
-      }
+        .debug()
+        .compile
+        .toList
+        .map(_.length)
 
       _              <- log.info("Computing balance history")
       balanceHistory <- balanceService.compute(accountId)
@@ -192,7 +191,7 @@ class DbInterpreter(
         )
       )
 
-    } yield ResultCount(savedOps.length)
+    } yield ResultCount(nbSavedOps)
 
   def getBalance(
       request: protobuf.GetBalanceRequest,

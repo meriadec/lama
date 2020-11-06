@@ -62,6 +62,7 @@ object OperationQueries extends IOLogging {
                  tx.block_hash,
                  tx.block_height,
                  tx.block_time,
+                 tx.fees,
                  COALESCE(tx.input_amount, 0),
                  COALESCE(tx.output_amount, 0),
                  COALESCE(tx.change_amount, 0)

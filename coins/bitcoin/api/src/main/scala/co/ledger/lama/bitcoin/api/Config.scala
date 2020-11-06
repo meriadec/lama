@@ -15,7 +15,9 @@ object Config {
       server: ServerConfig,
       bitcoin: BitcoinServicesConfig,
       accountManager: GrpcClientConfig
-  )
+  ) {
+    val maxConcurrent: Int = 50 // TODO : bench [Runtime.getRuntime.availableProcessors() * x]
+  }
 
   case class BitcoinServicesConfig(
       keychain: GrpcClientConfig,

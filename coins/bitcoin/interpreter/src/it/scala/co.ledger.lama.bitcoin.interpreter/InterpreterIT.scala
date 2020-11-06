@@ -90,7 +90,11 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
           blocks <- transactionService.getLastBlocks(accountId).compile.toList
 
           _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress2))
-          _ <- operationService.compute(accountId)
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .fold(0)(_ + _)
 
           // Compute twice to have 2 balances history
           _ <- balanceService.compute(accountId)

@@ -10,10 +10,11 @@ import co.ledger.lama.common.utils.RabbitUtils
 import dev.profunktor.fs2rabbit.config.declaration.DeclarationQueueConfig
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.{ExchangeName, ExchangeType, QueueName, RoutingKey}
-import fs2.Stream
+import fs2.{Pipe, Stream}
 
 trait NotificationService {
   def notify(notification: Notification): IO[Unit]
+  def notifySink(implicit cs: ContextShift[IO]): Pipe[IO, Notification, Unit]
   def createQueue(accountId: UUID, coinFamily: CoinFamily, coin: Coin): IO[Unit]
   def deleteQueue(accountId: UUID, coinFamily: CoinFamily, coin: Coin)(implicit
       cs: ContextShift[IO]
@@ -22,7 +23,8 @@ trait NotificationService {
 
 class RabbitNotificationService(
     rabbitClient: RabbitClient[IO],
-    exchangeName: ExchangeName
+    exchangeName: ExchangeName,
+    maxConcurrent: Int
 ) extends IOLogging
     with NotificationService {
 
@@ -63,4 +65,8 @@ class RabbitNotificationService(
       )
       .compile
       .drain
+
+  def notifySink(implicit cs: ContextShift[IO]): Pipe[IO, Notification, Unit] =
+    _.parEvalMap(maxConcurrent)(notify)
+
 }

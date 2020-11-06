@@ -4,14 +4,17 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.service.{Operation, Utxo}
-import co.ledger.lama.bitcoin.interpreter.models.TransactionAmounts
+import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Sort
 import doobie._
 import doobie.implicits._
 import fs2._
 
-class OperationService(db: Transactor[IO], maxConcurrent: Int) extends IOLogging {
+class OperationService(
+    db: Transactor[IO],
+    maxConcurrent: Int
+) extends IOLogging {
 
   def getOperations(
       accountId: UUID,
@@ -59,32 +62,21 @@ class OperationService(db: Transactor[IO], maxConcurrent: Int) extends IOLogging
       truncated = utxos.size > limit
     } yield (utxos.slice(0, limit), truncated)
 
-  def compute(accountId: UUID)(implicit cs: ContextShift[IO]): IO[List[Operation]] = {
-    for {
-      _ <- log.info("Computing and saving ops")
-      operationsToSave = operationSource(accountId)
-        .flatMap(op => Stream.chunk(op.computeOperations()))
-
-      nbSavedOps <- operationsToSave
-        .chunkN(1000) // TODO : in conf
-        .prefetch
-        .parEvalMapUnordered(maxConcurrent) { batch =>
-          OperationQueries.saveOperations(batch).transact(db)
-        }
-        .compile
-        .fold(0)(_ + _)
-
-      minBlockHeight <- operationsToSave.compile
-        .fold(Long.MaxValue) { (minBlockHeight, operationToSave) =>
-          Math.min(minBlockHeight, operationToSave.blockHeight)
-        }
-
-      operations <- getOperations(accountId, minBlockHeight, nbSavedOps, 0, Sort.Ascending)
-    } yield operations._1
-  }
+  def compute(accountId: UUID): Stream[IO, OperationToSave] =
+    operationSource(accountId)
+      .flatMap(op => Stream.chunk(op.computeOperations()))
 
   private def operationSource(accountId: UUID): Stream[IO, TransactionAmounts] =
     OperationQueries
       .fetchTransactionAmounts(accountId)
       .transact(db)
+
+  def saveOperationSink(implicit cs: ContextShift[IO]): Pipe[IO, OperationToSave, OperationToSave] =
+    in =>
+      in.chunkN(1000) // TODO : in conf
+        .prefetch
+        .parEvalMapUnordered(maxConcurrent) { batch =>
+          OperationQueries.saveOperations(batch).transact(db).map(_ => batch)
+        }
+        .flatMap(Stream.chunk)
 }
