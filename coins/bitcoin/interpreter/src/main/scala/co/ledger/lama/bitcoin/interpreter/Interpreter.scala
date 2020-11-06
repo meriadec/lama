@@ -19,7 +19,13 @@ import co.ledger.lama.bitcoin.interpreter.services.{
   TransactionService
 }
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models.{Coin, CoinFamily, Sort, TransactionNotification}
+import co.ledger.lama.common.models.{
+  BalanceUpdatedNotification,
+  Coin,
+  CoinFamily,
+  OperationNotification,
+  Sort
+}
 import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import doobie.Transactor
@@ -49,35 +55,10 @@ class DbInterpreter(
       ctx: Metadata
   ): IO[protobuf.ResultCount] = {
     for {
-      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
-      _         <- log.info(s"Saving transactions for $accountId")
-      txs       <- IO(request.transactions.map(ConfirmedTransaction.fromProto).toList)
-
-      balanceHistoryCount <- balanceService.getBalancesHistoryCount(accountId)
-
+      accountId  <- UuidUtils.bytesToUuidIO(request.accountId)
+      _          <- log.info(s"Saving transactions for $accountId")
+      txs        <- IO(request.transactions.map(ConfirmedTransaction.fromProto).toList)
       savedCount <- transactionService.saveTransactions(accountId, txs)
-
-      _ <- {
-        if (balanceHistoryCount > 1) {
-          Stream
-            .emits(txs)
-            .covary[IO]
-            .parEvalMap(maxConcurrent) { tx =>
-              notificationService.notify(
-                TransactionNotification(
-                  accountId,
-                  CoinFamily.Bitcoin,
-                  Coin.Btc,
-                  tx.asJson
-                )
-              )
-            }
-            .compile
-            .drain
-        } else {
-          IO.unit
-        }
-      }
     } yield ResultCount(savedCount)
   }
 
@@ -175,10 +156,43 @@ class DbInterpreter(
       _        <- log.info("Computing operations")
       savedOps <- operationService.compute(accountId)
 
-      _ <- log.info("Computing balance history")
-      _ <- balanceService.compute(accountId)
+      balanceHistoryCount <- balanceService.getBalancesHistoryCount(accountId)
 
-    } yield ResultCount(savedOps)
+      _ <- {
+        if (balanceHistoryCount > 0) {
+          Stream
+            .emits(savedOps)
+            .covary[IO]
+            .parEvalMap(maxConcurrent) { op =>
+              notificationService.notify(
+                OperationNotification(
+                  accountId = accountId,
+                  coinFamily = CoinFamily.Bitcoin,
+                  coin = Coin.Btc,
+                  operation = op.asJson
+                )
+              )
+            }
+            .compile
+            .drain
+        } else {
+          IO.unit
+        }
+      }
+
+      _              <- log.info("Computing balance history")
+      balanceHistory <- balanceService.compute(accountId)
+
+      _ <- notificationService.notify(
+        BalanceUpdatedNotification(
+          accountId = accountId,
+          coinFamily = CoinFamily.Bitcoin,
+          coin = Coin.Btc,
+          balance = balanceHistory.balance
+        )
+      )
+
+    } yield ResultCount(savedOps.length)
 
   def getBalance(
       request: protobuf.GetBalanceRequest,

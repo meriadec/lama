@@ -15,22 +15,21 @@ trait Notification {
   val payload: Json
 }
 
-case class TransactionNotification(
+case class OperationNotification(
     accountId: UUID,
     coinFamily: CoinFamily,
     coin: Coin,
-    transaction: Json
+    operation: Json
 ) extends Notification {
-  val status: Notification.Status = Notification.Transaction
-  val payload: Json               = Json.obj("transaction" -> transaction)
+  val status: Notification.Status = Notification.Operation
+  val payload: Json               = Json.obj("operation" -> operation)
 }
 
-object TransactionNotification {
-  implicit val encoder: Encoder[TransactionNotification] =
-    deriveConfiguredEncoder[TransactionNotification]
-  implicit val decoder: Decoder[TransactionNotification] =
-    deriveConfiguredDecoder[TransactionNotification]
-
+object OperationNotification {
+  implicit val encoder: Encoder[OperationNotification] =
+    deriveConfiguredEncoder[OperationNotification]
+  implicit val decoder: Decoder[OperationNotification] =
+    deriveConfiguredDecoder[OperationNotification]
 }
 
 case class OperationsComputedNotification(
@@ -71,13 +70,13 @@ object Notification {
   implicit val encoder: Encoder[Notification] = Encoder.instance {
     case x: OperationsComputedNotification => x.asJson
     case x: BalanceUpdatedNotification     => x.asJson
-    case x: TransactionNotification        => x.asJson
+    case x: OperationNotification          => x.asJson
   }
   implicit val decoder: Decoder[Notification] =
     Decoder[OperationsComputedNotification]
       .map[Notification](identity)
       .or(Decoder[BalanceUpdatedNotification].map[Notification](identity))
-      .or(Decoder[TransactionNotification].map[Notification](identity))
+      .or(Decoder[OperationNotification].map[Notification](identity))
 
   abstract class Status(val name: String)
 
@@ -85,14 +84,14 @@ object Notification {
   // The payload should be the count of operations computed
   case object OperationsComputed extends Status(name = "operations_computed")
   case object BalanceUpdated     extends Status(name = "balance_updated")
-  case object Transaction        extends Status(name = "transaction")
+  case object Operation          extends Status(name = "operation")
 
   object Status {
     val all: Map[String, Status] =
       Map(
         OperationsComputed.name -> OperationsComputed,
         BalanceUpdated.name     -> BalanceUpdated,
-        Transaction.name        -> Transaction
+        Operation.name          -> Operation
       )
 
     def fromKey(key: String): Option[Status] = all.get(key)

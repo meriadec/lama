@@ -11,14 +11,14 @@ import doobie.implicits._
 
 class BalanceService(db: Transactor[IO]) extends IOLogging {
 
-  def compute(accountId: UUID): IO[Int] =
+  def compute(accountId: UUID): IO[BalanceHistory] =
     for {
       currentBalance <- getBalance(accountId)
       block          <- BalanceQueries.getLastBlock(accountId).transact(db)
-      res <- BalanceQueries
+      _ <- BalanceQueries
         .saveBalanceHistory(accountId, currentBalance, block.height)
         .transact(db)
-    } yield res
+    } yield currentBalance
 
   def getBalance(accountId: UUID): IO[BalanceHistory] =
     BalanceQueries.getCurrentBalance(accountId).transact(db)
