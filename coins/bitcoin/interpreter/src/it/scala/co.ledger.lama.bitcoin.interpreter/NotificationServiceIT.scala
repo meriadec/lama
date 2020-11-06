@@ -29,7 +29,11 @@ class NotificationServiceIT extends AnyFlatSpecLike with Matchers {
     rabbit
       .use { rabbitClient =>
         val notificationService =
-          new RabbitNotificationService(rabbitClient, conf.lamaNotificationsExchangeName)
+          new RabbitNotificationService(
+            rabbitClient,
+            conf.lamaNotificationsExchangeName,
+            conf.maxConcurrent
+          )
 
         val accountId: UUID    = UUID.randomUUID()
         val computedOperations = 4

@@ -25,7 +25,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
   private val outputAddress2 = AccountAddress("1LK8UbiRwUzC8KFEbMKvgbvriM9zLMce3C", Internal)
   private val inputAddress   = AccountAddress("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ", External)
 
-  val block = Block(
+  val block: Block = Block(
     "00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379",
     570153,
     Instant.parse("2019-04-04T10:03:22Z")
@@ -94,7 +94,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
             .compute(accountId)
             .through(operationService.saveOperationSink)
             .compile
-            .fold(0)(_ + _)
+            .toList
 
           // Compute twice to have 2 balances history
           _ <- balanceService.compute(accountId)

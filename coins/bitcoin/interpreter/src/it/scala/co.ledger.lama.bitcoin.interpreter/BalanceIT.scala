@@ -2,7 +2,6 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.time.Instant
 import java.util.UUID
-import fs2._
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
 import co.ledger.lama.common.utils.IOAssertion
@@ -105,7 +104,7 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
             .compute(accountId)
             .through(operationService.saveOperationSink)
             .compile
-            .fold(0)(_ + _)
+            .toList
 
           savedBalance <- balanceService.compute(accountId)
           current      <- balanceService.getBalance(accountId)
