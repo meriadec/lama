@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 
 class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
 
-  val block = Block(
+  val block: Block = Block(
     "00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379",
     570153,
     Instant.parse("2019-04-04T10:03:22Z")
@@ -80,6 +80,7 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     transactionToInsert.inputs.collect { case i: DefaultInput =>
       i.value
     }.sum,
+    transactionToInsert.fees,
     block.time,
     block.hash,
     block.height
