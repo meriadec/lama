@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           submodules: 'recursive'
       - name: Create docker image
         run: |
@@ -32,6 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           submodules: 'recursive'
       - name: Create docker image
         run: |
@@ -51,6 +53,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           submodules: 'recursive'
       - name: Create docker image
         run: |
@@ -70,6 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           submodules: 'recursive'
       - name: Create docker image
         run: |
@@ -89,6 +93,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           submodules: 'recursive'
       - name: Create docker image
         run: |

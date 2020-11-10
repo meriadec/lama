@@ -4,9 +4,24 @@ ThisBuild / scalaVersion := "2.13.3"
 ThisBuild / resolvers += Resolver.sonatypeRepo("releases")
 ThisBuild / scalacOptions ++= CompilerFlags.all
 
-// Dynver custom version formatting to remove the dirty suffix and prefix
-ThisBuild / dynverSeparator := "-"
+// Dynver custom version formatting
+def versionFmt(out: sbtdynver.GitDescribeOutput): String = {
+  if (out.isCleanAfterTag) out.ref.dropPrefix
+  else s"${out.ref.dropPrefix}-${out.commitSuffix.sha}"
+}
+
+def fallbackVersion(d: java.util.Date): String =
+  s"HEAD-${sbtdynver.DynVer timestamp d}"
+
 ThisBuild / dynverVTagPrefix := false
+ThisBuild / version := dynverGitDescribeOutput.value.mkVersion(
+  versionFmt,
+  fallbackVersion(dynverCurrentDate.value)
+)
+ThisBuild / dynver := {
+  val d = new java.util.Date
+  sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
+}
 
 // Shared Plugins
 enablePlugins(BuildInfoPlugin)
@@ -40,19 +55,11 @@ lazy val assemblySettings = Seq(
 
 lazy val dockerSettings = Seq(
   imageNames in docker := {
-    // Tagging only to the latest
-    if (isSnapshot.value)
-      Seq(ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:latest"))
-    // Tagging latest + specific version
-    else
-      Seq(
-        ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:latest"),
-        ImageName(
-          namespace = Some("docker.pkg.github.com/ledgerhq/lama"),
-          repository = name.value,
-          tag = Some(version.value)
-        )
-      )
+    // Tagging latest + dynamic version
+    Seq(
+      ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:latest"),
+      ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:${version.value}")
+    )
   },
   // User `docker` to build docker image
   dockerfile in docker := {
