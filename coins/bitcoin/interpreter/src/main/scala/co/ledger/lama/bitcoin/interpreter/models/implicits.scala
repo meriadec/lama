@@ -4,7 +4,7 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.explorer.{Output}
+import co.ledger.lama.bitcoin.common.models.explorer.Output
 import co.ledger.lama.bitcoin.common.models.service._
 import doobie._
 import doobie.postgres.implicits._
@@ -35,7 +35,7 @@ object implicits {
 
   // Needs implicits because of the Block
   implicit lazy val readTransactionView: Read[TransactionView] =
-    Read[(String, String, String, Long, Instant, Instant, Long, BigDecimal, Int)]
+    Read[(String, String, String, Long, Instant, Instant, Long, BigInt, Int)]
       .map {
         case (
               id,
@@ -53,7 +53,7 @@ object implicits {
             hash = hash,
             receivedAt = receivedAt,
             lockTime = lockTime,
-            fees = fees.toBigInt,
+            fees = fees,
             inputs = Seq(),
             outputs = Seq(),
             block = BlockView(blockHash, blockHeight, blockTime),
@@ -63,8 +63,8 @@ object implicits {
 
   // Needs implicit because of the Transaction "None"
   implicit lazy val readOperation: Read[Operation] =
-    Read[(UUID, String, OperationType, BigDecimal, Instant)]
-      .map { case (accountId, hash, operationType, value, time) =>
-        Operation(accountId, hash, None, operationType, value.toBigInt, time)
+    Read[(UUID, String, OperationType, BigInt, BigInt, Instant)]
+      .map { case (accountId, hash, operationType, value, fees, time) =>
+        Operation(accountId, hash, None, operationType, value, fees, time)
       }
 }

@@ -2,7 +2,6 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.time.Instant
 import java.util.UUID
-
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
 import co.ledger.lama.common.utils.IOAssertion
@@ -18,13 +17,13 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
 
   private val time: Instant = Instant.parse("2019-04-04T10:03:22Z")
 
-  val block1 = Block(
+  val block1: Block = Block(
     "block1",
     500153,
     time
   )
 
-  val block2 = Block(
+  val block2: Block = Block(
     "block2",
     570153,
     time
@@ -32,11 +31,11 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
 
   val accountId: UUID = UUID.fromString("b723c553-3a9a-4130-8883-ee2f6c2f9201")
 
-  val address1 = AccountAddress("address1", External)
-  val address2 = AccountAddress("address2", External)
-  val address3 = AccountAddress("address3", Internal)
+  val address1: AccountAddress = AccountAddress("address1", External)
+  val address2: AccountAddress = AccountAddress("address2", External)
+  val address3: AccountAddress = AccountAddress("address3", Internal)
 
-  val notBelongingAddress = AccountAddress("fakeLama", External)
+  val notBelongingAddress: AccountAddress = AccountAddress("fakeLama", External)
 
   val tx1: ConfirmedTransaction =
     ConfirmedTransaction(
@@ -101,12 +100,20 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
             accountId,
             List(address2, address3, address1)
           )
-          _        <- operationService.compute(accountId)
-          res      <- balanceService.compute(accountId)
-          current  <- balanceService.getBalance(accountId)
-          balances <- balanceService.getBalancesHistory(accountId, start, end)
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .toList
+
+          savedBalance <- balanceService.compute(accountId)
+          current      <- balanceService.getBalance(accountId)
+          balances     <- balanceService.getBalancesHistory(accountId, start, end)
         } yield {
-          res shouldBe 1
+          savedBalance.balance shouldBe BigInt(39434)
+          savedBalance.utxos shouldBe 2
+          savedBalance.received shouldBe BigInt(90000)
+          savedBalance.sent shouldBe BigInt(50566)
 
           current.balance shouldBe BigInt(39434)
           current.utxos shouldBe 2

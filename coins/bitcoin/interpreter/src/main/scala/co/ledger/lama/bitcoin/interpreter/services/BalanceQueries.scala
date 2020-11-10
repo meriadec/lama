@@ -31,7 +31,7 @@ object BalanceQueries {
             AND o.belongs = true
             AND i.address IS NULL
       """
-        .query[(BigDecimal, Int)]
+        .query[(BigInt, Int)]
         .unique
 
     val receivedAndSentQuery =
@@ -41,7 +41,7 @@ object BalanceQueries {
             FROM operation
             WHERE account_id = $accountId
          """
-        .query[(BigDecimal, BigDecimal)]
+        .query[(BigInt, BigInt)]
         .unique
 
     for {
@@ -50,7 +50,7 @@ object BalanceQueries {
     } yield {
       val (balance, utxos) = result1
       val (received, sent) = result2
-      BalanceHistory(balance.toBigInt, utxos, received.toBigInt, sent.toBigInt)
+      BalanceHistory(balance, utxos, received, sent)
     }
   }
 
@@ -71,6 +71,14 @@ object BalanceQueries {
           AND time <= $end
           ORDER BY time
        """.query[BalanceHistory].stream
+
+  def getBalancesHistoryCount(
+      accountId: UUID
+  ): ConnectionIO[Int] =
+    sql"""SELECT COUNT(balance)
+          FROM balance_history
+          WHERE account_id = $accountId
+       """.query[Int].unique
 
   def removeBalancesHistoryFromCursor(accountId: UUID, blockHeight: Long): ConnectionIO[Int] =
     sql"""DELETE from balance_history

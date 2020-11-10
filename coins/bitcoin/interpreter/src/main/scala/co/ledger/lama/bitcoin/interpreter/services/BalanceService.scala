@@ -11,20 +11,23 @@ import doobie.implicits._
 
 class BalanceService(db: Transactor[IO]) extends IOLogging {
 
-  def compute(accountId: UUID): IO[Int] =
+  def compute(accountId: UUID): IO[BalanceHistory] =
     for {
       currentBalance <- getBalance(accountId)
       block          <- BalanceQueries.getLastBlock(accountId).transact(db)
-      res <- BalanceQueries
+      _ <- BalanceQueries
         .saveBalanceHistory(accountId, currentBalance, block.height)
         .transact(db)
-    } yield res
+    } yield currentBalance
 
   def getBalance(accountId: UUID): IO[BalanceHistory] =
     BalanceQueries.getCurrentBalance(accountId).transact(db)
 
   def getBalancesHistory(accountId: UUID, start: Instant, end: Instant): IO[Seq[BalanceHistory]] =
     BalanceQueries.getBalancesHistory(accountId, start, end).transact(db).compile.toList
+
+  def getBalancesHistoryCount(accountId: UUID): IO[Int] =
+    BalanceQueries.getBalancesHistoryCount(accountId).transact(db)
 
   def removeBalancesHistoryFromCursor(accountId: UUID, blockHeight: Long): IO[Int] =
     BalanceQueries.removeBalancesHistoryFromCursor(accountId, blockHeight).transact(db)

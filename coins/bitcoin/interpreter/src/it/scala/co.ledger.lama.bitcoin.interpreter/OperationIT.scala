@@ -19,13 +19,13 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
   private val outputAddress2 = AccountAddress("1LK8UbiRwUzC8KFEbMKvgbvriM9zLMce3C", Internal)
   private val inputAddress   = AccountAddress("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ", External)
 
-  val block1 = Block(
+  val block1: Block = Block(
     "00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379",
     570153,
     Instant.parse("2019-04-04T10:03:22Z")
   )
 
-  val block2 = Block(
+  val block2: Block = Block(
     "00000000000000000003d16980a4ec530adf4bcefc74ca149a2b1788444e9c3a",
     650909,
     Instant.parse("2020-10-02T11:17:48Z")
@@ -84,7 +84,12 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
         for {
           _ <- QueryUtils.saveTx(db, insertTx1, accountId)
           _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress2))
-          _ <- operationService.compute(accountId)
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .toList
+
           res <- operationService.getOperations(
             accountId,
             blockHeight = 0L,
@@ -123,7 +128,11 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
           _ <- QueryUtils.saveTx(db, insertTx1, accountId)
           _ <- QueryUtils.saveTx(db, insertTx2, accountId)
           _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress2))
-          _ <- operationService.compute(accountId)
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .toList
           res <- operationService.getOperations(
             accountId,
             blockHeight = block2.height,
@@ -159,9 +168,13 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
         val flaggingService  = new FlaggingService(db)
 
         for {
-          _   <- QueryUtils.saveTx(db, insertTx1, accountId)
-          _   <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress1))
-          _   <- operationService.compute(accountId)
+          _ <- QueryUtils.saveTx(db, insertTx1, accountId)
+          _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress1))
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .toList
           res <- operationService.getUTXOs(accountId, Sort.Ascending, 20, 0)
           (utxos, trunc) = res
         } yield {

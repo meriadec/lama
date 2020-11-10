@@ -3,18 +3,29 @@ package co.ledger.lama.bitcoin.interpreter.models
 import java.time.Instant
 import java.util.UUID
 
+import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.bitcoin.common.models.service.{OperationType, Received, Sent}
 import fs2.Chunk
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.extras.semiauto._
 
 case class OperationToSave(
     accountId: UUID,
     hash: String,
     operationType: OperationType,
     value: BigInt,
+    fees: BigInt,
     time: Instant,
     blockHash: String,
     blockHeight: Long
 )
+
+object OperationToSave {
+  implicit val encoder: Encoder[OperationToSave] =
+    deriveConfiguredEncoder[OperationToSave]
+  implicit val decoder: Decoder[OperationToSave] =
+    deriveConfiguredDecoder[OperationToSave]
+}
 
 case class TransactionAmounts(
     accountId: UUID,
@@ -22,6 +33,7 @@ case class TransactionAmounts(
     blockHash: String,
     blockHeight: Long,
     blockTime: Instant,
+    fees: BigInt,
     inputAmount: BigInt,
     outputAmount: BigInt,
     changeAmount: BigInt
@@ -51,7 +63,8 @@ case class TransactionAmounts(
       value = amount,
       time = blockTime,
       blockHash = blockHash,
-      blockHeight = blockHeight
+      blockHeight = blockHeight,
+      fees = fees
     )
   }
 }

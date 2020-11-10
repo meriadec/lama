@@ -272,6 +272,7 @@ object service {
       transaction: Option[TransactionView],
       operationType: OperationType,
       value: BigInt,
+      fees: BigInt,
       time: Instant
   ) {
     def toProto: protobuf.Operation = {
@@ -281,6 +282,7 @@ object service {
         transaction.map(_.toProto),
         operationType.toProto,
         value.toString,
+        fees.toString,
         Some(ProtobufUtils.fromInstant(time))
       )
     }
@@ -299,6 +301,7 @@ object service {
         proto.transaction.map(TransactionView.fromProto),
         OperationType.fromProto(proto.operationType),
         BigInt(proto.value),
+        BigInt(proto.fees),
         proto.time.map(ProtobufUtils.toInstant).getOrElse(Instant.now)
       )
     }

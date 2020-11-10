@@ -64,6 +64,7 @@ class FakeInterpreter extends Interpreter {
           None,
           OperationType.SENT,
           BigInt(0).toString,
+          BigInt(0).toString,
           transaction.block.get.time
         )
       )

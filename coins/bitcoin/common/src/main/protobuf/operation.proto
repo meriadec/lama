@@ -22,7 +22,8 @@ message Operation {
   TransactionView transaction = 3;
   OperationType operation_type = 4;
   string value = 5;
-  google.protobuf.Timestamp time = 6;
+  string fees = 6;
+  google.protobuf.Timestamp time = 7;
 }
 
 message TransactionView {

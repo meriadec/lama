@@ -62,6 +62,7 @@ object OperationQueries extends IOLogging {
                  tx.block_hash,
                  tx.block_height,
                  tx.block_time,
+                 tx.fees,
                  COALESCE(tx.input_amount, 0),
                  COALESCE(tx.output_amount, 0),
                  COALESCE(tx.change_amount, 0)
@@ -106,8 +107,8 @@ object OperationQueries extends IOLogging {
   def saveOperations(operation: Chunk[OperationToSave]): ConnectionIO[Int] = {
     val query =
       """INSERT INTO operation (
-         account_id, hash, operation_type, value, time, block_hash, block_height
-       ) VALUES (?, ?, ?, ?, ?, ?, ?)
+         account_id, hash, operation_type, value, fees, time, block_hash, block_height
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT ON CONSTRAINT operation_pkey DO NOTHING
     """
     Update[OperationToSave](query).updateMany(operation)
@@ -162,7 +163,7 @@ object OperationQueries extends IOLogging {
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
 
     val query =
-      sql"""SELECT account_id, hash, operation_type, value, time
+      sql"""SELECT account_id, hash, operation_type, value, fees, time
             FROM operation
             WHERE account_id = $accountId
             AND block_height >= $blockHeight

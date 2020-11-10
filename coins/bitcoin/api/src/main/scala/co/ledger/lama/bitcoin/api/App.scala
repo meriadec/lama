@@ -70,7 +70,8 @@ object App extends IOApp {
     resources.use { serviceResources =>
       val notificationService = new RabbitNotificationService(
         serviceResources.rabbitClient,
-        conf.lamaNotificationsExchangeName
+        conf.lamaNotificationsExchangeName,
+        conf.maxConcurrent
       )
 
       val httpRoutes = Router[IO](

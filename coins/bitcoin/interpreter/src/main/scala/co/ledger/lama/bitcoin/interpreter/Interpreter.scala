@@ -2,9 +2,10 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.time.Instant
 
-import cats.effect.{ConcurrentEffect, ContextShift, IO}
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.interpreter.models.OperationToSave._
 import co.ledger.lama.bitcoin.interpreter.protobuf.{
   ComputeRequest,
   GetBalanceHistoryRequest,
@@ -18,10 +19,18 @@ import co.ledger.lama.bitcoin.interpreter.services.{
   TransactionService
 }
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models.Sort
+import co.ledger.lama.common.models.{
+  BalanceUpdatedNotification,
+  Coin,
+  CoinFamily,
+  OperationNotification,
+  Sort
+}
+import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import doobie.Transactor
 import io.grpc.{Metadata, ServerServiceDefinition}
+import io.circe.syntax._
 
 trait Interpreter extends protobuf.BitcoinInterpreterServiceFs2Grpc[IO, Metadata] {
   def definition(implicit ce: ConcurrentEffect[IO]): ServerServiceDefinition =
@@ -29,9 +38,10 @@ trait Interpreter extends protobuf.BitcoinInterpreterServiceFs2Grpc[IO, Metadata
 }
 
 class DbInterpreter(
+    notificationService: NotificationService,
     db: Transactor[IO],
     maxConcurrent: Int
-)(implicit cs: ContextShift[IO])
+)(implicit cs: ContextShift[IO], c: Concurrent[IO])
     extends Interpreter
     with IOLogging {
 
@@ -143,13 +153,45 @@ class DbInterpreter(
       _ <- log.info(s"Flagging inputs and outputs belong to account=$accountId")
       _ <- flaggingService.flagInputsAndOutputs(accountId, addresses)
 
-      _        <- log.info("Computing operations")
-      savedOps <- operationService.compute(accountId)
+      _ <- log.info("Computing operations")
 
-      _ <- log.info("Computing balance history")
-      _ <- balanceService.compute(accountId)
+      balanceHistoryCount <- balanceService.getBalancesHistoryCount(accountId)
 
-    } yield ResultCount(savedOps)
+      nbSavedOps <- operationService
+        .compute(accountId)
+        .through(operationService.saveOperationSink)
+        .parEvalMap(maxConcurrent) { op =>
+          if (balanceHistoryCount > 0) {
+            notificationService.notify(
+              OperationNotification(
+                accountId = accountId,
+                coinFamily = CoinFamily.Bitcoin,
+                coin = Coin.Btc,
+                operation = op.asJson
+              )
+            )
+          } else {
+            IO.unit
+          }
+        }
+        .debug()
+        .compile
+        .toList
+        .map(_.length)
+
+      _              <- log.info("Computing balance history")
+      balanceHistory <- balanceService.compute(accountId)
+
+      _ <- notificationService.notify(
+        BalanceUpdatedNotification(
+          accountId = accountId,
+          coinFamily = CoinFamily.Bitcoin,
+          coin = Coin.Btc,
+          balance = balanceHistory.balance
+        )
+      )
+
+    } yield ResultCount(nbSavedOps)
 
   def getBalance(
       request: protobuf.GetBalanceRequest,

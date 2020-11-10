@@ -11,7 +11,10 @@ import doobie._
 import doobie.implicits._
 import fs2._
 
-class OperationService(db: Transactor[IO], maxConcurrent: Int) extends IOLogging {
+class OperationService(
+    db: Transactor[IO],
+    maxConcurrent: Int
+) extends IOLogging {
 
   def getOperations(
       accountId: UUID,
@@ -59,24 +62,21 @@ class OperationService(db: Transactor[IO], maxConcurrent: Int) extends IOLogging
       truncated = utxos.size > limit
     } yield (utxos.slice(0, limit), truncated)
 
-  def compute(accountId: UUID)(implicit cs: ContextShift[IO]): IO[Int] =
-    log.info("Computing and saving ops") *>
-      operationSource(accountId)
-        .flatMap(op => Stream.chunk(op.computeOperations()))
-        .through(saveOperationSink)
-        .compile
-        .fold(0)(_ + _)
+  def compute(accountId: UUID): Stream[IO, OperationToSave] =
+    operationSource(accountId)
+      .flatMap(op => Stream.chunk(op.computeOperations()))
 
   private def operationSource(accountId: UUID): Stream[IO, TransactionAmounts] =
     OperationQueries
       .fetchTransactionAmounts(accountId)
       .transact(db)
 
-  private def saveOperationSink(implicit cs: ContextShift[IO]): Pipe[IO, OperationToSave, Int] =
+  def saveOperationSink(implicit cs: ContextShift[IO]): Pipe[IO, OperationToSave, OperationToSave] =
     in =>
       in.chunkN(1000) // TODO : in conf
         .prefetch
         .parEvalMapUnordered(maxConcurrent) { batch =>
-          OperationQueries.saveOperations(batch).transact(db)
+          OperationQueries.saveOperations(batch).transact(db).map(_ => batch)
         }
+        .flatMap(Stream.chunk)
 }
