@@ -1,11 +1,11 @@
 package co.ledger.lama.manager
 
-import cats.effect.{ExitCode, IO, IOApp, Resource}
+import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.common.grpc.HealthService
-import co.ledger.lama.common.utils.{DbUtils, RabbitUtils, ResourceUtils}
+import co.ledger.lama.common.utils.{DbUtils, RabbitUtils}
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import co.ledger.lama.manager.config.{Config, OrchestratorConfig}
-import com.redis.RedisClient
+import co.ledger.lama.manager.utils.RedisUtils
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.ExchangeType
 import pureconfig.ConfigSource
@@ -24,9 +24,7 @@ object App extends IOApp {
       rabbitClient <- RabbitUtils.createClient(conf.rabbit)
 
       // redis client
-      redisClient <- ResourceUtils.retriableResource(
-        Resource.fromAutoCloseable(IO(new RedisClient(conf.redis.host, conf.redis.port)))
-      )
+      redisClient <- RedisUtils.createClient(conf.redis)
 
       // define rpc service definitions
       serviceDefinitions = List(

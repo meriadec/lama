@@ -27,7 +27,7 @@ object config {
     implicit val rabbitConfigReader: ConfigReader[Fs2RabbitConfig] = deriveReader[Fs2RabbitConfig]
   }
 
-  case class RedisConfig(host: String, port: Int)
+  case class RedisConfig(host: String, port: Int, password: String, db: Int)
 
   object RedisConfig {
     implicit val configReader: ConfigReader[RedisConfig] = deriveReader[RedisConfig]

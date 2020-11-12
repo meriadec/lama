@@ -174,7 +174,6 @@ class DbInterpreter(
             IO.unit
           }
         }
-        .debug()
         .compile
         .toList
         .map(_.length)

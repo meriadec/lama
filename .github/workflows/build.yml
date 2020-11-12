@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       rabbitmq:
-        image: rabbitmq
+        image: rabbitmq:3.8.5
         env:
           RABBITMQ_DEFAULT_USER: lama
           RABBITMQ_DEFAULT_PASS: serge
@@ -57,11 +57,10 @@ jobs:
         ports:
           - 5672:5672
       redis:
-        image: redis
+        image: redis:6.0.6-alpine
         env:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-          REDIS_DB: 1
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -70,7 +69,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: postgres
+        image: postgres:12
         env:
           POSTGRES_DB: lama
           POSTGRES_USER: lama
@@ -87,6 +86,7 @@ jobs:
       POSTGRES_DB: lama
       POSTGRES_USER: lama
       POSTGRES_PASSWORD: serge
+      REDIS_PASSWORD: ""
       ACCOUNT_MANAGER_JDBC_URL: jdbc:postgresql:test_lama
       BITCOIN_INTERPRETER_JDBC_URL: jdbc:postgresql:test_lama_btc
     steps:

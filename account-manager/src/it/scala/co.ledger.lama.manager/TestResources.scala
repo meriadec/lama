@@ -5,6 +5,7 @@ import cats.implicits._
 import co.ledger.lama.common.models.{AccountIdentifier, Coin, CoinFamily}
 import co.ledger.lama.common.utils.{DbUtils, RabbitUtils}
 import co.ledger.lama.manager.config.Config
+import co.ledger.lama.manager.utils.RedisUtils
 import com.redis.RedisClient
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.ExchangeType
@@ -44,8 +45,7 @@ trait TestResources {
 
   val rabbit: Resource[IO, RabbitClient[IO]] = RabbitUtils.createClient(conf.rabbit)
 
-  val redis: Resource[IO, RedisClient] =
-    Resource.fromAutoCloseable(IO(new RedisClient(conf.redis.host, conf.redis.port)))
+  val redis: Resource[IO, RedisClient] = RedisUtils.createClient(conf.redis)
 
   def appResources: Resource[IO, (Transactor[IO], RedisClient, RabbitClient[IO])] =
     for {
