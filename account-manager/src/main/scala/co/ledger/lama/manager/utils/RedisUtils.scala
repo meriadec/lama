@@ -5,6 +5,8 @@ import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.utils.ResourceUtils
 import co.ledger.lama.manager.config.RedisConfig
 import com.redis.RedisClient
+import javax.net.ssl.SSLContext
+
 import scala.concurrent.duration._
 
 object RedisUtils extends IOLogging {
@@ -21,7 +23,8 @@ object RedisUtils extends IOLogging {
               port = conf.port,
               database = conf.db,
               secret = if (conf.password.nonEmpty) Some(conf.password) else None,
-              timeout = 5.seconds.toMillis.toInt
+              timeout = 5.seconds.toMillis.toInt,
+              sslContext = if (conf.ssl) Some(SSLContext.getDefault) else None
             )
           }
 
