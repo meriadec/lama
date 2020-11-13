@@ -143,6 +143,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             new Metadata
           )
 
+          accountId <- UuidUtils.bytesToUuidIO(ai.accountId)
+
           _ <- log.info("Deleting keychain")
 
           _ <- keychainClient.deleteKeychain(
@@ -162,6 +164,15 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             new Metadata
           )
           _ <- log.info("Account unregistered")
+          _ <- log.info("Deleting queue")
+
+          _ <- notificationService.deleteQueue(
+            accountId = accountId,
+            coinFamily = CoinFamily.Bitcoin,
+            coin = Coin.Btc
+          )
+          _ <- log.info("Queue deleted")
+
         } yield ()
 
         r.flatMap(_ => Ok())

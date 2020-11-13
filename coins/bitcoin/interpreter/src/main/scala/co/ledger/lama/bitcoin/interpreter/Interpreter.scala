@@ -186,7 +186,7 @@ class DbInterpreter(
           accountId = accountId,
           coinFamily = CoinFamily.Bitcoin,
           coin = Coin.Btc,
-          balance = balanceHistory.balance
+          balanceHistory = balanceHistory.asJson
         )
       )
 
