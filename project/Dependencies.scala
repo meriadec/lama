@@ -59,7 +59,7 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
     "net.debasishg" %% "redisclient" % scalaRedisVersion
   )
 
-  val scalaTestVersion     = "3.2.2"
+  val scalaTestVersion     = "3.2.3"
   val scalaTestPlusVersion = "3.2.2.0"
   val scalaCheckVersion    = "1.15.0"
   val otjPgEmbeddedVersion = "0.13.3"
