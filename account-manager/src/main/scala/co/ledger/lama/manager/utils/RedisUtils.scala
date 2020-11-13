@@ -9,6 +9,7 @@ object RedisUtils {
 
   def createClient(conf: RedisConfig)(implicit t: Timer[IO]): Resource[IO, RedisClient] =
     ResourceUtils.retriableResource(
+      "Create redis client",
       Resource.fromAutoCloseable(
         IO(
           new RedisClient(

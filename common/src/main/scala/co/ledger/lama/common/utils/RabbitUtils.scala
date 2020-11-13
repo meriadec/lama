@@ -29,7 +29,11 @@ object RabbitUtils {
           .make(IO(Executors.newCachedThreadPool()))(es => IO(es.shutdown()))
           .map(Blocker.liftExecutorService)
           .evalMap(blocker => RabbitClient[IO](conf, blocker))
-      _ <- retriableResource(client.createConnectionChannel, RetryPolicy.exponential())
+      _ <- retriableResource(
+        "Create rabbitmq client",
+        client.createConnectionChannel,
+        RetryPolicy.exponential()
+      )
     } yield client
   }
 
@@ -40,9 +44,8 @@ object RabbitUtils {
     R.createConnectionChannel
       .use { implicit channel =>
         exchanges
-          .map {
-            case (exchangeName, exchangeType) =>
-              R.declareExchange(exchangeName, exchangeType)
+          .map { case (exchangeName, exchangeType) =>
+            R.declareExchange(exchangeName, exchangeType)
           }
           .sequence
           .void
@@ -54,10 +57,9 @@ object RabbitUtils {
   ): IO[Unit] =
     R.createConnectionChannel.use { implicit channel =>
       bindings
-        .map {
-          case (exchangeName, routingKey, queueName) =>
-            R.declareQueue(DeclarationQueueConfig.default(queueName)) *>
-              R.bindQueue(queueName, exchangeName, routingKey)
+        .map { case (exchangeName, routingKey, queueName) =>
+          R.declareQueue(DeclarationQueueConfig.default(queueName)) *>
+            R.bindQueue(queueName, exchangeName, routingKey)
         }
         .sequence
         .void
@@ -130,12 +132,11 @@ object RabbitUtils {
       .evalMap { implicit channel =>
         R.createAckerConsumer[String](queueName)
       }
-      .flatMap {
-        case (acker, consumer) =>
-          consumer.evalMap { message =>
-            val parsed = parse(message.payload).flatMap(_.as[A])
-            IO.fromEither(parsed.map((acker, _)))
-          }
+      .flatMap { case (acker, consumer) =>
+        consumer.evalMap { message =>
+          val parsed = parse(message.payload).flatMap(_.as[A])
+          IO.fromEither(parsed.map((acker, _)))
+        }
       }
   }
 

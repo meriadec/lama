@@ -11,6 +11,7 @@ import org.lyranthe.fs2_grpc.java_runtime.implicits._
 object ResourceUtils extends IOLogging {
 
   def retriableResource[F[_], O](
+      label: String,
       resource: Resource[F, O],
       policy: RetryPolicy = RetryPolicy.linear()
   )(implicit
@@ -22,11 +23,11 @@ object ResourceUtils extends IOLogging {
       .attempts(policy)
       .evalTap {
         case Left(value) =>
-          F.delay(log.logger.info(s"Resource acquisition Failed : ${value.getMessage}"))
+          F.delay(log.logger.info(s"$label - resource acquisition failed : ${value.getMessage}"))
         case Right(_) => F.unit
       }
-      .collectFirst {
-        case Right(res) => res
+      .collectFirst { case Right(res) =>
+        res
       }
       .compile
       .resource
@@ -41,6 +42,7 @@ object ResourceUtils extends IOLogging {
       te <- ExecutionContexts.cachedThreadPool[IO]
 
       db <- retriableResource(
+        "Create postgres client",
         HikariTransactor.newHikariTransactor[IO](
           conf.driver,                     // driver classname
           conf.url,                        // connect URL
@@ -57,9 +59,8 @@ object ResourceUtils extends IOLogging {
       services: List[ServerServiceDefinition]
   ): Resource[IO, Server] =
     services
-      .foldLeft(ServerBuilder.forPort(conf.port)) {
-        case (builder, service) =>
-          builder.addService(service)
+      .foldLeft(ServerBuilder.forPort(conf.port)) { case (builder, service) =>
+        builder.addService(service)
       }
       .resource[IO]
 
