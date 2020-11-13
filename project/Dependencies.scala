@@ -61,7 +61,7 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
 
   val scalaTestVersion     = "3.2.3"
   val scalaTestPlusVersion = "3.2.2.0"
-  val scalaCheckVersion    = "1.15.0"
+  val scalaCheckVersion    = "1.15.1"
   val otjPgEmbeddedVersion = "0.13.3"
   val embeddedRedisVersion = "0.7.3"
   val test: Seq[ModuleID] = Seq(
