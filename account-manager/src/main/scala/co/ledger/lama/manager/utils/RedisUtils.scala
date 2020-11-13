@@ -11,14 +11,22 @@ object RedisUtils {
     ResourceUtils.retriableResource(
       "Create redis client",
       Resource.fromAutoCloseable(
-        IO(
-          new RedisClient(
-            conf.host,
-            conf.port,
-            conf.db,
-            if (conf.password.nonEmpty) Some(conf.password) else None
-          )
-        )
+        for {
+          client <- IO.delay {
+            new RedisClient(
+              conf.host,
+              conf.port,
+              conf.db,
+              if (conf.password.nonEmpty) Some(conf.password) else None
+            )
+          }
+
+          _ <- {
+            if (client.ping.isDefined) IO.unit
+            else IO.raiseError(new Exception("Pinging redis failed"))
+          }
+
+        } yield client
       )
     )
 
