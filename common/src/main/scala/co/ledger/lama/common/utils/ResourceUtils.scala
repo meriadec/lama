@@ -41,6 +41,8 @@ object ResourceUtils extends IOLogging {
 
       te <- ExecutionContexts.cachedThreadPool[IO]
 
+      _ = log.logger.info("Creating postgres client")
+
       db <- retriableResource(
         "Create postgres client",
         HikariTransactor.newHikariTransactor[IO](
@@ -52,6 +54,8 @@ object ResourceUtils extends IOLogging {
           Blocker.liftExecutionContext(te) // execute JDBC operations here
         )
       )
+
+      _ = log.logger.info("Postgres client created")
     } yield db
 
   def grpcServer(

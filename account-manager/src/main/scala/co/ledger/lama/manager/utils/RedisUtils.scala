@@ -1,29 +1,33 @@
 package co.ledger.lama.manager.utils
 
 import cats.effect.{IO, Resource, Timer}
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.utils.ResourceUtils
 import co.ledger.lama.manager.config.RedisConfig
 import com.redis.RedisClient
+import scala.concurrent.duration._
 
-object RedisUtils {
+object RedisUtils extends IOLogging {
 
   def createClient(conf: RedisConfig)(implicit t: Timer[IO]): Resource[IO, RedisClient] =
     ResourceUtils.retriableResource(
       "Create redis client",
       Resource.fromAutoCloseable(
         for {
+          _ <- log.info("Creating redis client")
           client <- IO.delay {
             new RedisClient(
-              conf.host,
-              conf.port,
-              conf.db,
-              if (conf.password.nonEmpty) Some(conf.password) else None
+              host = conf.host,
+              port = conf.port,
+              database = conf.db,
+              secret = if (conf.password.nonEmpty) Some(conf.password) else None,
+              timeout = 5.seconds.toMillis.toInt
             )
           }
 
           _ <- {
-            if (client.ping.isDefined) IO.unit
-            else IO.raiseError(new Exception("Pinging redis failed"))
+            if (client.ping.isDefined) log.info("Redis client created")
+            else IO.raiseError(new Exception("Failed to ping redis"))
           }
 
         } yield client

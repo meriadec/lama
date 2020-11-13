@@ -6,6 +6,7 @@ import java.util.concurrent.Executors
 import cats.data.Kleisli
 import cats.effect.{Blocker, ContextShift, IO, Resource, Timer}
 import cats.implicits._
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.utils.ResourceUtils.retriableResource
 import dev.profunktor.fs2rabbit.config.declaration.DeclarationQueueConfig
 import dev.profunktor.fs2rabbit.config.deletion.{DeletionExchangeConfig, DeletionQueueConfig}
@@ -18,7 +19,7 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 
-object RabbitUtils {
+object RabbitUtils extends IOLogging {
 
   def createClient(
       conf: Fs2RabbitConfig
@@ -29,11 +30,16 @@ object RabbitUtils {
           .make(IO(Executors.newCachedThreadPool()))(es => IO(es.shutdown()))
           .map(Blocker.liftExecutorService)
           .evalMap(blocker => RabbitClient[IO](conf, blocker))
+
+      _ = log.logger.info("Creating rabbitmq client")
+
       _ <- retriableResource(
         "Create rabbitmq client",
         client.createConnectionChannel,
         RetryPolicy.exponential()
       )
+
+      _ = log.logger.info("Rabbitmq client created")
     } yield client
   }
 
