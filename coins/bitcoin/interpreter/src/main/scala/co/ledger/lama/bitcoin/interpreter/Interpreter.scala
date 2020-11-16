@@ -210,11 +210,11 @@ class DbInterpreter(
 
       start = request.start
         .map(ProtobufUtils.toInstant)
-        .getOrElse(Instant.parse("2019-04-04T10:03:22Z").minusSeconds(86400))
+        .getOrElse(Instant.now().minusSeconds(86400))
 
       end = request.end
         .map(ProtobufUtils.toInstant)
-        .getOrElse(Instant.parse("2019-04-04T10:03:22Z").plusSeconds(86400))
+        .getOrElse(Instant.now().plusSeconds(86400))
 
       _ <- log.info(s"""Getting balances with parameters:
                        |- accountId: $accountId
