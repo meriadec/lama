@@ -10,7 +10,8 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
     "org.http4s" %% "http4s-circe"              % http4sVersion,
     "org.http4s" %% "http4s-dsl"                % http4sVersion,
     "org.http4s" %% "http4s-prometheus-metrics" % http4sVersion,
-    "org.http4s" %% "rho-swagger"               % rhoVersion
+    "org.http4s" %% "rho-swagger"               % rhoVersion,
+    "org.http4s" %% "rho-swagger-ui"            % rhoVersion
   )
 
   val circeVersion = "0.13.0"

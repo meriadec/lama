@@ -1,7 +1,7 @@
 package co.ledger.lama.bitcoin.api
 
 import co.ledger.lama.common.services.RabbitNotificationService
-import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.{Blocker, ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.api.middlewares.LoggingMiddleware._
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
 import co.ledger.lama.common.protobuf.HealthFs2Grpc
@@ -10,17 +10,22 @@ import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import Config.Config
 import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController}
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.protobuf.bitcoin.KeychainServiceFs2Grpc
+import com.http4s.rho.swagger.ui.SwaggerUi
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import io.grpc.Metadata
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
+import org.http4s.rho.swagger.syntax.{io => ioSwagger}
+import org.http4s.rho.swagger.SwaggerMetadata
+import org.http4s.rho.swagger.models.{Info, Tag}
 import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
 import pureconfig.ConfigSource
 
 import scala.concurrent.ExecutionContext
 
-object App extends IOApp {
+object App extends IOApp with IOLogging {
 
   case class ServiceResources(
       rabbitClient: RabbitClient[IO],
@@ -68,35 +73,53 @@ object App extends IOApp {
     )
 
     resources.use { serviceResources =>
-      val notificationService = new RabbitNotificationService(
-        serviceResources.rabbitClient,
-        conf.lamaNotificationsExchangeName,
-        conf.maxConcurrent
-      )
-
-      val httpRoutes = Router[IO](
-        "accounts" -> loggingMiddleWare(
-          AccountController.routes(
-            notificationService,
-            serviceResources.grpcKeychainClient,
-            serviceResources.grpcAccountClient,
-            serviceResources.grpcBitcoinInterpreterClient
-          )
-        ),
-        "_health" -> HealthController.routes(
-          serviceResources.grpcAccountManagerHealthClient,
-          serviceResources.grpcBitcoinInterpreterHealthClient,
-          serviceResources.grpcBitcoinBroadcasterHealthClient
+      Blocker[IO].use { blocker =>
+        val notificationService = new RabbitNotificationService(
+          serviceResources.rabbitClient,
+          conf.lamaNotificationsExchangeName,
+          conf.maxConcurrent
         )
-      ).orNotFound
 
-      BlazeServerBuilder[IO](ExecutionContext.global)
-        .bindHttp(conf.server.port, conf.server.host)
-        .withHttpApp(httpRoutes)
-        .serve
-        .compile
-        .drain
-        .as(ExitCode.Success)
+        val swaggerMetadata = SwaggerMetadata(
+          apiInfo = Info(
+            title = "Lama BTC API",
+            version = "0.0.x"
+          ),
+          tags = List(
+            Tag(name = "accounts", description = Some("Everything related to accounts management"))
+          )
+        )
+
+        val swaggerUiRhoMiddleware =
+          SwaggerUi[IO].createRhoMiddleware(blocker, swaggerMetadata = swaggerMetadata)
+
+        val httpRoutes = Router[IO](
+          "accounts" -> loggingMiddleWare(
+            new AccountController(
+              notificationService,
+              serviceResources.grpcKeychainClient,
+              serviceResources.grpcAccountClient,
+              serviceResources.grpcBitcoinInterpreterClient,
+              ioSwagger,
+              log
+            ).toRoutes(swaggerUiRhoMiddleware)
+          ),
+          "_health" -> new HealthController(
+            serviceResources.grpcAccountManagerHealthClient,
+            serviceResources.grpcBitcoinInterpreterHealthClient,
+            serviceResources.grpcBitcoinBroadcasterHealthClient,
+            ioSwagger
+          ).toRoutes(swaggerUiRhoMiddleware)
+        ).orNotFound
+
+        BlazeServerBuilder[IO](ExecutionContext.global)
+          .bindHttp(conf.server.port, conf.server.host)
+          .withHttpApp(httpRoutes)
+          .serve
+          .compile
+          .drain
+          .as(ExitCode.Success)
+      }
     }
   }
 
