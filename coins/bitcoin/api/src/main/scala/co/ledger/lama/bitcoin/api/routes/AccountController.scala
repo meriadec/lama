@@ -147,14 +147,18 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
           _ <- log.info("Deleting keychain")
 
-          _ <- keychainClient.deleteKeychain(
-            new DeleteKeychainRequest(
-              keychainId = UuidUtils.uuidToBytes(UUID.fromString(ai.key))
-            ),
-            new Metadata
-          )
+          _ <- keychainClient
+            .deleteKeychain(
+              new DeleteKeychainRequest(
+                keychainId = UuidUtils.uuidToBytes(UUID.fromString(ai.key))
+              ),
+              new Metadata
+            )
+            .map(_ => log.info("Keychain deleted"))
+            .handleErrorWith(_ =>
+              log.info("An error occurred while deleting the keychain, moving on")
+            )
 
-          _ <- log.info("Keychain deleted")
           _ <- log.info("Unregistering account")
 
           _ <- accountManagerClient.unregisterAccount(
