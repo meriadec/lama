@@ -3,12 +3,14 @@ import sbt.librarymanagement.{DependencyBuilders, LibraryManagementSyntax, Modul
 object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
 
   val http4sVersion = "0.21.9"
+  val rhoVersion    = "0.21.0-RC1"
   val http4s: Seq[ModuleID] = Seq(
     "org.http4s" %% "http4s-blaze-server"       % http4sVersion,
     "org.http4s" %% "http4s-blaze-client"       % http4sVersion,
     "org.http4s" %% "http4s-circe"              % http4sVersion,
     "org.http4s" %% "http4s-dsl"                % http4sVersion,
-    "org.http4s" %% "http4s-prometheus-metrics" % http4sVersion
+    "org.http4s" %% "http4s-prometheus-metrics" % http4sVersion,
+    "org.http4s" %% "rho-swagger"               % rhoVersion
   )
 
   val circeVersion = "0.13.0"
