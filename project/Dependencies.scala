@@ -2,6 +2,14 @@ import sbt.librarymanagement.{DependencyBuilders, LibraryManagementSyntax, Modul
 
 object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
 
+  val endpoints4sHttp4sVersion = "4.0.0"
+  val endpoints4sVersion       = "1.2.0"
+  val endpoints4s: Seq[ModuleID] = Seq(
+    "org.endpoints4s" %% "algebra"             % endpoints4sVersion,
+    "org.endpoints4s" %% "json-schema-generic" % endpoints4sVersion,
+    "org.endpoints4s" %% "http4s-server"       % endpoints4sHttp4sVersion
+  )
+
   val http4sVersion = "0.21.9"
   val http4s: Seq[ModuleID] = Seq(
     "org.http4s" %% "http4s-blaze-server"       % http4sVersion,
@@ -83,7 +91,7 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
   val btcCommon: Seq[ModuleID]      = lamaCommon
   val btcWorker: Seq[ModuleID]      = btcCommon ++ http4s
   val btcInterpreter: Seq[ModuleID] = btcCommon
-  val btcApi: Seq[ModuleID]         = btcCommon ++ http4s
+  val btcApi: Seq[ModuleID]         = btcCommon ++ http4s ++ endpoints4s
   val btcBroadcaster: Seq[ModuleID] = btcCommon
 
   val accountManager: Seq[ModuleID] = lamaCommon ++ redis
