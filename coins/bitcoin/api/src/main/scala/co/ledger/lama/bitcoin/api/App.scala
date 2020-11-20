@@ -9,6 +9,7 @@ import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import Config.Config
+import co.ledger.lama.bitcoin.api.endpoints.AccountsEndpoints.getAccountsRoutes
 import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController}
 import co.ledger.protobuf.bitcoin.KeychainServiceFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
@@ -17,6 +18,9 @@ import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
 import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
 import pureconfig.ConfigSource
+import sttp.tapir.docs.openapi._
+import sttp.tapir.openapi.circe.yaml._
+import sttp.tapir.swagger.http4s.SwaggerHttp4s
 
 import scala.concurrent.ExecutionContext
 
@@ -74,7 +78,11 @@ object App extends IOApp {
         conf.maxConcurrent
       )
 
+      val openApiDocs = getAccountsRoutes.toOpenAPI("Lama Bitcoin Api", "0.0.1")
+      val openApiYml  = openApiDocs.toYaml
+
       val httpRoutes = Router[IO](
+        "/" -> new SwaggerHttp4s(openApiYml).routes[IO],
         "accounts" -> loggingMiddleWare(
           AccountController.routes(
             notificationService,

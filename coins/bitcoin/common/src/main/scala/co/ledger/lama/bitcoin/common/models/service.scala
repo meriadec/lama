@@ -3,11 +3,12 @@ package co.ledger.lama.bitcoin.common.models
 import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.common.models.implicits.defaultCirceConfig
+import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
+import sttp.tapir.{Schema, Validator}
 
 object service {
 
@@ -346,6 +347,12 @@ object service {
   }
 
   object BalanceHistory {
+    implicit val sBigInt: Schema[BigInt]            = Schema.derive
+    implicit val bigIntValidator: Validator[BigInt] = Validator.derive
+
+    implicit val sBalanceHistory: Schema[BalanceHistory]            = Schema.derive
+    implicit val balanceHistoryValidator: Validator[BalanceHistory] = Validator.derive
+
     implicit val encoder: Encoder[BalanceHistory] = deriveConfiguredEncoder[BalanceHistory]
     implicit val decoder: Decoder[BalanceHistory] = deriveConfiguredDecoder[BalanceHistory]
 

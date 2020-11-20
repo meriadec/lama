@@ -11,6 +11,16 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
     "org.http4s" %% "http4s-prometheus-metrics" % http4sVersion
   )
 
+  val tapirVersion = "0.17.0-M9"
+  val tapir: Seq[ModuleID] = Seq(
+    "com.softwaremill.sttp.tapir" %% "tapir-core"               % tapirVersion,
+    "com.softwaremill.sttp.tapir" %% "tapir-http4s-server"      % tapirVersion,
+    "com.softwaremill.sttp.tapir" %% "tapir-json-circe"         % tapirVersion,
+    "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs"       % tapirVersion,
+    "com.softwaremill.sttp.tapir" %% "tapir-openapi-circe-yaml" % tapirVersion,
+    "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-http4s"  % tapirVersion
+  )
+
   val circeVersion = "0.13.0"
   val circe: Seq[ModuleID] = Seq(
     "io.circe" %% "circe-core"           % circeVersion,
@@ -80,10 +90,10 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
 
   val lamaCommon: Seq[ModuleID] = circe ++ rabbit ++ utilities ++ postgres ++ commonProtos
 
-  val btcCommon: Seq[ModuleID]      = lamaCommon
+  val btcCommon: Seq[ModuleID]      = lamaCommon ++ tapir
   val btcWorker: Seq[ModuleID]      = btcCommon ++ http4s
   val btcInterpreter: Seq[ModuleID] = btcCommon
-  val btcApi: Seq[ModuleID]         = btcCommon ++ http4s
+  val btcApi: Seq[ModuleID]         = btcCommon ++ http4s ++ tapir
   val btcBroadcaster: Seq[ModuleID] = btcCommon
 
   val accountManager: Seq[ModuleID] = lamaCommon ++ redis
