@@ -347,8 +347,9 @@ object service {
   }
 
   object BalanceHistory {
-    implicit val sBigInt: Schema[BigInt]            = Schema.derive
-    implicit val bigIntValidator: Validator[BigInt] = Validator.derive
+    implicit val sBigInt: Schema[BigInt] = Schema.derive
+    implicit val bigIntValidator: Validator[BigInt] =
+      Validator.validatorForString.contramap[BigInt](b => b.toString)
 
     implicit val sBalanceHistory: Schema[BalanceHistory]            = Schema.derive
     implicit val balanceHistoryValidator: Validator[BalanceHistory] = Validator.derive
