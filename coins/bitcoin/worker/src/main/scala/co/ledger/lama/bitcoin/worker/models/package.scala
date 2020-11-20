@@ -2,7 +2,7 @@ package co.ledger.lama.bitcoin.worker
 
 import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, Transaction}
-import co.ledger.protobuf.bitcoin.AddressInfo
+import co.ledger.protobuf.bitcoin.keychain.AddressInfo
 import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
 

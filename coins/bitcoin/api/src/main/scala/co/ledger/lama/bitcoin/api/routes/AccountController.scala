@@ -26,7 +26,7 @@ import co.ledger.lama.manager.protobuf.{
 }
 import co.ledger.lama.bitcoin.api.utils.ProtobufUtils._
 import co.ledger.lama.bitcoin.api.utils.RouterUtils._
-import co.ledger.protobuf.bitcoin.{DeleteKeychainRequest, KeychainServiceFs2Grpc}
+import co.ledger.protobuf.bitcoin.keychain.{DeleteKeychainRequest, KeychainServiceFs2Grpc}
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.auto._
 import io.circe.generic.extras.semiauto._

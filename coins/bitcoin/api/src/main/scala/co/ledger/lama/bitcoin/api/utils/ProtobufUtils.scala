@@ -16,7 +16,7 @@ import co.ledger.lama.bitcoin.api.models.{
   GetUTXOsResult
 }
 import co.ledger.lama.bitcoin.api.routes.AccountController.CreationRequest
-import co.ledger.protobuf.bitcoin.{BitcoinNetwork, CreateKeychainRequest, Scheme}
+import co.ledger.protobuf.bitcoin.keychain.{BitcoinNetwork, CreateKeychainRequest, Scheme}
 import io.circe.parser.parse
 
 object ProtobufUtils {

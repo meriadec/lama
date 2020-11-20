@@ -6,7 +6,7 @@ import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
-import co.ledger.protobuf.bitcoin.KeychainServiceFs2Grpc
+import co.ledger.protobuf.bitcoin.keychain.KeychainServiceFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.ExchangeType
 import io.grpc.ManagedChannel

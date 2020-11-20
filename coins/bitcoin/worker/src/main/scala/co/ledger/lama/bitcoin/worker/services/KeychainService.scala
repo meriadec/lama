@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.common.utils.UuidUtils
-import co.ledger.protobuf.bitcoin.{
+import co.ledger.protobuf.bitcoin.keychain.{
   AddressInfo,
   BitcoinNetwork,
   CreateKeychainRequest,

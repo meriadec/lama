@@ -5,7 +5,7 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.worker.services.KeychainService
 import co.ledger.lama.common.utils.UuidUtils
-import co.ledger.protobuf.bitcoin.{AddressInfo, BitcoinNetwork, KeychainInfo, Scheme}
+import co.ledger.protobuf.bitcoin.keychain.{AddressInfo, BitcoinNetwork, KeychainInfo, Scheme}
 
 import scala.collection.mutable
 
