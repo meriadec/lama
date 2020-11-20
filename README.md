@@ -15,12 +15,11 @@ Main features of Lama are:
 - Easy support of new coin integration by having coin specific components:
   * Worker: fetching data from blockchain
   * Interpreter: computing and inserting data (operations, balance, ...)
-  * Broadcaster: estimating fees and creating transactions
-  * Api: exposing endpoints to interact with coin components 
+  * Api: exposing http endpoints to get synced transactions, estimate fees, create and broadcast transactions
 
-## How account synchronization works?
+## How Lama works?
 
-![](./excalidraw/sync-overview.png)
+![](./excalidraw/lama-overview.png)
 
 ## Account manager
 
