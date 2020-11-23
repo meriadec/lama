@@ -9,7 +9,7 @@ import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import Config.Config
-import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController}
+import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController, VersionController}
 import co.ledger.protobuf.bitcoin.keychain.KeychainServiceFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import io.grpc.Metadata
@@ -87,7 +87,8 @@ object App extends IOApp {
           serviceResources.grpcAccountManagerHealthClient,
           serviceResources.grpcBitcoinInterpreterHealthClient,
           serviceResources.grpcBitcoinBroadcasterHealthClient
-        )
+        ),
+        "_version" -> VersionController.routes()
       ).orNotFound
 
       BlazeServerBuilder[IO](ExecutionContext.global)

@@ -35,6 +35,11 @@ scalacOptions ++= CompilerFlags.all
 resolvers += Resolver.sonatypeRepo("releases")
 addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
 
+lazy val buildInfoSettings = Seq(
+  buildInfoKeys := Seq[BuildInfoKey](version, git.gitHeadCommit),
+  buildInfoPackage := "buildinfo"
+)
+
 lazy val assemblySettings = Seq(
   test in assembly := {},
   assemblyOutputPath in assembly := file(
@@ -74,7 +79,8 @@ lazy val dockerSettings = Seq(
   }
 )
 
-lazy val sharedSettings = assemblySettings ++ dockerSettings ++ Defaults.itSettings
+lazy val sharedSettings =
+  assemblySettings ++ dockerSettings ++ Defaults.itSettings
 
 // Common lama library
 lazy val common = (project in file("common"))
@@ -102,12 +108,13 @@ lazy val accountManager = (project in file("account-manager"))
   .dependsOn(common)
 
 lazy val bitcoinApi = (project in file("coins/bitcoin/api"))
-  .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
+  .enablePlugins(BuildInfoPlugin, Fs2Grpc, sbtdocker.DockerPlugin)
   .configs(IntegrationTest)
   .settings(
     name := "lama-bitcoin-api",
     libraryDependencies ++= (Dependencies.btcApi ++ Dependencies.test),
     sharedSettings,
+    buildInfoSettings,
     // Proto config
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     PB.protoSources in Compile := Seq(
