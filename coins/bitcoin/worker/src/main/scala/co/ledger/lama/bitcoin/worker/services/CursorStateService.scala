@@ -3,14 +3,17 @@ package co.ledger.lama.bitcoin.worker.services
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.explorer.Block
+import co.ledger.lama.bitcoin.common.models.worker.Block
+import co.ledger.lama.bitcoin.common.services.{ExplorerClientService, InterpreterClientService}
 import co.ledger.lama.common.logging.IOLogging
 import org.http4s.client.UnexpectedStatus
 
-class CursorStateService(explorerService: ExplorerService, interpreterService: InterpreterService)
-    extends IOLogging {
+class CursorStateService(
+    explorerClient: ExplorerClientService,
+    interpreterClient: InterpreterClientService
+) extends IOLogging {
 
-  /* This method checks if the provided block is valid by calling "explorerService.getBlock()"
+  /* This method checks if the provided block is valid by calling "explorerClient.getBlock()"
    * If it is, the block is returned and used for the next sync
    * It it isn't , the last 20 known blocks are queried to the interpreter for this account,
    * and for each block in reverse order, we check if it's a valid block.
@@ -25,7 +28,7 @@ class CursorStateService(explorerService: ExplorerService, interpreterService: I
      * - An unknown valid hash return either a 404, or an empty list
      * - An invalid hash returns either a 400 or a 500 error.
      */
-    explorerService
+    explorerClient
       .getBlock(block.hash)
       .flatMap {
         case Some(lvb) => IO.pure(lvb)
@@ -44,8 +47,8 @@ class CursorStateService(explorerService: ExplorerService, interpreterService: I
       _ <- log.info(
         s"Block [hash: '${block.hash}', height: ${block.height}] has been invalidated, searching last known valid block."
       )
-      getblocksResult <- interpreterService.getLastBlocks(accountId)
-      lastValidBlock  <- getlastValidBlockRec(getblocksResult.blocks.toList.map(Block.fromProto))
+      getblocksResult <- interpreterClient.getLastBlocks(accountId)
+      lastValidBlock  <- getlastValidBlockRec(getblocksResult.blocks.toList)
       _ <- log.info(
         s"block [hash: '${lastValidBlock.hash}', height: ${lastValidBlock.height}] is valid !"
       )
@@ -57,7 +60,7 @@ class CursorStateService(explorerService: ExplorerService, interpreterService: I
       case Nil => IO.raiseError(new Exception("no valid block found in the last blocks..."))
       case block :: tail =>
         log.info(s"testing block [hash: '${block.hash}', height: ${block.height}]") *>
-          explorerService
+          explorerClient
             .getBlock(block.hash)
             .flatMap {
               case Some(lvb) => IO.pure(lvb)

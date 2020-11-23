@@ -3,8 +3,8 @@ package co.ledger.lama.bitcoin.interpreter.services
 import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.explorer.Block
-import co.ledger.lama.bitcoin.common.models.service.BalanceHistory
+import co.ledger.lama.bitcoin.common.models.worker.Block
+import co.ledger.lama.bitcoin.common.models.interpreter.BalanceHistory
 
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 

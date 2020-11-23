@@ -13,16 +13,15 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 import cats.implicits._
-import co.ledger.lama.bitcoin.api.models.{
-  AccountInfo,
-  AccountRegistered,
-  GetOperationsResult,
-  GetUTXOsResult
-}
-import co.ledger.lama.bitcoin.common.models.service.BalanceHistory
+import co.ledger.lama.bitcoin.api.models.{AccountInfo, AccountRegistered}
 import co.ledger.lama.common.models.Status.{Deleted, Published, Registered, Synchronized}
 import co.ledger.lama.common.models.Sort
 import co.ledger.lama.bitcoin.api.routes.AccountController.UpdateRequest
+import co.ledger.lama.bitcoin.common.models.interpreter.grpc.{
+  GetBalanceHistoryResult,
+  GetOperationsResult,
+  GetUTXOsResult
+}
 import io.circe.parser._
 
 import scala.concurrent.ExecutionContext
@@ -146,13 +145,15 @@ class AccountControllerIT extends AnyFlatSpecLike with Matchers {
               getAccountRequest(accountRegistered.accountId)
             )
 
-            balances <- client.expect[List[BalanceHistory]](
-              getBalancesHistoryRequest(
-                accountRegistered.accountId,
-                Instant.now().minusSeconds(60),
-                Instant.now().plusSeconds(60)
+            balances <- client
+              .expect[GetBalanceHistoryResult](
+                getBalancesHistoryRequest(
+                  accountRegistered.accountId,
+                  Instant.now().minusSeconds(60),
+                  Instant.now().plusSeconds(60)
+                )
               )
-            )
+              .map(_.balances)
 
             accountUpdateStatus <- client.status(
               accountUpdateRequest(accountRegistered.accountId).withEntity(UpdateRequest(60))

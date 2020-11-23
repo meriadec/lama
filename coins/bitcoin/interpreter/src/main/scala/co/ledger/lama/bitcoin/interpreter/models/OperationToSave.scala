@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 import co.ledger.lama.common.models.implicits._
-import co.ledger.lama.bitcoin.common.models.service.{OperationType, Received, Sent}
+import co.ledger.lama.bitcoin.common.models.interpreter.{OperationType}
 import fs2.Chunk
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto._
@@ -42,14 +42,15 @@ case class TransactionAmounts(
   def computeOperations(): Chunk[OperationToSave] = {
     (inputAmount > 0, outputAmount > 0) match {
       // only input, consider changeAmount as deducted from spent
-      case (true, false) => Chunk(makeOperation(inputAmount - changeAmount, Sent))
+      case (true, false) => Chunk(makeOperation(inputAmount - changeAmount, OperationType.Sent))
       // only output, consider changeAmount as received
-      case (false, true) => Chunk(makeOperation(outputAmount + changeAmount, Received))
+      case (false, true) =>
+        Chunk(makeOperation(outputAmount + changeAmount, OperationType.Received))
       // both input and output, consider change as deducted from spend
       case (true, true) =>
         Chunk(
-          makeOperation(inputAmount - changeAmount, Sent),
-          makeOperation(outputAmount, Received)
+          makeOperation(inputAmount - changeAmount, OperationType.Sent),
+          makeOperation(outputAmount, OperationType.Received)
         )
       case _ => Chunk.empty
     }

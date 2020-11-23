@@ -3,8 +3,8 @@ package co.ledger.lama.bitcoin.interpreter
 import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.explorer._
-import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.common.models.worker._
+import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
 import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -76,7 +76,7 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
   val opToSave: OperationToSave = OperationToSave(
     accountId,
     transactionToInsert.hash,
-    Sent,
+    OperationType.Sent,
     transactionToInsert.inputs.collect { case i: DefaultInput =>
       i.value
     }.sum,

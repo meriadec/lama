@@ -3,8 +3,8 @@ package co.ledger.lama.bitcoin.interpreter
 import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.explorer._
-import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.common.models.worker._
+import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.interpreter.services.{FlaggingService, OperationService}
 import co.ledger.lama.common.models.Sort
 import co.ledger.lama.common.utils.IOAssertion
@@ -15,9 +15,12 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
 
   val accountId: UUID = UUID.fromString("b723c553-3a9a-4130-8883-ee2f6c2f9202")
 
-  private val outputAddress1 = AccountAddress("1DtwACvd338XtHBFYJRVKRLxviD7YtYADa", External)
-  private val outputAddress2 = AccountAddress("1LK8UbiRwUzC8KFEbMKvgbvriM9zLMce3C", Internal)
-  private val inputAddress   = AccountAddress("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ", External)
+  private val outputAddress1 =
+    AccountAddress("1DtwACvd338XtHBFYJRVKRLxviD7YtYADa", ChangeType.External)
+  private val outputAddress2 =
+    AccountAddress("1LK8UbiRwUzC8KFEbMKvgbvriM9zLMce3C", ChangeType.Internal)
+  private val inputAddress =
+    AccountAddress("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ", ChangeType.External)
 
   val block1: Block = Block(
     "00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379",
@@ -107,13 +110,13 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
 
           op.accountId shouldBe accountId
           op.hash shouldBe insertTx1.hash
-          op.operationType shouldBe Sent
+          op.operationType shouldBe OperationType.Sent
 
           tx.fees shouldBe insertTx1.fees
 
           tx.inputs.find(_.belongs).get.address shouldBe inputAddress.accountAddress
           tx.outputs.find(_.belongs).get.address shouldBe outputAddress2.accountAddress
-          tx.outputs.find(_.belongs).get.changeType shouldBe Some(Internal)
+          tx.outputs.find(_.belongs).get.changeType shouldBe Some(ChangeType.Internal)
         }
       }
   }
@@ -150,13 +153,13 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
 
           op.accountId shouldBe accountId
           op.hash shouldBe insertTx2.hash
-          op.operationType shouldBe Sent
+          op.operationType shouldBe OperationType.Sent
 
           tx.fees shouldBe insertTx2.fees
 
           tx.inputs.find(_.belongs).get.address shouldBe inputAddress.accountAddress
           tx.outputs.find(_.belongs).get.address shouldBe outputAddress2.accountAddress
-          tx.outputs.find(_.belongs).get.changeType shouldBe Some(Internal)
+          tx.outputs.find(_.belongs).get.changeType shouldBe Some(ChangeType.Internal)
         }
       }
   }

@@ -3,7 +3,6 @@ package co.ledger.lama.bitcoin.api.utils
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
-import co.ledger.lama.bitcoin.interpreter.protobuf.SortingOrder
 import co.ledger.lama.common.models.Sort
 import org.http4s.{QueryParamCodec, QueryParamDecoder}
 import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
@@ -28,10 +27,4 @@ object RouterUtils {
   object OptionalEndInstantQueryParamMatcher
       extends OptionalQueryParamDecoderMatcher[Instant]("end")
 
-  def parseSorting(sort: Option[Sort], default: Sort = Sort.Descending) = {
-    sort.getOrElse(default) match {
-      case Sort.Ascending => SortingOrder.ASC
-      case _              => SortingOrder.DESC
-    }
-  }
 }

@@ -4,9 +4,14 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.explorer.DefaultInput
-import co.ledger.lama.bitcoin.interpreter.protobuf.AccountAddress
-import co.ledger.lama.bitcoin.interpreter.protobuf.ChangeType.{EXTERNAL, INTERNAL}
+import co.ledger.lama.bitcoin.common.models.worker.DefaultInput
+import co.ledger.lama.bitcoin.common.services.{
+  ExplorerClientService,
+  InterpreterClientService,
+  KeychainClientService
+}
+import co.ledger.lama.bitcoin.common.models.interpreter.AccountAddress
+import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
 import co.ledger.lama.bitcoin.worker.services._
@@ -21,9 +26,9 @@ import scala.util.Try
 
 class Worker(
     syncEventService: SyncEventService,
-    keychainService: KeychainService,
-    explorerService: ExplorerService,
-    interpreterService: InterpreterService,
+    keychainClient: KeychainClientService,
+    explorerClient: ExplorerClientService,
+    interpreterClient: InterpreterClientService,
     cursorStateService: CursorStateService,
     conf: Config
 ) extends IOLogging {
@@ -76,7 +81,7 @@ class Worker(
       _          <- log.info(s"Syncing from cursor state: $previousBlockState")
       keychainId <- IO.fromTry(Try(UUID.fromString(account.key)))
 
-      keychainInfo <- keychainService.getKeychainInfo(keychainId)
+      keychainInfo <- keychainClient.getKeychainInfo(keychainId)
 
       // REORG
       lastValidBlock <- previousBlockState.map { block =>
@@ -88,7 +93,7 @@ class Worker(
               IO.unit
             else
               // remove all transactions and operations up until last valid block
-              interpreterService.removeDataFromCursor(account.id, Some(lvb.height))
+              interpreterClient.removeDataFromCursor(account.id, Some(lvb.height))
         } yield lvb
       }.sequence
 
@@ -102,10 +107,13 @@ class Worker(
       ).stream.compile.toList
 
       addresses = batchResults.flatMap(_.addresses).map { a =>
-        AccountAddress(a.address, if (a.change.isChangeExternal) EXTERNAL else INTERNAL)
+        AccountAddress(
+          a.address,
+          if (a.change.isChangeExternal) ChangeType.External else ChangeType.Internal
+        )
       }
 
-      opsCount <- interpreterService.compute(account.id, addresses)
+      opsCount <- interpreterClient.compute(account.id, addresses)
 
       _ <- log.info(s"$opsCount operations computed")
 
@@ -146,12 +154,12 @@ class Worker(
         for {
           // Get batch of addresses from the keychain
           _            <- log.info("Calling keychain to get addresses")
-          addressInfos <- keychainService.getAddresses(keychainId, fromAddrIndex, toAddrIndex)
+          addressInfos <- keychainClient.getAddresses(keychainId, fromAddrIndex, toAddrIndex)
 
           // For this batch of addresses, fetch transactions from the explorer.
           _ <- log.info("Fetching transactions from explorer")
           transactions <-
-            explorerService
+            explorerClient
               .getConfirmedTransactions(addressInfos.map(_.address), blockHashCursor)
               .prefetch
               .chunkN(conf.maxTxsToSavePerBatch)
@@ -160,7 +168,7 @@ class Worker(
                 // Ask to interpreter to save transactions.
                 for {
                   _             <- log.info(s"Sending ${txs.size} transactions to interpreter")
-                  savedTxsCount <- interpreterService.saveTransactions(accountId, txs)
+                  savedTxsCount <- interpreterClient.saveTransactions(accountId, txs)
                   _             <- log.info(s"$savedTxsCount new transactions saved")
                 } yield txs
               }
@@ -183,12 +191,12 @@ class Worker(
             if (transactions.nonEmpty) {
               // Mark addresses as used.
               log.info(s"Marking addresses as used") *>
-                keychainService.markAddressesAsUsed(keychainId, usedAddressesInfos.map(_.address))
+                keychainClient.markAddressesAsUsed(keychainId, usedAddressesInfos.map(_.address))
             } else IO.unit
 
           // Flag to know if we continue or not to discover addresses
           continue <-
-            keychainService
+            keychainClient
               .getAddresses(keychainId, toAddrIndex, toAddrIndex + lookaheadSize)
               .map(_.nonEmpty)
 
@@ -210,7 +218,7 @@ class Worker(
       }
 
   def deleteAccount(workableEvent: WorkableEvent): IO[ReportableEvent] =
-    interpreterService
+    interpreterClient
       .removeDataFromCursor(workableEvent.accountId, None)
       .map(_ => workableEvent.reportSuccess(Json.obj()))
 }

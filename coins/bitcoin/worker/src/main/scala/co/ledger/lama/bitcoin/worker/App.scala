@@ -1,6 +1,11 @@
 package co.ledger.lama.bitcoin.worker
 
 import cats.effect.{ExitCode, IO, IOApp}
+import co.ledger.lama.bitcoin.common.services.{
+  ExplorerClientService,
+  InterpreterGrpcClientService,
+  KeychainGrpcClientService
+}
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services._
@@ -40,24 +45,24 @@ object App extends IOApp {
         conf.routingKey
       )
 
-      val keychainClient = KeychainServiceFs2Grpc.stub[IO](res.keychainChannel)
+      val keychainGrpcClient = KeychainServiceFs2Grpc.stub[IO](res.keychainChannel)
 
-      val keychainService = new KeychainGrpcClientService(keychainClient)
+      val keychainClient = new KeychainGrpcClientService(keychainGrpcClient)
 
-      val explorerService = new ExplorerService(res.httpClient, conf.explorer)
+      val explorerClient = new ExplorerClientService(res.httpClient, conf.explorer)
 
-      val interpreterClient =
+      val interpreterGrpcClient =
         BitcoinInterpreterServiceFs2Grpc.stub[IO](res.interpreterChannel)
 
-      val interpreterService = new InterpreterGrpcClientService(interpreterClient)
+      val interpreterClient = new InterpreterGrpcClientService(interpreterGrpcClient)
 
-      val cursorStateService = new CursorStateService(explorerService, interpreterService)
+      val cursorStateService = new CursorStateService(explorerClient, interpreterClient)
 
       val worker = new Worker(
         syncEventService,
-        keychainService,
-        explorerService,
-        interpreterService,
+        keychainClient,
+        explorerClient,
+        interpreterClient,
         cursorStateService,
         conf
       )

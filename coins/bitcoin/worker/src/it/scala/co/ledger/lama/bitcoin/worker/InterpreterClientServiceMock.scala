@@ -4,19 +4,25 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.interpreter.protobuf.{
-  AccountAddress,
+import co.ledger.lama.bitcoin.common.models.interpreter
+import co.ledger.lama.bitcoin.common.models.interpreter.grpc.{
   GetLastBlocksResult,
   GetOperationsResult
 }
-import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction}
-import co.ledger.lama.bitcoin.common.models.service.{Operation, Sent}
-import co.ledger.lama.bitcoin.worker.services.{InterpreterService, SortingEnum}
-import co.ledger.lama.bitcoin.worker.services.SortingEnum.SortingEnum
+import co.ledger.lama.bitcoin.common.models.interpreter.{
+  AccountAddress,
+  Operation,
+  OperationType,
+  grpc
+}
+import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction}
+import co.ledger.lama.bitcoin.common.services.{InterpreterClientService, SortingEnum}
+import co.ledger.lama.bitcoin.common.services.SortingEnum.SortingEnum
+import co.ledger.lama.common.models.Sort
 
 import scala.collection.mutable
 
-class InterpreterServiceMock extends InterpreterService {
+class InterpreterClientServiceMock extends InterpreterClientService {
 
   var savedTransactions: mutable.Map[UUID, List[ConfirmedTransaction]] = mutable.Map.empty
 
@@ -73,7 +79,7 @@ class InterpreterServiceMock extends InterpreterService {
               accountId,
               tx.hash,
               None,
-              Sent,
+              OperationType.Sent,
               BigInt(0),
               BigInt(0),
               Instant.now()
@@ -81,13 +87,14 @@ class InterpreterServiceMock extends InterpreterService {
           )
       val hasMore = filteredTransactions.drop(offset.getOrElse(0) + limit.getOrElse(0)).nonEmpty
 
-      new GetOperationsResult(
-        operations = slicedTransactions.map(_.toProto),
-        truncated = hasMore
+      GetOperationsResult(
+        operations = slicedTransactions,
+        truncated = hasMore,
+        size = slicedTransactions.size
       )
     }
 
-  def compute(accountId: UUID, addresses: Seq[AccountAddress]): IO[Int] = {
+  def compute(accountId: UUID, addresses: List[AccountAddress]): IO[Int] = {
     IO.pure(0)
   }
 
@@ -120,8 +127,33 @@ class InterpreterServiceMock extends InterpreterService {
             559031L,
             Instant.now()
           )
-        ).map(_.toProto)
+        )
       )
     )
   }
+
+  override def getOperations(
+      accountId: UUID,
+      blockHeight: Long,
+      limit: Int,
+      offset: Int,
+      sort: Option[Sort]
+  ): IO[GetOperationsResult] = IO.raiseError(new NotImplementedError("Implement if needed"))
+
+  override def getUTXOs(
+      accountId: UUID,
+      limit: Int,
+      offset: Int,
+      sort: Option[Sort]
+  ): IO[grpc.GetUTXOsResult] = IO.raiseError(new NotImplementedError("Implement if needed"))
+
+  override def getBalance(accountId: UUID): IO[interpreter.BalanceHistory] =
+    IO.raiseError(new NotImplementedError("Implement if needed"))
+
+  override def getBalanceHistory(
+      accountId: UUID,
+      start: Option[Instant],
+      end: Option[Instant]
+  ): IO[grpc.GetBalanceHistoryResult] =
+    IO.raiseError(new NotImplementedError("Implement if needed"))
 }

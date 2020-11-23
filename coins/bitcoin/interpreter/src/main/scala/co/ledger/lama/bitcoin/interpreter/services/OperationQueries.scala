@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.data.NonEmptyList
 
-import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import co.ledger.lama.common.logging.IOLogging

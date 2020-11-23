@@ -1,17 +1,17 @@
-package co.ledger.lama.bitcoin.worker.services
+package co.ledger.lama.bitcoin.common.services
 
 import cats.effect.{ContextShift, IO, Timer}
-import co.ledger.lama.bitcoin.common.models.explorer._
-import co.ledger.lama.bitcoin.worker.config.ExplorerConfig
-import co.ledger.lama.bitcoin.worker.models.GetTransactionsResponse
+import co.ledger.lama.bitcoin.common.config.ExplorerConfig
+import co.ledger.lama.bitcoin.common.models.worker._
+import co.ledger.lama.bitcoin.common.models.explorer.GetTransactionsResponse
 import co.ledger.lama.common.logging.IOLogging
+import fs2.{Chunk, Pull, Stream}
 import io.circe.Decoder
 import org.http4s.{Method, Request}
-import org.http4s.client.Client
 import org.http4s.circe.CirceEntityDecoder._
-import fs2.{Chunk, Pull, Stream}
+import org.http4s.client.Client
 
-class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) extends IOLogging {
+class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig) extends IOLogging {
 
   private val btcBasePath = "/blockchain/v3/btc"
 
@@ -40,8 +40,8 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) extends IOLo
         fetchPaginatedTransactions(chunk.toList, blockHash).stream
           .flatMap { res =>
             // The explorer v3 returns also unconfirmed txs, so we need to remove it
-            val confirmedTxs = res.txs.collect {
-              case confirmedTx: ConfirmedTransaction => confirmedTx
+            val confirmedTxs = res.txs.collect { case confirmedTx: ConfirmedTransaction =>
+              confirmedTx
             }
             Stream.emits(confirmedTxs)
           }
@@ -95,8 +95,8 @@ class ExplorerService(httpClient: Client[IO], conf: ExplorerConfig) extends IOLo
           // get the most recent fetched block hash for the next cursor
           val lastBlockHash =
             res.txs
-              .collect {
-                case confirmedTx: ConfirmedTransaction => confirmedTx
+              .collect { case confirmedTx: ConfirmedTransaction =>
+                confirmedTx
               }
               .maxByOption(_.block.time)
               .map(_.block.hash)

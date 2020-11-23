@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.service.BalanceHistory
+import co.ledger.lama.bitcoin.common.models.interpreter.BalanceHistory
 import co.ledger.lama.common.logging.IOLogging
 import doobie.Transactor
 import doobie.implicits._

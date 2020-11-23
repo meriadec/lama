@@ -2,8 +2,8 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.time.Instant
 import java.util.UUID
-import co.ledger.lama.bitcoin.common.models.explorer._
-import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.common.models.worker._
+import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -31,11 +31,11 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
 
   val accountId: UUID = UUID.fromString("b723c553-3a9a-4130-8883-ee2f6c2f9201")
 
-  val address1: AccountAddress = AccountAddress("address1", External)
-  val address2: AccountAddress = AccountAddress("address2", External)
-  val address3: AccountAddress = AccountAddress("address3", Internal)
+  val address1: AccountAddress = AccountAddress("address1", ChangeType.External)
+  val address2: AccountAddress = AccountAddress("address2", ChangeType.External)
+  val address3: AccountAddress = AccountAddress("address3", ChangeType.Internal)
 
-  val notBelongingAddress: AccountAddress = AccountAddress("fakeLama", External)
+  val notBelongingAddress: AccountAddress = AccountAddress("fakeLama", ChangeType.External)
 
   val tx1: ConfirmedTransaction =
     ConfirmedTransaction(

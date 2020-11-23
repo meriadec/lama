@@ -4,13 +4,14 @@ import co.ledger.lama.common.services.RabbitNotificationService
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.api.middlewares.LoggingMiddleware._
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
-import co.ledger.lama.common.protobuf.HealthFs2Grpc
+import co.ledger.lama.bitcoin.common.services.InterpreterGrpcClientService
 import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import Config.Config
 import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController, VersionController}
 import co.ledger.protobuf.bitcoin.keychain.KeychainServiceFs2Grpc
+import co.ledger.protobuf.lama.common.HealthFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import io.grpc.Metadata
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
@@ -80,7 +81,7 @@ object App extends IOApp {
             notificationService,
             serviceResources.grpcKeychainClient,
             serviceResources.grpcAccountClient,
-            serviceResources.grpcBitcoinInterpreterClient
+            new InterpreterGrpcClientService(serviceResources.grpcBitcoinInterpreterClient)
           )
         ),
         "_health" -> HealthController.routes(

@@ -1,9 +1,10 @@
 package co.ledger.lama.bitcoin.api.routes
 
 import cats.effect.IO
-import co.ledger.lama.common.protobuf._
-import co.ledger.lama.common.protobuf.HealthCheckResponse._
 import co.ledger.lama.common.logging.IOLogging
+import co.ledger.protobuf.lama.common.HealthCheckResponse.ServingStatus
+import co.ledger.protobuf.lama.common.HealthFs2Grpc
+import co.ledger.protobuf.lama.common._
 import io.grpc.Metadata
 import org.http4s.HttpRoutes
 import org.http4s.dsl.Http4sDsl

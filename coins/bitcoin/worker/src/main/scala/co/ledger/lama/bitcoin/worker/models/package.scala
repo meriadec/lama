@@ -1,21 +1,12 @@
 package co.ledger.lama.bitcoin.worker
 
 import co.ledger.lama.common.models.implicits._
-import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, Transaction}
+import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction}
 import co.ledger.protobuf.bitcoin.keychain.AddressInfo
 import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
 
 package object models {
-
-  case class GetTransactionsResponse(truncated: Boolean, txs: Seq[Transaction])
-
-  object GetTransactionsResponse {
-    implicit val encoder: Encoder[GetTransactionsResponse] =
-      deriveConfiguredEncoder[GetTransactionsResponse]
-    implicit val decoder: Decoder[GetTransactionsResponse] =
-      deriveConfiguredDecoder[GetTransactionsResponse]
-  }
 
   case class PayloadData(
       lastBlock: Option[Block] = None,

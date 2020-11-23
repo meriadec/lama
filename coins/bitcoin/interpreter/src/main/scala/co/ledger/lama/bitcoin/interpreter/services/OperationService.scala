@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter.services
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
-import co.ledger.lama.bitcoin.common.models.service.{Operation, Utxo}
+import co.ledger.lama.bitcoin.common.models.interpreter.{Operation, Utxo}
 import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Sort

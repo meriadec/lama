@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package pb.v1;
 
-option java_package = "co.ledger.lama.common.protobuf";
+option java_package = "co.ledger.protobuf.lama.common";
 
 message HealthCheckRequest {
   string service = 1;

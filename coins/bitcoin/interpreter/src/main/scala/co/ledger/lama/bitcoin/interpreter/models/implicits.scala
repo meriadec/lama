@@ -4,8 +4,8 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.explorer.Output
-import co.ledger.lama.bitcoin.common.models.service._
+import co.ledger.lama.bitcoin.common.models.worker.Output
+import co.ledger.lama.bitcoin.common.models.interpreter._
 import doobie._
 import doobie.postgres.implicits._
 import doobie.implicits.javasql._

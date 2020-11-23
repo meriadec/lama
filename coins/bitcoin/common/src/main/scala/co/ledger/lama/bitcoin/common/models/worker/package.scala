@@ -9,7 +9,7 @@ import io.circe.generic.extras.semiauto._
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}
 
-object explorer {
+package object worker {
 
   case class Block(
       hash: String,

@@ -1,23 +1,14 @@
-package co.ledger.lama.bitcoin.worker.services
+package co.ledger.lama.bitcoin.common.services
 
 import java.util.UUID
 
 import cats.effect.IO
+import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.common.utils.UuidUtils
-import co.ledger.protobuf.bitcoin.keychain.{
-  AddressInfo,
-  BitcoinNetwork,
-  CreateKeychainRequest,
-  GetAllObservableAddressesRequest,
-  GetKeychainInfoRequest,
-  KeychainInfo,
-  KeychainServiceFs2Grpc,
-  MarkAddressesAsUsedRequest,
-  Scheme
-}
+import co.ledger.protobuf.bitcoin.keychain._
 import io.grpc._
 
-trait KeychainService {
+trait KeychainClientService {
   def create(
       extendedPublicKey: String,
       scheme: Scheme,
@@ -31,7 +22,7 @@ trait KeychainService {
 
 class KeychainGrpcClientService(
     client: KeychainServiceFs2Grpc[IO, Metadata]
-) extends KeychainService {
+) extends KeychainClientService {
 
   def create(
       extendedPublicKey: String,
@@ -42,17 +33,17 @@ class KeychainGrpcClientService(
     client.createKeychain(
       CreateKeychainRequest(
         extendedPublicKey,
-        scheme,
+        scheme.toProto,
         lookaheadSize,
-        network
+        network.toProto
       ),
-      new Metadata()
+      new Metadata
     )
 
   def getKeychainInfo(keychainId: UUID): IO[KeychainInfo] =
     client.getKeychainInfo(
       GetKeychainInfoRequest(UuidUtils.uuidToBytes(keychainId)),
-      new Metadata()
+      new Metadata
     )
 
   def getAddresses(keychainId: UUID, fromIndex: Int, toIndex: Int): IO[Seq[AddressInfo]] =
@@ -63,7 +54,7 @@ class KeychainGrpcClientService(
           fromIndex = fromIndex,
           toIndex = toIndex
         ),
-        new Metadata()
+        new Metadata
       )
       .map(_.addresses)
 
@@ -71,7 +62,7 @@ class KeychainGrpcClientService(
     client
       .markAddressesAsUsed(
         MarkAddressesAsUsedRequest(UuidUtils.uuidToBytes(keychainId), addresses),
-        new Metadata()
+        new Metadata
       )
       .void
 }

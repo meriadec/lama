@@ -132,7 +132,8 @@ lazy val bitcoinCommon = (project in file("coins/bitcoin/common"))
     name := "lama-bitcoin-common",
     libraryDependencies ++= Dependencies.btcCommon,
     // Proto config
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    PB.protoSources in Compile += file("coins/bitcoin/keychain/pb/keychain")
   )
   .dependsOn(common)
 
@@ -142,10 +143,7 @@ lazy val bitcoinWorker = (project in file("coins/bitcoin/worker"))
   .settings(
     name := "lama-bitcoin-worker",
     sharedSettings,
-    libraryDependencies ++= (Dependencies.btcWorker ++ Dependencies.test),
-    // Proto config
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    PB.protoSources in Compile += file("coins/bitcoin/keychain/pb/keychain")
+    libraryDependencies ++= (Dependencies.btcWorker ++ Dependencies.test)
   )
   .dependsOn(common, bitcoinCommon)
 

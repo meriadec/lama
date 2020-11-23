@@ -3,13 +3,13 @@ package co.ledger.lama.bitcoin.common.models
 import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.common.models.implicits.defaultCirceConfig
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
+import co.ledger.lama.common.models.implicits._
 
-object service {
+package object interpreter {
 
   case class BlockView(
       hash: String,
@@ -83,22 +83,23 @@ object service {
     val name: String
     def toProto: protobuf.ChangeType
   }
-  final case object Internal extends ChangeType {
-    val name = "internal"
-
-    def toProto: protobuf.ChangeType = {
-      protobuf.ChangeType.INTERNAL
-    }
-  }
-  final case object External extends ChangeType {
-    val name = "external"
-
-    def toProto: protobuf.ChangeType = {
-      protobuf.ChangeType.EXTERNAL
-    }
-  }
 
   object ChangeType {
+
+    case object Internal extends ChangeType {
+      val name = "internal"
+      def toProto: protobuf.ChangeType = {
+        protobuf.ChangeType.INTERNAL
+      }
+    }
+
+    case object External extends ChangeType {
+      val name = "external"
+      def toProto: protobuf.ChangeType = {
+        protobuf.ChangeType.EXTERNAL
+      }
+    }
+
     implicit val encoder: Encoder[ChangeType] = Encoder.encodeString.contramap(_.name)
     implicit val decoder: Decoder[ChangeType] =
       Decoder.decodeString.emap(fromKey(_).toRight("Could not decode as change type"))
@@ -113,6 +114,7 @@ object service {
         case _                            => External
       }
     }
+
   }
 
   case class Utxo(
@@ -131,7 +133,7 @@ object service {
         address,
         scriptHex,
         belongs,
-        changeType.getOrElse(External).toProto,
+        changeType.getOrElse(ChangeType.External).toProto,
         Some(ProtobufUtils.fromInstant(time))
       )
   }
@@ -167,7 +169,7 @@ object service {
         address,
         scriptHex,
         belongs,
-        changeType.getOrElse(External).toProto
+        changeType.getOrElse(ChangeType.External).toProto
       )
   }
 
@@ -235,20 +237,23 @@ object service {
     val name: String
     def toProto: protobuf.OperationType
   }
-  final case object Sent extends OperationType {
-    val name = "sent"
-    def toProto: protobuf.OperationType = {
-      protobuf.OperationType.SENT
-    }
-  }
-  final case object Received extends OperationType {
-    val name = "received"
-    def toProto: protobuf.OperationType = {
-      protobuf.OperationType.RECEIVED
-    }
-  }
 
   object OperationType {
+
+    case object Sent extends OperationType {
+      val name = "sent"
+      def toProto: protobuf.OperationType = {
+        protobuf.OperationType.SENT
+      }
+    }
+
+    case object Received extends OperationType {
+      val name = "received"
+      def toProto: protobuf.OperationType = {
+        protobuf.OperationType.RECEIVED
+      }
+    }
+
     implicit val encoder: Encoder[OperationType] = Encoder.encodeString.contramap(_.name)
     implicit val decoder: Decoder[OperationType] =
       Decoder.decodeString.emap(fromKey(_).toRight("Could not decode as operation type"))
@@ -357,7 +362,6 @@ object service {
         sent = BigInt(proto.sent),
         time = proto.time.map(ProtobufUtils.toInstant).getOrElse(Instant.now)
       )
-
   }
 
 }

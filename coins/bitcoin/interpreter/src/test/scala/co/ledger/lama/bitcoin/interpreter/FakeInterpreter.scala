@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.service.BalanceHistory
+import co.ledger.lama.bitcoin.common.models.interpreter.BalanceHistory
 import co.ledger.lama.bitcoin.interpreter.protobuf._
 import com.google.protobuf.ByteString
 import io.grpc.Metadata

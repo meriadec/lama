@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter.services
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
-import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction}
+import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction}
 import doobie.Transactor
 import doobie.implicits._
 import fs2._

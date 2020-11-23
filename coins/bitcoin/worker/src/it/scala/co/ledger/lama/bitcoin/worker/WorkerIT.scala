@@ -4,14 +4,11 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
-import co.ledger.lama.bitcoin.common.models.explorer.Block
+import co.ledger.lama.bitcoin.common.models.worker.Block
+import co.ledger.lama.bitcoin.common.services.ExplorerClientService
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.PayloadData
-import co.ledger.lama.bitcoin.worker.services.{
-  CursorStateService,
-  ExplorerService,
-  SyncEventService
-}
+import co.ledger.lama.bitcoin.worker.services.{CursorStateService, SyncEventService}
 import co.ledger.lama.common.models.{
   AccountIdentifier,
   Coin,
@@ -57,19 +54,19 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
             conf.routingKey
           )
 
-          val keychainService = new KeychainServiceMock
+          val keychainClient = new KeychainClientServiceMock
 
-          val explorerService = new ExplorerService(httpClient, conf.explorer)
+          val explorerClient = new ExplorerClientService(httpClient, conf.explorer)
 
-          val interpreterService = new InterpreterServiceMock
+          val interpreterClient = new InterpreterClientServiceMock
 
-          val cursorStateService = new CursorStateService(explorerService, interpreterService)
+          val cursorStateService = new CursorStateService(explorerClient, interpreterClient)
 
           val worker = new Worker(
             syncEventService,
-            keychainService,
-            explorerService,
-            interpreterService,
+            keychainClient,
+            explorerClient,
+            interpreterClient,
             cursorStateService,
             conf
           )
@@ -101,14 +98,14 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
             .last
             .map { reportableEvent =>
               it should "have 35 used addresses for the account" in {
-                keychainService.usedAddresses.size shouldBe 35
+                keychainClient.usedAddresses.size shouldBe 35
               }
 
               val expectedTxsSize         = 73
               val expectedLastBlockHeight = 644553L
 
               it should s"have synchronized $expectedTxsSize txs with last blockHeight=$expectedLastBlockHeight" in {
-                interpreterService.savedTransactions
+                interpreterClient.savedTransactions
                   .getOrElse(
                     account.id,
                     List.empty

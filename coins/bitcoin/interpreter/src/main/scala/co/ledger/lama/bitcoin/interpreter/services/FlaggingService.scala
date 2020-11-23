@@ -5,9 +5,7 @@ import java.util.UUID
 import cats.data.NonEmptyList
 import cats.effect.{ContextShift, IO}
 import cats.implicits._
-
-import co.ledger.lama.bitcoin.common.models.service.{AccountAddress, External, Internal}
-
+import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
 import doobie._
 import doobie.implicits._
 
@@ -19,7 +17,7 @@ class FlaggingService(db: Transactor[IO]) {
   )(implicit cs: ContextShift[IO]): IO[Unit] = {
     val (internalAddresses, externalAddresses) =
       accountAddresses
-        .partition(_.changeType == Internal)
+        .partition(_.changeType == ChangeType.Internal)
         .bimap(_.map(_.accountAddress), _.map(_.accountAddress))
 
     val flagInputs =
@@ -44,7 +42,7 @@ class FlaggingService(db: Transactor[IO]) {
             .flagBelongingOutputs(
               accountId,
               addresses,
-              Internal
+              ChangeType.Internal
             )
             .transact(db)
         }
@@ -58,7 +56,7 @@ class FlaggingService(db: Transactor[IO]) {
             .flagBelongingOutputs(
               accountId,
               addresses,
-              External
+              ChangeType.External
             )
             .transact(db)
         }
