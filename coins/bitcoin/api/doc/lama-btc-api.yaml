@@ -1,0 +1,506 @@
+openapi: 3.0.1
+info:
+  title: Lama Bitcoin API
+  description: A collection of endpoints exposed by the Lama Bitcoin API
+  version: 0.3.0
+servers:
+  - url: http://localhost:8080/
+paths:
+  /accounts:
+    post:
+      summary: Register an account in order to trigger synchronization
+      operationId: createAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterAccountRequest'
+      responses:
+        200:
+          description: Registered account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterAccountResponse'
+  /accounts/{accountId}:
+    parameters:
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: 'uuid'
+    get:
+      summary: Get an account by id
+      operationId: getAccount
+      responses:
+        200:
+          description: The account found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAccountResponse'
+        404:
+          description: Account not found
+          content: {}
+    put:
+      summary: Update the sync frequency of an account
+      operationId: updateAccountSyncFrequency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
+      responses:
+        200:
+          description: The new sync frequency
+          content:
+            text/plain:
+              schema:
+                type: number
+                example: 60
+    delete:
+      summary: Unregister account
+      operationId: unregisterAccount
+      responses:
+        200:
+          description: The account has been unregistered successfully
+  /accounts/{accountId}/utxos:
+    get:
+      summary: Get utxos from an account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: 'uuid'
+        - name: limit
+          in: query
+          schema:
+            type: number
+            minimum: 1
+            maximum: 1000
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            default: 0
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+      responses:
+        200:
+          description: The utxos from the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetUtxosResult'
+  /accounts/{accountId}/operations:
+    get:
+      summary: Get account operations
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: 'uuid'
+        - name: block_height
+          in: query
+          schema:
+            type: number
+            format: int64
+        - name: limit
+          in: query
+          schema:
+            type: number
+            minimum: 1
+            maximum: 20
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            default: 0
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+      responses:
+        200:
+          description: The operations from the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetOperationsResult'
+  /accounts/{accountId}/balances:
+    get:
+      summary: Get balance history from an account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: 'uuid'
+        - name: start
+          in: query
+          schema:
+            type: number
+            format: instant
+        - name: end
+          in: query
+          schema:
+            type: number
+            format: instant
+      responses:
+        200:
+          description: All the balance histories from the account
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BalanceHistory'
+components:
+  schemas:
+    GetAccountResponse:
+      required:
+        - account_id
+        - sync_frequency
+        - balance
+        - utxos
+        - received
+        - sent
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: 'uuid'
+          example: '013260eb-7624-40d2-8327-97177a69d8f3'
+        sync_frequency:
+          type: number
+          format: seconds
+          example: 600
+          description: 'How often do we look for new operations (in seconds)'
+        last_sync_event:
+          $ref: '#/components/schemas/SyncEvent'
+        balance:
+          type: string
+          format: bigint
+          example: '2757'
+        utxos:
+          type: number
+          example: 6
+        received:
+          type: string
+          format: bigint
+          example: '1628156'
+        sent:
+          type: string
+          format: bigint
+          example: '1625399'
+    SyncEvent:
+      required:
+        - account_id
+        - sync_id
+        - status
+        - payload
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: 'uuid'
+          example: '013260eb-7624-40d2-8327-97177a69d8f3'
+        sync_id:
+          type: string
+          format: 'uuid'
+          example: '013260eb-7624-40d2-8327-97177a69d8f3'
+        status:
+          type: string
+          enum: [registered, unregistered, published, synchronized, sync_failed, deleted, delete_failed]
+        payload:
+          type: object
+    RegisterAccountRequest:
+      required:
+        - extended_public_key
+        - scheme
+        - lookahead_size
+        - network
+        - coin_family
+        - coin
+      type: object
+      properties:
+        extended_public_key:
+          type: string
+          example: 'xpub6BuPWhjLqutPV8SF4RMrrn8c3t7uBZbz4CBbThpbg9GYjqRMncra9mjgSfWSK7uMDz37hhzJ8wvkbDDQQJt6VgwLoszvmPiSBtLA1bPLLSn'
+        scheme:
+          type: string
+          example: 'BIP44'
+        lookahead_size:
+          type: number
+          example: 20
+        network:
+          type: string
+          enum: [MainNet, TestNet, RegTest]
+          example: 'MainNet'
+        coin_family:
+          type: integer
+          enum: [bitcoin]
+          example: 'bitcoin'
+        coin:
+          type: string
+          enum: [btc, btc_testnet, btc_regtest]
+          example: 'btc'
+    RegisterAccountResponse:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+          example: '013260eb-7624-40d2-8327-97177a69d8f3'
+        sync_id:
+          type: string
+          format: uuid
+          example: '013260eb-7624-40d2-8327-97177a69d8f3'
+        sync_frequency:
+          type: number
+          example: 600
+    UpdateAccountRequest:
+      required:
+        - sync_frequency
+      type: object
+      properties:
+        sync_frequency:
+          type: number
+          example: 60
+    GetOperationsResult:
+      required:
+        - truncated
+        - operations
+        - size
+      type: object
+      properties:
+        truncated:
+          type: boolean
+        operations:
+          $ref: '#/components/schemas/Operation'
+        size:
+          type: number
+    Operation:
+      required:
+        - accountId
+        - hash
+        - operation_type
+        - value
+        - fees
+        - time
+      type: object
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        hash:
+          type: string
+        transaction:
+          $ref: '#/components/schemas/Transaction'
+        operation_type:
+          format: string
+          enum: [sent, received]
+        value:
+          type: string
+          format: bigint
+        fees:
+          type: string
+          format: bigint
+        time:
+          type: number
+          format: instant
+    Transaction:
+      required:
+        - id
+        - hash
+        - received_at
+        - lock_time
+        - fees
+        - inputs
+        - outputs
+        - block
+        - confirmations
+      type: object
+      properties:
+        id:
+          type: string
+        hash:
+          type: string
+        received_at:
+          type: number
+          format: instant
+        lock_time:
+          type: number
+          format: int64
+        fees:
+          type: string
+          format: bigint
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Input'
+        outputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Output'
+        block:
+          $ref: '#/components/schemas/Block'
+        confirmations:
+          type: number
+    Block:
+      required:
+        - hash
+        - height
+        - time
+      properties:
+        hash:
+          type: string
+        height:
+          type: number
+          format: int64
+        time:
+          type: number
+          format: instant
+    Input:
+      required:
+        - output_hash
+        - output_index
+        - inputIndex
+        - value
+        - address
+        - script_signature
+        - txinwitness
+        - sequence
+        - belongs
+      type: object
+      properties:
+        output_hash:
+          type: string
+        output_index:
+          type: number
+        inputIndex:
+          type: number
+        value:
+          type: string
+          format: bigint
+        address:
+          type: string
+        script_signature:
+          type: string
+        txinwitness:
+          type: array
+          items:
+            type: string
+        sequence:
+          type: number
+          format: int64
+        belongs:
+          type: boolean
+    Output:
+      required:
+        - output_index
+        - value
+        - address
+        - script_hex
+        - belongs
+      type: object
+      properties:
+        output_index:
+          type: number
+        value:
+          type: string
+          format: bigint
+        address:
+          type: string
+        script_hex:
+          type: string
+        belongs:
+          type: boolean
+        change_type:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeType'
+    ChangeType:
+      type: string
+      enum: [internal, external]
+    GetUtxosResult:
+      required:
+        - truncated
+        - utxos
+        - size
+      type: object
+      properties:
+        truncated:
+          type: boolean
+        operations:
+          $ref: '#/components/schemas/Utxo'
+        size:
+          type: number
+    Utxo:
+      required:
+        - output_index
+        - value
+        - address
+        - script_hex
+        - belongs
+        - time
+      type: object
+      properties:
+        output_index:
+          type: number
+        value:
+          type: string
+          format: bigint
+        address:
+          type: string
+        script_hex:
+          type: string
+        belongs:
+          type: boolean
+        change_type:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeType'
+        time:
+          type: number
+          format: instant
+    BalanceHistory:
+      required:
+        - balance
+        - utxos
+        - received
+        - sent
+      type: object
+      properties:
+        balance:
+          type: string
+          format: bigint
+        utxos:
+          type: number
+        received:
+          type: string
+          format: bigint
+        sent:
+          type: string
+          format: bigint
+        time:
+          type: number
+          format: instant
