@@ -56,7 +56,12 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 ##### Build and publish image in local
 
-`sbt bitcoinWorker/assembly && sbt bitcoinWorker/docker`
+Import dependencies of the project :
+
+    git submodule init
+    git submodule upgrate --remote --recursive
+
+And then run `sbt bitcoinWorker/assembly && sbt bitcoinWorker/docker`
 
 #### Run manually
 
@@ -72,7 +77,12 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 ##### Build and publish image in local
 
-`sbt bitcoinInterpreter/assembly && sbt bitcoinInterpreter/docker`
+Import dependencies of the project :
+
+    git submodule init
+    git submodule upgrate --remote --recursive
+
+Then run `sbt bitcoinInterpreter/assembly && sbt bitcoinInterpreter/docker`
 
 #### Run manually
 
@@ -88,7 +98,12 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 ##### Build and publish image in local
 
-`sbt bitcoinApi/assembly && sbt bitcoinApi/docker`
+Import dependencies of the project :
+
+    git submodule init
+    git submodule upgrate --remote --recursive
+
+Then run `sbt bitcoinApi/assembly && sbt bitcoinApi/docker`
 
 #### Run manually
 
