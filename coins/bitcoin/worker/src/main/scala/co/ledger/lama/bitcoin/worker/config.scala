@@ -19,10 +19,10 @@ object config {
       keychain: GrpcClientConfig,
       interpreter: GrpcClientConfig
   ) {
-    val routingKey: RoutingKey = RoutingKey("bitcoin.btc")
+    val routingKey: RoutingKey = RoutingKey("bitcoin.*")
 
     def queueName(exchangeName: ExchangeName): QueueName =
-      QueueName(s"${exchangeName.value}.${routingKey.value}")
+      QueueName(s"${exchangeName.value}.bitcoin")
 
     val maxConcurrent: Int = 50 // TODO : bench [Runtime.getRuntime.availableProcessors() * x]
 

@@ -94,7 +94,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           account = fromRegisterAccount(registeredAccount)
 
           // This creates a new queue for this account notifications
-          _ <- notificationService.createQueue(account.accountId, CoinFamily.Bitcoin, Coin.Btc)
+          _ <- notificationService.createQueue(account.accountId, creationRequest.coinFamily, creationRequest.coin)
 
           _ <- log.info(
             s"Account registered with id: ${account.accountId}"
@@ -160,8 +160,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
           _ <- notificationService.deleteQueue(
             accountId = accountId,
-            coinFamily = CoinFamily.Bitcoin,
-            coin = Coin.Btc
+            coinFamily = fromCoinFamily(ai.coinFamily),
+            coin = fromCoin(ai.coin)
           )
           _ <- log.info("Queue deleted")
 

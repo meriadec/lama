@@ -65,12 +65,11 @@ class DbInterpreter(
       _         <- log.info(s"""Getting blocks for account:
                                - accountId: $accountId
                                """)
-      blocks <-
-        transactionService
-          .getLastBlocks(accountId)
-          .map(_.toProto)
-          .compile
-          .toList
+      blocks <- transactionService
+        .getLastBlocks(accountId)
+        .map(_.toProto)
+        .compile
+        .toList
     } yield protobuf.GetLastBlocksResult(blocks)
   }
 
@@ -140,6 +139,11 @@ class DbInterpreter(
       ctx: Metadata
   ): IO[protobuf.ResultCount] =
     for {
+
+      coin <- IO.fromOption(Coin.fromKey(request.coinId))(
+        new IllegalArgumentException(s"Unknown coin type ${request.coinId}) in compute request")
+      )
+
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
 
       addresses <- IO(request.addresses.map(AccountAddress.fromProto).toList)
@@ -160,7 +164,7 @@ class DbInterpreter(
               OperationNotification(
                 accountId = accountId,
                 coinFamily = CoinFamily.Bitcoin,
-                coin = Coin.Btc,
+                coin = coin,
                 operation = op.asJson
               )
             )
@@ -179,7 +183,7 @@ class DbInterpreter(
         BalanceUpdatedNotification(
           accountId = accountId,
           coinFamily = CoinFamily.Bitcoin,
-          coin = Coin.Btc,
+          coin = coin,
           balanceHistory = balanceHistory.asJson
         )
       )

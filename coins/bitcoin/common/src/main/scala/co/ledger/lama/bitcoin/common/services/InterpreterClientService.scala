@@ -9,7 +9,7 @@ import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.common.models.interpreter.grpc._
 import co.ledger.lama.bitcoin.common.utils.BtcProtoUtils._
 import co.ledger.lama.bitcoin.interpreter.protobuf
-import co.ledger.lama.common.models.Sort
+import co.ledger.lama.common.models.{Coin, Sort}
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import io.grpc.Metadata
 
@@ -27,6 +27,7 @@ trait InterpreterClientService {
 
   def compute(
       accountId: UUID,
+      coin: Coin,
       addresses: List[AccountAddress]
   ): IO[Int]
 
@@ -90,12 +91,13 @@ class InterpreterGrpcClientService(
       )
       .map(GetLastBlocksResult.fromProto)
 
-  def compute(accountId: UUID, addresses: List[AccountAddress]): IO[Int] =
+  def compute(accountId: UUID, coin: Coin, addresses: List[AccountAddress]): IO[Int] =
     grpcClient
       .compute(
         protobuf.ComputeRequest(
           UuidUtils.uuidToBytes(accountId),
-          addresses.map(_.toProto)
+          addresses.map(_.toProto),
+          coin.name
         ),
         new Metadata()
       )

@@ -5,20 +5,12 @@ import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.interpreter
-import co.ledger.lama.bitcoin.common.models.interpreter.grpc.{
-  GetLastBlocksResult,
-  GetOperationsResult
-}
-import co.ledger.lama.bitcoin.common.models.interpreter.{
-  AccountAddress,
-  Operation,
-  OperationType,
-  grpc
-}
+import co.ledger.lama.bitcoin.common.models.interpreter.grpc.{GetLastBlocksResult, GetOperationsResult}
+import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, Operation, OperationType, grpc}
 import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction}
 import co.ledger.lama.bitcoin.common.services.{InterpreterClientService, SortingEnum}
 import co.ledger.lama.bitcoin.common.services.SortingEnum.SortingEnum
-import co.ledger.lama.common.models.Sort
+import co.ledger.lama.common.models.{Coin, Sort}
 
 import scala.collection.mutable
 
@@ -94,7 +86,7 @@ class InterpreterClientServiceMock extends InterpreterClientService {
       )
     }
 
-  def compute(accountId: UUID, addresses: List[AccountAddress]): IO[Int] = {
+  def compute(accountId: UUID, coinId: Coin, addresses: List[AccountAddress]): IO[Int] = {
     IO.pure(0)
   }
 

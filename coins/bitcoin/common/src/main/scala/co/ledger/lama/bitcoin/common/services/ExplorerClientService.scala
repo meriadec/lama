@@ -5,26 +5,31 @@ import co.ledger.lama.bitcoin.common.config.ExplorerConfig
 import co.ledger.lama.bitcoin.common.models.worker._
 import co.ledger.lama.bitcoin.common.models.explorer.GetTransactionsResponse
 import co.ledger.lama.common.logging.IOLogging
+import co.ledger.lama.common.models.Coin
+import co.ledger.lama.common.models.Coin.{Btc, BtcTestnet}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Decoder
 import org.http4s.{Method, Request}
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.client.Client
 
-class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig) extends IOLogging {
+class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig, coin: Coin) extends IOLogging {
 
-  private val btcBasePath = "/blockchain/v3/btc"
+  private val coinBasePath = coin match {
+    case Btc => "/blockchain/v3/btc"
+    case BtcTestnet => "/blockchain/v3/btc_testnet"
+  }
 
   def getCurrentBlock: IO[Block] =
-    httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/current"))
+    httpClient.expect[Block](conf.uri.withPath(s"$coinBasePath/blocks/current"))
 
   def getBlock(hash: String): IO[Option[Block]] =
     httpClient
-      .expect[List[Block]](conf.uri.withPath(s"$btcBasePath/blocks/$hash"))
+      .expect[List[Block]](conf.uri.withPath(s"$coinBasePath/blocks/$hash"))
       .map(_.headOption)
 
   def getBlock(height: Long): IO[Block] =
-    httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/$height"))
+    httpClient.expect[Block](conf.uri.withPath(s"$coinBasePath/blocks/$height"))
 
   def getConfirmedTransactions(
       addresses: Seq[String],
@@ -51,7 +56,7 @@ class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig) extend
   private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[String]) = {
     val baseUri =
       conf.uri
-        .withPath(s"$btcBasePath/addresses/${addresses.mkString(",")}/transactions")
+        .withPath(s"$coinBasePath/addresses/${addresses.mkString(",")}/transactions")
         .withQueryParam("no_token", true)
         .withQueryParam("batch_size", conf.txsBatchSize)
 

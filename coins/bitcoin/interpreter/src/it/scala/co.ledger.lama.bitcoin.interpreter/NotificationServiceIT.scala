@@ -48,7 +48,7 @@ class NotificationServiceIT extends AnyFlatSpecLike with Matchers {
         val consumer = RabbitUtils
           .createAutoAckConsumer[OperationsComputedNotification](
             rabbitClient,
-            notificationService.queueName(accountId, CoinFamily.Bitcoin, Coin.Btc)
+            RabbitNotificationService.queueName(conf.lamaNotificationsExchangeName, accountId, CoinFamily.Bitcoin, Coin.Btc)
           )
 
         for {

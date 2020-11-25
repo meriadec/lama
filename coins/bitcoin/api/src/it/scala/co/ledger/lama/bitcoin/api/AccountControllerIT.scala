@@ -4,57 +4,62 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
-import co.ledger.lama.common.utils.{IOAssertion, IOUtils}
-import ConfigSpec.ConfigSpec
-import org.http4s._
-import org.http4s.circe.CirceEntityCodec._
-import org.http4s.client.blaze.BlazeClientBuilder
-import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.matchers.should.Matchers
-import pureconfig.ConfigSource
 import cats.implicits._
+import co.ledger.lama.bitcoin.api.ConfigSpec.ConfigSpec
 import co.ledger.lama.bitcoin.api.models.{AccountInfo, AccountRegistered}
-import co.ledger.lama.common.models.Status.{Deleted, Published, Registered, Synchronized}
-import co.ledger.lama.common.models.Sort
 import co.ledger.lama.bitcoin.api.routes.AccountController.UpdateRequest
 import co.ledger.lama.bitcoin.common.models.interpreter.grpc.{
   GetBalanceHistoryResult,
   GetOperationsResult,
   GetUTXOsResult
 }
+import co.ledger.lama.common.models.Notification.BalanceUpdated
+import co.ledger.lama.common.models.Status.{Deleted, Published, Registered, Synchronized}
+import co.ledger.lama.common.models.{BalanceUpdatedNotification, Sort}
+import co.ledger.lama.common.services.RabbitNotificationService
+import co.ledger.lama.common.utils.{IOAssertion, IOUtils, RabbitUtils}
+import co.ledger.lama.manager.config.CoinConfig
+import fs2.Stream
 import io.circe.parser._
+import org.http4s._
+import org.http4s.circe.CirceEntityCodec._
+import org.http4s.client.blaze.BlazeClientBuilder
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import pureconfig.ConfigSource
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
-class AccountControllerIT extends AnyFlatSpecLike with Matchers {
+trait AccountControllerIT extends AnyFlatSpecLike with Matchers {
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   implicit val t: Timer[IO]         = IO.timer(ExecutionContext.global)
 
   val conf      = ConfigSource.default.loadOrThrow[ConfigSpec]
   val serverUrl = s"http://${conf.server.host}:${conf.server.port}"
 
-  val accountsRes: Resource[IO, List[TestAccount]] =
+  private def accountsRes(resourceName: String): Resource[IO, List[TestAccount]] =
     Resource
       .fromAutoCloseable(
-        IO(scala.io.Source.fromFile(getClass.getResource("/test-accounts.json").getFile))
+        IO(scala.io.Source.fromFile(getClass.getResource(resourceName).getFile))
       )
       .evalMap { bf =>
         IO.fromEither(decode[List[TestAccount]](bf.getLines().mkString))
       }
 
-  val accountRegisteringRequest =
+  private val accountRegisteringRequest =
     Request[IO](method = Method.POST, uri = Uri.unsafeFromString(s"$serverUrl/accounts"))
 
-  def accountUpdateRequest(accountId: UUID) =
+  private def accountUpdateRequest(accountId: UUID) =
     Request[IO](method = Method.PUT, uri = Uri.unsafeFromString(s"$serverUrl/accounts/$accountId"))
 
-  def getAccountRequest(accountId: UUID) =
+  private def getAccountRequest(accountId: UUID) =
     Request[IO](
       method = Method.GET,
       uri = Uri.unsafeFromString(s"$serverUrl/accounts/$accountId")
     )
 
-  def getOperationsRequest(accountId: UUID, offset: Int, limit: Int, sort: Sort = Sort.Descending) =
+  private def getOperationsRequest(accountId: UUID, offset: Int, limit: Int, sort: Sort) =
     Request[IO](
       method = Method.GET,
       uri = Uri.unsafeFromString(
@@ -62,13 +67,13 @@ class AccountControllerIT extends AnyFlatSpecLike with Matchers {
       )
     )
 
-  def removeAccountRequest(accountId: UUID) =
+  private def removeAccountRequest(accountId: UUID) =
     Request[IO](
       method = Method.DELETE,
       uri = Uri.unsafeFromString(s"$serverUrl/accounts/$accountId")
     )
 
-  def getUTXOsRequest(accountId: UUID, offset: Int, limit: Int, sort: Sort = Sort.Ascending) =
+  private def getUTXOsRequest(accountId: UUID, offset: Int, limit: Int, sort: Sort) =
     Request[IO](
       method = Method.GET,
       uri = Uri.unsafeFromString(
@@ -76,7 +81,7 @@ class AccountControllerIT extends AnyFlatSpecLike with Matchers {
       )
     )
 
-  def getBalancesHistoryRequest(accountId: UUID, start: Instant, end: Instant) =
+  private def getBalancesHistoryRequest(accountId: UUID, start: Instant, end: Instant) =
     Request[IO](
       method = Method.GET,
       uri = Uri.unsafeFromString(
@@ -84,25 +89,46 @@ class AccountControllerIT extends AnyFlatSpecLike with Matchers {
       )
     )
 
-  IOAssertion {
-    accountsRes
-      .parZip(BlazeClientBuilder[IO](ExecutionContext.global).resource)
-      .use { case (accounts, client) =>
-        accounts.traverse { account =>
-          for {
-            // This is retried because sometimes, the keychain service isn't ready when the tests start
-            accountRegistered <- IOUtils.retry[AccountRegistered](
-              client.expect[AccountRegistered](
-                accountRegisteringRequest.withEntity(account.registerRequest)
+  def runTests(resourceName: String): Seq[Unit] = IOAssertion {
+
+    val resources = for {
+      client       <- BlazeClientBuilder[IO](ExecutionContext.global).resource
+      inputs       <- accountsRes(resourceName)
+      rabbitClient <- RabbitUtils.createClient(conf.eventsConfig.rabbit)
+
+    } yield
+      (
+        inputs,
+        client,
+        new RabbitNotificationService(rabbitClient, conf.eventsConfig.lamaEventsExchangeName, 4)
+      )
+
+    resources
+      .use {
+        case (accounts, client, notificationService) =>
+          accounts.traverse { account =>
+            for {
+
+              // This is retried because sometimes, the keychain service isn't ready when the tests start
+              accountRegistered <- IOUtils.retry[AccountRegistered](
+                client.expect[AccountRegistered](
+                  accountRegisteringRequest.withEntity(account.registerRequest)
+                )
               )
-            )
 
-            accountInfoAfterRegister <- client.expect[AccountInfo](
-              getAccountRequest(accountRegistered.accountId)
-            )
+              notifications <- AccountNotifications.notifications(
+                accountRegistered.accountId,
+                conf.eventsConfig.coins(account.registerRequest.coin),
+                notificationService
+              )
 
-            operations <-
-              IOUtils
+              accountInfoAfterRegister <- client.expect[AccountInfo](
+                getAccountRequest(accountRegistered.accountId)
+              )
+
+              balanceNotification <- AccountNotifications.waitBalanceUpdated(notifications)
+
+              operations <- IOUtils
                 .fetchPaginatedItems[GetOperationsResult](
                   (offset, limit) =>
                     IOUtils.retryIf[GetOperationsResult](
@@ -115,7 +141,7 @@ class AccountControllerIT extends AnyFlatSpecLike with Matchers {
                         )
                       ),
                       _.operations.nonEmpty
-                    ),
+                  ),
                   _.truncated,
                   0,
                   20
@@ -125,13 +151,12 @@ class AccountControllerIT extends AnyFlatSpecLike with Matchers {
                 .toList
                 .map(_.flatMap(_.operations))
 
-            utxos <-
-              IOUtils
+              utxos <- IOUtils
                 .fetchPaginatedItems[GetUTXOsResult](
                   (offset, limit) =>
                     client.expect[GetUTXOsResult](
                       getUTXOsRequest(accountRegistered.accountId, offset, limit, Sort.Ascending)
-                    ),
+                  ),
                   _.truncated,
                   0,
                   20
@@ -141,96 +166,145 @@ class AccountControllerIT extends AnyFlatSpecLike with Matchers {
                 .toList
                 .map(_.flatMap(_.utxos))
 
-            accountInfoAfterSync <- client.expect[AccountInfo](
-              getAccountRequest(accountRegistered.accountId)
-            )
-
-            balances <- client
-              .expect[GetBalanceHistoryResult](
-                getBalancesHistoryRequest(
-                  accountRegistered.accountId,
-                  Instant.now().minusSeconds(60),
-                  Instant.now().plusSeconds(60)
-                )
-              )
-              .map(_.balances)
-
-            accountUpdateStatus <- client.status(
-              accountUpdateRequest(accountRegistered.accountId).withEntity(UpdateRequest(60))
-            )
-
-            accountInfoAfterUpdate <- client.expect[AccountInfo](
-              getAccountRequest(accountRegistered.accountId)
-            )
-
-            accountDeletedStatus <-
-              client.status(removeAccountRequest(accountRegistered.accountId))
-
-            deletedAccountResult <- IOUtils.retryIf[AccountInfo](
-              client.expect[AccountInfo](
+              accountInfoAfterSync <- client.expect[AccountInfo](
                 getAccountRequest(accountRegistered.accountId)
-              ),
-              _.lastSyncEvent.exists(_.status == Deleted)
-            )
-          } yield {
-            val accountStr =
-              s"Account: ${accountInfoAfterRegister.accountId} (${account.registerRequest.scheme})"
+              )
 
-            accountStr should "be registered" in {
-              accountInfoAfterRegister.accountId shouldBe accountRegistered.accountId
-              accountInfoAfterRegister.lastSyncEvent
-                .map(_.status) should (contain(Registered) or contain(Published))
-            }
+              balances <- client
+                .expect[GetBalanceHistoryResult](
+                  getBalancesHistoryRequest(
+                    accountRegistered.accountId,
+                    Instant.now().minusSeconds(60),
+                    Instant.now().plusSeconds(60)
+                  )
+                )
+                .map(_.balances)
 
-            it should s"have a balance of ${account.expected.balance}" in {
-              accountInfoAfterSync.balance shouldBe BigInt(account.expected.balance)
-              accountInfoAfterSync.lastSyncEvent.map(_.status) should contain(Synchronized)
-            }
+              accountUpdateStatus <- client.status(
+                accountUpdateRequest(accountRegistered.accountId).withEntity(UpdateRequest(60))
+              )
 
-            it should s"have ${account.expected.utxosSize} utxos in AccountInfo API" in {
-              accountInfoAfterSync.utxos shouldBe account.expected.utxosSize
-            }
+              accountInfoAfterUpdate <- client.expect[AccountInfo](
+                getAccountRequest(accountRegistered.accountId)
+              )
 
-            it should s"have ${account.expected.amountReceived} amount received" in {
-              accountInfoAfterSync.received shouldBe account.expected.amountReceived
-            }
+              accountDeletedStatus <- client.status(
+                removeAccountRequest(accountRegistered.accountId))
 
-            it should s"have ${account.expected.amountSent} amount spent" in {
-              accountInfoAfterSync.sent shouldBe account.expected.amountSent
-            }
+              deletedAccountResult <- IOUtils.retryIf[AccountInfo](
+                client.expect[AccountInfo](
+                  getAccountRequest(accountRegistered.accountId)
+                ),
+                _.lastSyncEvent.exists(_.status == Deleted)
+              )
+            } yield {
+              val accountStr =
+                s"Account: ${accountInfoAfterRegister.accountId} (${account.registerRequest.scheme})"
 
-            it should "have a correct balance history" in {
-              balances should have size 1
-              balances.head.balance shouldBe accountInfoAfterSync.balance
-              balances.head.utxos shouldBe accountInfoAfterSync.utxos
-              balances.head.received shouldBe accountInfoAfterSync.received
-              balances.head.sent shouldBe accountInfoAfterSync.sent
-            }
+              accountStr should "be registered" in {
+                accountInfoAfterRegister.accountId shouldBe accountRegistered.accountId
+                accountInfoAfterRegister.lastSyncEvent
+                  .map(_.status) should (contain(Registered) or contain(Published))
+              }
 
-            it should s"have ${account.expected.utxosSize} utxos in UTXO API" in {
-              utxos.size shouldBe account.expected.utxosSize
-            }
+              it should "emit a balance notification" in {
+                balanceNotification.accountId shouldBe accountRegistered.accountId
+                balanceNotification.balanceHistory shouldBe balances.head
+              }
 
-            it should s"have ${account.expected.opsSize} operations" in {
-              operations.size shouldBe account.expected.opsSize
-            }
+              it should s"have a balance of ${account.expected.balance}" in {
+                accountInfoAfterSync.balance shouldBe BigInt(account.expected.balance)
+                accountInfoAfterSync.lastSyncEvent.map(_.status) should contain(Synchronized)
+              }
 
-            val lastTxHash = operations.head.hash
-            it should s"have fetch operations to last cursor $lastTxHash" in {
-              lastTxHash shouldBe account.expected.lastTxHash
-            }
+              it should s"have ${account.expected.utxosSize} utxos in AccountInfo API" in {
+                accountInfoAfterSync.utxos shouldBe account.expected.utxosSize
+              }
 
-            it should "be updated" in {
-              accountUpdateStatus.code shouldBe 200
-              accountInfoAfterUpdate.syncFrequency shouldBe 60
-            }
+              it should s"have ${account.expected.amountReceived} amount received" in {
+                accountInfoAfterSync.received shouldBe account.expected.amountReceived
+              }
 
-            it should "be unregistered" in {
-              accountDeletedStatus.code shouldBe 200
-              deletedAccountResult.lastSyncEvent.map(_.status) should contain(Deleted)
+              it should s"have ${account.expected.amountSent} amount spent" in {
+                accountInfoAfterSync.sent shouldBe account.expected.amountSent
+              }
+
+              it should "have a correct balance history" in {
+                balances should have size 1
+                balances.head.balance shouldBe accountInfoAfterSync.balance
+                balances.head.utxos shouldBe accountInfoAfterSync.utxos
+                balances.head.received shouldBe accountInfoAfterSync.received
+                balances.head.sent shouldBe accountInfoAfterSync.sent
+              }
+
+              it should s"have ${account.expected.utxosSize} utxos in UTXO API" in {
+                utxos.size shouldBe account.expected.utxosSize
+              }
+
+              it should s"have ${account.expected.opsSize} operations" in {
+                operations.size shouldBe account.expected.opsSize
+              }
+
+              val lastTxHash = operations.head.hash
+              it should s"have fetch operations to last cursor $lastTxHash" in {
+                lastTxHash shouldBe account.expected.lastTxHash
+              }
+
+              it should "be updated" in {
+                accountUpdateStatus.code shouldBe 200
+                accountInfoAfterUpdate.syncFrequency shouldBe 60
+              }
+
+              it should "be unregistered" in {
+                accountDeletedStatus.code shouldBe 200
+                deletedAccountResult.lastSyncEvent.map(_.status) should contain(Deleted)
+              }
             }
           }
-        }
       }
   }
+}
+
+class AccountControllerIT_Btc extends AccountControllerIT {
+  runTests("/test-accounts-btc.json")
+}
+
+class AccountControllerIT_BtcTestnet extends AccountControllerIT {
+  runTests("/test-accounts-btc_testnet.json")
+}
+
+object AccountNotifications {
+
+  def notifications(
+      accountId: UUID,
+      coinConf: CoinConfig,
+      notificationService: RabbitNotificationService
+  ): IO[Stream[IO, BalanceUpdatedNotification]] = {
+
+    notificationService
+      .createQueue(accountId, coinConf.coinFamily, coinConf.coin)
+      .map { _ =>
+        RabbitUtils.createAutoAckConsumer[BalanceUpdatedNotification](
+          notificationService.rabbitClient,
+          RabbitNotificationService.queueName(
+            notificationService.exchangeName,
+            accountId,
+            coinConf.coinFamily,
+            coinConf.coin
+          )
+        )
+      }
+
+  }
+
+  def waitBalanceUpdated(
+      notifications: Stream[IO, BalanceUpdatedNotification]
+  )(implicit cs: ContextShift[IO], t: Timer[IO]): IO[BalanceUpdatedNotification] =
+    notifications
+      .find(_.status == BalanceUpdated)
+      .timeout(1.minute)
+      .take(1)
+      .compile
+      .lastOrError
+
 }

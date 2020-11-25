@@ -58,6 +58,8 @@ message AccountInfoResult {
     string key = 2;
     uint64 sync_frequency = 3;
     SyncEvent last_sync_event = 4;
+    CoinFamily coin_family = 5;
+    Coin coin = 6;
 }
 
 message SyncEvent {
@@ -72,4 +74,5 @@ enum CoinFamily {
 
 enum Coin {
     btc = 0;
+    btc_testnet = 1;
 }
