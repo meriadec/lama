@@ -5,6 +5,7 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.transactor.{CoinSelectionStrategy, PrepareTxOutput}
 import co.ledger.lama.bitcoin.transactor.protobuf
+import co.ledger.lama.common.models.Coin.Btc
 import co.ledger.lama.common.utils.UuidUtils
 import io.grpc.Metadata
 
@@ -35,7 +36,8 @@ class TransactorGrpcClientService(
           UuidUtils.uuidToBytes(accountId),
           UuidUtils.uuidToBytes(keychainId),
           coinSelection.toProto,
-          outputs.map(_.toProto)
+          outputs.map(_.toProto),
+          Btc.name
         ),
         new Metadata
       )

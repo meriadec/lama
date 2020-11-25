@@ -4,14 +4,18 @@ import io.circe.{Decoder, Encoder}
 import pureconfig.ConfigReader
 import pureconfig.error.CannotConvert
 
-abstract class Coin(val name: String) {
+sealed abstract class Coin(val name: String) {
   override def toString: String = name
 }
 
 object Coin {
   case object Btc extends Coin("btc")
+  case object BtcTestnet extends  Coin("btc_testnet")
 
-  val all: Map[String, Coin] = Map(Btc.name -> Btc)
+  val all: Map[String, Coin] = Map(
+    Btc.name -> Btc,
+    BtcTestnet.name -> BtcTestnet
+  )
 
   def fromKey(key: String): Option[Coin] = all.get(key)
 

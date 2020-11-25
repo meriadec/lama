@@ -12,10 +12,9 @@ import co.ledger.lama.common.grpc.HealthService
 import co.ledger.lama.common.services.Clients
 import co.ledger.lama.common.utils.ResourceUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
-import co.ledger.protobuf.bitcoin.libgrpc
-import co.ledger.protobuf.bitcoin.keychain
-import pureconfig.ConfigSource
+import co.ledger.protobuf.bitcoin.{keychain, libgrpc}
 import fs2._
+import pureconfig.ConfigSource
 
 object App extends IOApp {
 
@@ -40,7 +39,7 @@ object App extends IOApp {
 
       keychainService    = new KeychainGrpcClientService(grpcKeychainClient)
       interpreterService = new InterpreterGrpcClientService(grpcBitcoinInterpreterClient)
-      explorerService    = new ExplorerV3ClientService(httpClient, conf.explorer)
+      explorerService    = new ExplorerV3ClientService(httpClient, conf.explorer, _)
       bitcoinLib         = new BitcoinLibGrpcClientService(grpcBitcoinLibClient)
 
       serviceDefinitions = List(

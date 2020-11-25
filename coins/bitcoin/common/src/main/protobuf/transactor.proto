@@ -20,6 +20,7 @@ message CreateTransactionRequest {
   bytes keychainId = 2;
   CoinSelector coinSelection = 3;
   repeated PrepareTxOutput outputs = 4;
+  string coinId = 5;
 }
 
 message CreateTransactionResponse {

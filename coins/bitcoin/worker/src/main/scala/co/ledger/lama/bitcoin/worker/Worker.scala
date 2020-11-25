@@ -6,11 +6,7 @@ import cats.data.NonEmptyList
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.worker.DefaultInput
-import co.ledger.lama.bitcoin.common.services.{
-  ExplorerClientService,
-  InterpreterClientService,
-  KeychainClientService
-}
+import co.ledger.lama.bitcoin.common.services.{ExplorerClientService, InterpreterClientService, KeychainClientService}
 import co.ledger.lama.bitcoin.common.models.interpreter.AccountAddress
 import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
 import co.ledger.lama.bitcoin.worker.config.Config
@@ -18,7 +14,7 @@ import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Status.{Registered, Unregistered}
-import co.ledger.lama.common.models.{ReportableEvent, WorkableEvent}
+import co.ledger.lama.common.models.{Coin, ReportableEvent, WorkableEvent}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.syntax._
@@ -28,15 +24,16 @@ import scala.util.Try
 class Worker(
     syncEventService: SyncEventService,
     keychainClient: KeychainClientService,
-    explorerClient: ExplorerClientService,
+    explorerClient: Coin => ExplorerClientService,
     interpreterClient: InterpreterClientService,
-    cursorStateService: CursorStateService,
+    cursorStateService: Coin => CursorStateService,
     conf: Config
 ) extends IOLogging {
 
   def run(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, Unit] =
     syncEventService.consumeWorkableEvents
       .evalMap { workableEvent =>
+
         val reportableEvent =
           workableEvent.status match {
             case Registered   => synchronizeAccount(workableEvent)
@@ -70,6 +67,7 @@ class Worker(
       workableEvent: WorkableEvent
   )(implicit cs: ContextShift[IO], t: Timer[IO]): IO[ReportableEvent] = {
     val account = workableEvent.payload.account
+    val coin = workableEvent.payload.account.coin
 
     val previousBlockState =
       workableEvent.payload.data
@@ -87,7 +85,7 @@ class Worker(
       // REORG
       lastValidBlock <- previousBlockState.map { block =>
         for {
-          lvb <- cursorStateService.getLastValidState(account.id, block)
+          lvb <- cursorStateService(coin).getLastValidState(account.id, block)
           _ <-
             if (block.hash == lvb.hash)
               // If the previous block is still valid, do not reorg
@@ -99,6 +97,7 @@ class Worker(
       }.sequence
 
       batchResults <- syncAccountBatch(
+        coin,
         account.id,
         keychainId,
         keychainInfo.lookaheadSize,
@@ -115,7 +114,7 @@ class Worker(
         )
       }
 
-      opsCount <- interpreterClient.compute(account.id, addresses)
+      opsCount <- interpreterClient.compute(account.id, workableEvent.payload.account.coin, addresses)
 
       _ <- log.info(s"$opsCount operations computed")
 
@@ -144,6 +143,7 @@ class Worker(
     *   - 3b) Otherwise, stop sync because we consider this batch as fresh addresses
     */
   private def syncAccountBatch(
+      coin: Coin,
       accountId: UUID,
       keychainId: UUID,
       lookaheadSize: Int,
@@ -161,7 +161,7 @@ class Worker(
           // For this batch of addresses, fetch transactions from the explorer.
           _ <- log.info("Fetching transactions from explorer")
           transactions <-
-            explorerClient
+            explorerClient(coin)
               .getConfirmedTransactions(addressInfos.map(_.address), blockHashCursor)
               .prefetch
               .chunkN(conf.maxTxsToSavePerBatch)
@@ -208,6 +208,7 @@ class Worker(
         if (batchResult.continue)
           Pull.output(Chunk(batchResult)) >>
             syncAccountBatch(
+              coin,
               accountId,
               keychainId,
               lookaheadSize,

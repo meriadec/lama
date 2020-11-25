@@ -14,6 +14,7 @@ import co.ledger.lama.bitcoin.common.services.mocks.{
 }
 import co.ledger.lama.bitcoin.transactor.services.BitcoinLibGrpcClientServiceMock
 import co.ledger.lama.bitcoin.transactor.protobuf.{CreateTransactionRequest, PrepareTxOutput}
+import co.ledger.lama.common.models.Coin.Btc
 import co.ledger.lama.common.utils.{IOAssertion, UuidUtils}
 import io.grpc.Metadata
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -28,12 +29,10 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
     val keychainService    = new KeychainClientServiceMock
     val explorerService    = new ExplorerClientServiceMock
     val transactor =
-      new BitcoinLibTransactor(
-        bitcoinLibService,
-        explorerService,
-        keychainService,
-        interpreterService
-      )
+      new BitcoinLibTransactor(bitcoinLibService,
+                               _ => explorerService,
+                               keychainService,
+                               interpreterService)
 
     val accountId = UUID.randomUUID()
 
@@ -94,7 +93,8 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
       // compute to flag utxos as belonging
       _ <- interpreterService.compute(
         accountId,
-        List(outputAddress1, outputAddress2, outputAddress3)
+        Btc,
+        List(outputAddress1, outputAddress2, outputAddress3),
       )
 
       // create a transaction using prevously saved utxoq
@@ -103,7 +103,8 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
           UuidUtils.uuidToBytes(accountId),
           UuidUtils.uuidToBytes(UUID.randomUUID()),
           CoinSelectionStrategy.DepthFirst.toProto,
-          recipients
+          recipients,
+          coinId = Btc.name
         ),
         new Metadata
       )

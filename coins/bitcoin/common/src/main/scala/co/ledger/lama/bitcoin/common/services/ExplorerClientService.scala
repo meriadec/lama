@@ -2,15 +2,17 @@ package co.ledger.lama.bitcoin.common.services
 
 import cats.effect.{ContextShift, IO, Timer}
 import co.ledger.lama.bitcoin.common.config.ExplorerConfig
-import co.ledger.lama.bitcoin.common.models.worker._
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.transactor.FeeInfo
+import co.ledger.lama.bitcoin.common.models.worker._
 import co.ledger.lama.common.logging.IOLogging
+import co.ledger.lama.common.models.Coin
+import co.ledger.lama.common.models.Coin.{Btc, BtcTestnet}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.{Decoder, Json}
-import org.http4s.{Method, Request}
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.client.Client
+import org.http4s.{Method, Request}
 
 trait ExplorerClientService {
 
@@ -23,39 +25,36 @@ trait ExplorerClientService {
   def getConfirmedTransactions(
       addresses: Seq[String],
       blockHash: Option[String]
-  )(implicit
-      cs: ContextShift[IO],
-      t: Timer[IO]
-  ): Stream[IO, ConfirmedTransaction]
+  )(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, ConfirmedTransaction]
 
   def getSmartFees: IO[FeeInfo]
 
 }
 
-class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig)
+class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin: Coin)
     extends ExplorerClientService
     with IOLogging {
 
-  private val btcBasePath = "/blockchain/v3/btc"
+  private val coinBasePath = coin match {
+    case Btc        => "/blockchain/v3/btc"
+    case BtcTestnet => "/blockchain/v3/btc_testnet"
+  }
 
   def getCurrentBlock: IO[Block] =
-    httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/current"))
+    httpClient.expect[Block](conf.uri.withPath(s"$coinBasePath/blocks/current"))
 
   def getBlock(hash: String): IO[Option[Block]] =
     httpClient
-      .expect[List[Block]](conf.uri.withPath(s"$btcBasePath/blocks/$hash"))
+      .expect[List[Block]](conf.uri.withPath(s"$coinBasePath/blocks/$hash"))
       .map(_.headOption)
 
   def getBlock(height: Long): IO[Block] =
-    httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/$height"))
+    httpClient.expect[Block](conf.uri.withPath(s"$coinBasePath/blocks/$height"))
 
   def getConfirmedTransactions(
       addresses: Seq[String],
       blockHash: Option[String]
-  )(implicit
-      cs: ContextShift[IO],
-      t: Timer[IO]
-  ): Stream[IO, ConfirmedTransaction] =
+  )(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, ConfirmedTransaction] =
     Stream
       .emits(addresses)
       .chunkLimit(conf.addressesSize)
@@ -63,8 +62,9 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig)
         fetchPaginatedTransactions(chunk.toList, blockHash).stream
           .flatMap { res =>
             // The explorer v3 returns also unconfirmed txs, so we need to remove it
-            val confirmedTxs = res.txs.collect { case confirmedTx: ConfirmedTransaction =>
-              confirmedTx
+            val confirmedTxs = res.txs.collect {
+              case confirmedTx: ConfirmedTransaction =>
+                confirmedTx
             }
             Stream.emits(confirmedTxs)
           }
@@ -76,7 +76,7 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig)
     for {
 
       json <- httpClient.expect[Json](
-        conf.uri.withPath(s"$btcBasePath/fees")
+        conf.uri.withPath(s"$coinBasePath/fees")
       )
 
       feeInfo <- IO.fromOption {
@@ -85,8 +85,9 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig)
             val sortedFees = o
               .filterKeys(_.toIntOption.isDefined)
               .toList
-              .flatMap { case (_, v) =>
-                v.asNumber.flatMap(_.toLong)
+              .flatMap {
+                case (_, v) =>
+                  v.asNumber.flatMap(_.toLong)
               }
               .sorted
 
@@ -108,7 +109,7 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig)
   private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[String]) = {
     val baseUri =
       conf.uri
-        .withPath(s"$btcBasePath/addresses/${addresses.mkString(",")}/transactions")
+        .withPath(s"$coinBasePath/addresses/${addresses.mkString(",")}/transactions")
         .withQueryParam("no_token", true)
         .withQueryParam("batch_size", conf.txsBatchSize)
 
@@ -126,10 +127,9 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig)
       addresses: Seq[String],
       blockHash: Option[String]
   )(implicit
-      cs: ContextShift[IO],
-      t: Timer[IO],
-      decoder: Decoder[GetTransactionsResponse]
-  ): Pull[IO, GetTransactionsResponse, Unit] =
+    cs: ContextShift[IO],
+    t: Timer[IO],
+    decoder: Decoder[GetTransactionsResponse]): Pull[IO, GetTransactionsResponse, Unit] =
     Pull
       .eval(
         log.info(
@@ -152,8 +152,9 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig)
           // get the most recent fetched block hash for the next cursor
           val lastBlockHash =
             res.txs
-              .collect { case confirmedTx: ConfirmedTransaction =>
-                confirmedTx
+              .collect {
+                case confirmedTx: ConfirmedTransaction =>
+                  confirmedTx
               }
               .maxByOption(_.block.time)
               .map(_.block.hash)

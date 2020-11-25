@@ -58,6 +58,6 @@ object config {
     val routingKey: RoutingKey = RoutingKey(s"$coinFamily.$coin")
 
     def queueName(exchangeName: ExchangeName): QueueName =
-      QueueName(s"${exchangeName.value}.${routingKey.value}")
+      QueueName(s"${exchangeName.value}.${coinFamily.name}")
   }
 }

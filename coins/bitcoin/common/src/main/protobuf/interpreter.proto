@@ -42,6 +42,7 @@ message GetLastBlocksResult {
 message ComputeRequest {
   bytes account_id = 1;
   repeated AccountAddress addresses = 2;
+  string coinId = 3;
 }
 
 message DeleteTransactionsRequest {

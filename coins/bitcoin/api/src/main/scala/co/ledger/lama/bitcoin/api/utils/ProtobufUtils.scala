@@ -30,9 +30,19 @@ object ProtobufUtils {
 
   def toCoin(c: Coin): co.ledger.lama.manager.protobuf.Coin =
     c match {
-      case Coin.Btc => co.ledger.lama.manager.protobuf.Coin.btc
-      case _        => co.ledger.lama.manager.protobuf.Coin.Unrecognized(-1)
+      case Coin.Btc        => co.ledger.lama.manager.protobuf.Coin.btc
+      case Coin.BtcTestnet => co.ledger.lama.manager.protobuf.Coin.btc_testnet
+      case _               => co.ledger.lama.manager.protobuf.Coin.Unrecognized(-1)
     }
+
+  val fromCoin: PartialFunction[co.ledger.lama.manager.protobuf.Coin, Coin] = {
+    case co.ledger.lama.manager.protobuf.Coin.btc         => Coin.Btc
+    case co.ledger.lama.manager.protobuf.Coin.btc_testnet => Coin.BtcTestnet
+  }
+
+  val fromCoinFamily: PartialFunction[co.ledger.lama.manager.protobuf.CoinFamily, CoinFamily] = {
+    case co.ledger.lama.manager.protobuf.CoinFamily.bitcoin => CoinFamily.Bitcoin
+  }
 
   def fromRegisterAccount(ra: pbManager.RegisterAccountResult): AccountRegistered =
     AccountRegistered(

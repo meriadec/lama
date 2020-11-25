@@ -51,87 +51,89 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
   IOAssertion {
     setupRabbit() *>
       resources
-        .use { case (rabbitClient, httpClient) =>
-          val syncEventService = new SyncEventService(
-            rabbitClient,
-            conf.queueName(conf.workerEventsExchangeName),
-            conf.lamaEventsExchangeName,
-            conf.routingKey
-          )
+        .use {
+          case (rabbitClient, httpClient) =>
+            val syncEventService = new SyncEventService(
+              rabbitClient,
+              conf.queueName(conf.workerEventsExchangeName),
+              conf.lamaEventsExchangeName,
+              conf.routingKey
+            )
 
-          val keychainClient = new KeychainClientServiceMock
+            val keychainClient = new KeychainClientServiceMock
 
-          val explorerClient = new ExplorerV3ClientService(httpClient, conf.explorer)
+            val explorerClient = new ExplorerV3ClientService(httpClient, conf.explorer, _)
 
-          val interpreterClient = new InterpreterClientServiceMock
+            val interpreterClient = new InterpreterClientServiceMock
 
-          val cursorStateService = new CursorStateService(explorerClient, interpreterClient)
+            val cursorStateService: Coin => CursorStateService =
+              c => new CursorStateService(explorerClient(c), interpreterClient)
 
-          val worker = new Worker(
-            syncEventService,
-            keychainClient,
-            explorerClient,
-            interpreterClient,
-            cursorStateService,
-            conf
-          )
+            val worker = new Worker(
+              syncEventService,
+              keychainClient,
+              explorerClient,
+              interpreterClient,
+              cursorStateService,
+              conf
+            )
 
-          val accountManager = new SimpleAccountManager(
-            rabbitClient,
-            conf.queueName(conf.lamaEventsExchangeName),
-            conf.workerEventsExchangeName,
-            conf.routingKey
-          )
+            val accountManager = new SimpleAccountManager(
+              rabbitClient,
+              conf.queueName(conf.lamaEventsExchangeName),
+              conf.workerEventsExchangeName,
+              conf.routingKey
+            )
 
-          val keychainId = UUID.randomUUID()
+            val keychainId = UUID.randomUUID()
 
-          val account = AccountIdentifier(keychainId.toString, CoinFamily.Bitcoin, Coin.Btc)
+            val account = AccountIdentifier(keychainId.toString, CoinFamily.Bitcoin, Coin.Btc)
 
-          val syncId = UUID.randomUUID()
+            val syncId = UUID.randomUUID()
 
-          val registeredEvent =
-            WorkableEvent(account.id, syncId, Status.Registered, SyncEvent.Payload(account))
+            val registeredEvent =
+              WorkableEvent(account.id, syncId, Status.Registered, SyncEvent.Payload(account))
 
-          Stream
-            .eval {
-              accountManager.publishWorkableEvent(registeredEvent) *>
-                accountManager.consumeReportableEvent
-            }
-            .concurrently(worker.run)
-            .take(1)
-            .compile
-            .last
-            .map { reportableEvent =>
-              it should "have 35 used addresses for the account" in {
-                keychainClient.usedAddresses.size shouldBe 35
+            Stream
+              .eval {
+                accountManager.publishWorkableEvent(registeredEvent) *>
+                  accountManager.consumeReportableEvent
               }
+              .concurrently(worker.run)
+              .take(1)
+              .compile
+              .last
+              .map { reportableEvent =>
+                it should "have 35 used addresses for the account" in {
+                  keychainClient.usedAddresses.size shouldBe 35
+                }
 
-              val expectedTxsSize         = 73
-              val expectedLastBlockHeight = 644553L
+                val expectedTxsSize         = 73
+                val expectedLastBlockHeight = 644553L
 
-              it should s"have synchronized $expectedTxsSize txs with last blockHeight=$expectedLastBlockHeight" in {
-                interpreterClient.savedTransactions
-                  .getOrElse(
-                    account.id,
-                    List.empty
-                  )
-                  .distinctBy(_.hash) should have size expectedTxsSize
+                it should s"have synchronized $expectedTxsSize txs with last blockHeight=$expectedLastBlockHeight" in {
+                  interpreterClient.savedTransactions
+                    .getOrElse(
+                      account.id,
+                      List.empty
+                    )
+                    .distinctBy(_.hash) should have size expectedTxsSize
 
-                reportableEvent shouldBe Some(
-                  registeredEvent.reportSuccess(
-                    PayloadData(
-                      lastBlock = Some(
-                        Block(
-                          "0000000000000000000c44bf26af3b5b3c97e5aed67407fd551a90bc175de5a0",
-                          expectedLastBlockHeight,
-                          Instant.parse("2020-08-20T13:01:16Z")
+                  reportableEvent shouldBe Some(
+                    registeredEvent.reportSuccess(
+                      PayloadData(
+                        lastBlock = Some(
+                          Block(
+                            "0000000000000000000c44bf26af3b5b3c97e5aed67407fd551a90bc175de5a0",
+                            expectedLastBlockHeight,
+                            Instant.parse("2020-08-20T13:01:16Z")
+                          )
                         )
-                      )
-                    ).asJson
+                      ).asJson
+                    )
                   )
-                )
+                }
               }
-            }
         }
   }
 

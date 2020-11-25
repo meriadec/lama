@@ -22,44 +22,37 @@ trait NotificationService {
 }
 
 class RabbitNotificationService(
-    rabbitClient: RabbitClient[IO],
-    exchangeName: ExchangeName,
+    val rabbitClient: RabbitClient[IO],
+    val exchangeName: ExchangeName,
     maxConcurrent: Int
 ) extends IOLogging
     with NotificationService {
 
   def createQueue(accountId: UUID, coinFamily: CoinFamily, coin: Coin): IO[Unit] =
     rabbitClient.createConnectionChannel.use { implicit channel =>
+      val queue = RabbitNotificationService.queueName(exchangeName, accountId, coinFamily, coin)
       rabbitClient.declareExchange(exchangeName, ExchangeType.Topic) *>
         rabbitClient.declareQueue(
-          DeclarationQueueConfig.default(queueName(accountId, coinFamily, coin))
+          DeclarationQueueConfig.default(queue)
         ) *>
         rabbitClient.bindQueue(
-          queueName(accountId, coinFamily, coin),
+          queue,
           exchangeName,
-          routingKey(accountId, coinFamily, coin)
+          RabbitNotificationService.routingKey(accountId, coinFamily, coin)
         )
     }.void
 
   def deleteQueue(accountId: UUID, coinFamily: CoinFamily, coin: Coin)(implicit
       cs: ContextShift[IO]
   ): IO[Unit] =
-    RabbitUtils.deleteBindings(rabbitClient, List(queueName(accountId, coinFamily, coin)))
+    RabbitUtils.deleteBindings(rabbitClient, List(RabbitNotificationService.queueName(exchangeName, accountId, coinFamily, coin)))
 
   private def publisher(routingKey: RoutingKey): Stream[IO, Notification => IO[Unit]] =
     RabbitUtils
       .createPublisher[Notification](rabbitClient, exchangeName, routingKey)
 
-  def queueName(accountId: UUID, coinFamily: CoinFamily, coin: Coin): QueueName =
-    QueueName(
-      s"${exchangeName.value}.${routingKey(accountId, coinFamily, coin).value}"
-    )
-
-  def routingKey(accountId: UUID, coinFamily: CoinFamily, coin: Coin): RoutingKey =
-    RoutingKey(s"$coinFamily.$coin.$accountId")
-
   def notify(notification: Notification): IO[Unit] =
-    publisher(routingKey(notification.accountId, notification.coinFamily, notification.coin))
+    publisher(RabbitNotificationService.routingKey(notification.accountId, notification.coinFamily, notification.coin))
       .evalMap(p =>
         p(notification) *> log.info(s"Published notification: ${notification.asJson.toString}")
       )
@@ -68,5 +61,17 @@ class RabbitNotificationService(
 
   def notifySink(implicit cs: ContextShift[IO]): Pipe[IO, Notification, Unit] =
     _.parEvalMap(maxConcurrent)(notify)
+
+}
+
+object RabbitNotificationService {
+
+  def queueName(exchange: ExchangeName, accountId: UUID, coinFamily: CoinFamily, coin: Coin): QueueName =
+    QueueName(
+      s"${exchange.value}.${routingKey(accountId, coinFamily, coin).value}"
+    )
+
+  private def routingKey(accountId: UUID, coinFamily: CoinFamily, coin: Coin): RoutingKey =
+    RoutingKey(s"$coinFamily.$coin.$accountId")
 
 }

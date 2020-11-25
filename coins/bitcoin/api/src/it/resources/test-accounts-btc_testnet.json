@@ -1,0 +1,20 @@
+[
+  {
+    "register_request": {
+      "extended_public_key": "tpubDCrucad5KpPS3AD91ZXsSrTbiCCkXJPPo6qHsSuJCbnhSn9MCNaqsY6mvHPaMoCNSS2RHmT36qXhUqTJxqfidfLpM3oRdJJAgveXAfMXUGW",
+      "scheme": "BIP44",
+      "lookahead_size": 20,
+      "network": "TestNet3",
+      "coin_family": "bitcoin",
+      "coin": "btc_testnet"
+    },
+    "expected": {
+      "ops_size": 4,
+      "utxos_size": 2,
+      "last_tx_hash": "f01ca5b85b3c754ca6f685342b2f17c2ca0d00c562e0864c3bf489738f30e49c",
+      "balance": 35480,
+      "amount_received": 110000,
+      "amount_sent": 74520
+    }
+  }
+]

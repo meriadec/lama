@@ -3,8 +3,6 @@ package co.ledger.lama.bitcoin.transactor
 import java.util.UUID
 
 import cats.effect.{ConcurrentEffect, IO}
-import fs2.{Chunk, Stream}
-import co.ledger.lama.bitcoin.transactor.services.{BitcoinLibGrpcService, CoinSelectionService}
 import co.ledger.lama.bitcoin.common.models.BitcoinNetwork
 import co.ledger.lama.bitcoin.common.models.interpreter.{ChangeType, Utxo}
 import co.ledger.lama.bitcoin.common.models.transactor.{CoinSelectionStrategy, PrepareTxOutput}
@@ -14,10 +12,11 @@ import co.ledger.lama.bitcoin.common.services.{
   KeychainClientService
 }
 import co.ledger.lama.bitcoin.transactor.models.bitcoinLib
-import co.ledger.lama.bitcoin.transactor.protobuf
+import co.ledger.lama.bitcoin.transactor.services.{BitcoinLibGrpcService, CoinSelectionService}
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models.Sort
+import co.ledger.lama.common.models.{Coin, Sort}
 import co.ledger.lama.common.utils.UuidUtils
+import fs2.{Chunk, Stream}
 import io.grpc.{Metadata, ServerServiceDefinition}
 
 trait Transactor extends protobuf.BitcoinTransactorServiceFs2Grpc[IO, Metadata] {
@@ -27,7 +26,7 @@ trait Transactor extends protobuf.BitcoinTransactorServiceFs2Grpc[IO, Metadata] 
 
 class BitcoinLibTransactor(
     bitcoinLibClient: BitcoinLibGrpcService,
-    explorerClient: ExplorerClientService,
+    explorerClient: Coin => ExplorerClientService,
     keychainClient: KeychainClientService,
     interpreterClient: InterpreterClientService
 ) extends Transactor
@@ -39,6 +38,11 @@ class BitcoinLibTransactor(
   ): IO[protobuf.CreateTransactionResponse] = {
 
     for {
+      coin <- IO.fromOption(Coin.fromKey(request.coinId))(
+        new IllegalArgumentException(
+          s"Unknown coin type ${request.coinId}) in CreateTransactionRequest")
+      )
+
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
       _ <- log.info(
         s"""Preparing transaction :
@@ -56,6 +60,9 @@ class BitcoinLibTransactor(
          """
       )
 
+      estimatedFeeSatPerKb <- explorerClient(coin).getSmartFees
+        .map(_.normal)
+
       outputs = request.outputs.map(PrepareTxOutput.fromProto(_)).toList
       pickedUtxos <- CoinSelectionService.pickUtxos(
         CoinSelectionStrategy.fromProto(request.coinSelection),
@@ -71,8 +78,7 @@ class BitcoinLibTransactor(
 
       _ <- validateTransaction(pickedUtxos, outputs)
 
-      estimatedFeeSatPerKb <- explorerClient.getSmartFees.map(_.normal)
-      keychainId           <- UuidUtils.bytesToUuidIO(request.keychainId)
+      keychainId <- UuidUtils.bytesToUuidIO(request.keychainId)
       changeAddress <- keychainClient
         .getFreshAddresses(keychainId, ChangeType.Internal, 1)
         .flatMap { addresses =>
@@ -136,12 +142,12 @@ class BitcoinLibTransactor(
     bitcoinLib.CreateTransactionRequest(
       lockTime.toInt,
       utxos.map(utxosToInputs),
-      recipients.map(prepareTxOutput =>
-        bitcoinLib.Output(
-          prepareTxOutput.address,
-          prepareTxOutput.value
-        )
-      ),
+      recipients.map(
+        prepareTxOutput =>
+          bitcoinLib.Output(
+            prepareTxOutput.address,
+            prepareTxOutput.value
+        )),
       BitcoinNetwork.MainNet
     )
   }

@@ -3,8 +3,8 @@ package co.ledger.lama.bitcoin.interpreter
 import java.time.Instant
 
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, IO}
-import co.ledger.lama.bitcoin.common.models.worker._
 import co.ledger.lama.bitcoin.common.models.interpreter._
+import co.ledger.lama.bitcoin.common.models.worker._
 import co.ledger.lama.bitcoin.interpreter.models.OperationToSave._
 import co.ledger.lama.bitcoin.interpreter.services.{
   BalanceService,
@@ -13,18 +13,12 @@ import co.ledger.lama.bitcoin.interpreter.services.{
   TransactionService
 }
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models.{
-  BalanceUpdatedNotification,
-  Coin,
-  CoinFamily,
-  OperationNotification,
-  Sort
-}
+import co.ledger.lama.common.models._
 import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import doobie.Transactor
-import io.grpc.{Metadata, ServerServiceDefinition}
 import io.circe.syntax._
+import io.grpc.{Metadata, ServerServiceDefinition}
 
 trait Interpreter extends protobuf.BitcoinInterpreterServiceFs2Grpc[IO, Metadata] {
   def definition(implicit ce: ConcurrentEffect[IO]): ServerServiceDefinition =
@@ -65,12 +59,11 @@ class DbInterpreter(
       _         <- log.info(s"""Getting blocks for account:
                                - accountId: $accountId
                                """)
-      blocks <-
-        transactionService
-          .getLastBlocks(accountId)
-          .map(_.toProto)
-          .compile
-          .toList
+      blocks <- transactionService
+        .getLastBlocks(accountId)
+        .map(_.toProto)
+        .compile
+        .toList
     } yield protobuf.GetLastBlocksResult(blocks)
   }
 
@@ -140,6 +133,11 @@ class DbInterpreter(
       ctx: Metadata
   ): IO[protobuf.ResultCount] =
     for {
+
+      coin <- IO.fromOption(Coin.fromKey(request.coinId))(
+        new IllegalArgumentException(s"Unknown coin type ${request.coinId}) in compute request")
+      )
+
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
 
       addresses <- IO(request.addresses.map(AccountAddress.fromProto).toList)
@@ -160,7 +158,7 @@ class DbInterpreter(
               OperationNotification(
                 accountId = accountId,
                 coinFamily = CoinFamily.Bitcoin,
-                coin = Coin.Btc,
+                coin = coin,
                 operation = op.asJson
               )
             )
@@ -179,7 +177,7 @@ class DbInterpreter(
         BalanceUpdatedNotification(
           accountId = accountId,
           coinFamily = CoinFamily.Bitcoin,
-          coin = Coin.Btc,
+          coin = coin,
           balanceHistory = balanceHistory.asJson
         )
       )
