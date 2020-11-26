@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.worker
+package co.ledger.lama.bitcoin.worker.mock
 
 import java.util.UUID
 

@@ -11,7 +11,18 @@ import org.http4s.{Method, Request}
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.client.Client
 
-class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig) extends IOLogging {
+trait ExplorerClient {
+  def getCurrentBlock: IO[Block]
+  def getBlock(hash: String): IO[Option[Block]]
+  def getConfirmedTransactions(
+      addresses: Seq[String],
+      blockHash: Option[String]
+  )(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, ConfirmedTransaction]
+}
+
+class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig)
+    extends ExplorerClient
+    with IOLogging {
 
   private val btcBasePath = "/blockchain/v3/btc"
 

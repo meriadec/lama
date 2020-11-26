@@ -4,12 +4,13 @@ import java.util.UUID
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.worker.Block
-import co.ledger.lama.bitcoin.common.services.{ExplorerClientService, InterpreterClientService}
+import co.ledger.lama.bitcoin.common.services.{ExplorerClient, InterpreterClientService}
+import co.ledger.lama.bitcoin.worker.models.GetLastBlocksFailed
 import co.ledger.lama.common.logging.IOLogging
 import org.http4s.client.UnexpectedStatus
 
 class CursorStateService(
-    explorerClient: ExplorerClientService,
+    explorerClient: ExplorerClient,
     interpreterClient: InterpreterClientService
 ) extends IOLogging {
 
@@ -47,8 +48,10 @@ class CursorStateService(
       _ <- log.info(
         s"Block [hash: '${block.hash}', height: ${block.height}] has been invalidated, searching last known valid block."
       )
-      getblocksResult <- interpreterClient.getLastBlocks(accountId)
-      lastValidBlock  <- getlastValidBlockRec(getblocksResult.blocks.toList)
+      getBlocksResult <- interpreterClient
+        .getLastBlocks(accountId)
+        .handleErrorWith(_ => IO.raiseError(GetLastBlocksFailed(accountId)))
+      lastValidBlock <- getlastValidBlockRec(getBlocksResult.blocks)
       _ <- log.info(
         s"block [hash: '${lastValidBlock.hash}', height: ${lastValidBlock.height}] is valid !"
       )

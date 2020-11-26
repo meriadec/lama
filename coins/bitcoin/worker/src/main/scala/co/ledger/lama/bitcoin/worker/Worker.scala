@@ -6,28 +6,27 @@ import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.worker.DefaultInput
 import co.ledger.lama.bitcoin.common.services.{
-  ExplorerClientService,
+  ExplorerClient,
   InterpreterClientService,
   KeychainClientService
 }
 import co.ledger.lama.bitcoin.common.models.interpreter.AccountAddress
 import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
 import co.ledger.lama.bitcoin.worker.config.Config
-import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
+import co.ledger.lama.bitcoin.worker.models._
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Status.{Registered, Unregistered}
 import co.ledger.lama.common.models.{ReportableEvent, WorkableEvent}
+import co.ledger.lama.common.utils.UuidUtils
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.syntax._
 
-import scala.util.Try
-
 class Worker(
     syncEventService: SyncEventService,
     keychainClient: KeychainClientService,
-    explorerClient: ExplorerClientService,
+    explorerClient: ExplorerClient,
     interpreterClient: InterpreterClientService,
     cursorStateService: CursorStateService,
     conf: Config
@@ -77,10 +76,10 @@ class Worker(
         .flatMap(_.lastBlock)
 
     // sync the whole account per streamed batch
-    for {
-      _          <- log.info(s"Syncing from cursor state: $previousBlockState")
-      keychainId <- IO.fromTry(Try(UUID.fromString(account.key)))
+    val r = for {
+      _ <- log.info(s"Syncing from cursor state: $previousBlockState")
 
+      keychainId   <- UuidUtils.stringToUuidIO(account.key)
       keychainInfo <- keychainClient.getKeychainInfo(keychainId)
 
       // REORG
@@ -93,7 +92,9 @@ class Worker(
               IO.unit
             else
               // remove all transactions and operations up until last valid block
-              interpreterClient.removeDataFromCursor(account.id, Some(lvb.height))
+              interpreterClient
+                .removeDataFromCursor(account.id, Some(lvb.height))
+                .handleErrorWith(_ => IO.raiseError(RemoveDataFromCursorFailed(account.id)))
         } yield lvb
       }.sequence
 
@@ -113,7 +114,9 @@ class Worker(
         )
       }
 
-      opsCount <- interpreterClient.compute(account.id, addresses)
+      opsCount <- interpreterClient
+        .compute(account.id, addresses)
+        .handleErrorWith(_ => IO.raiseError(ComputeAddressesFailed(account.id)))
 
       _ <- log.info(s"$opsCount operations computed")
 
@@ -130,6 +133,12 @@ class Worker(
 
       // Create the reportable successful event.
       workableEvent.reportSuccess(payloadData.asJson)
+    }
+
+    r.handleErrorWith {
+      case err: WorkerErrors =>
+        IO.pure(workableEvent.reportFailure(err.errorMessage))
+      case err: Throwable => IO.pure(workableEvent.reportFailure(Json.fromString(err.getMessage)))
     }
   }
 
@@ -153,8 +162,10 @@ class Worker(
       .eval {
         for {
           // Get batch of addresses from the keychain
-          _            <- log.info("Calling keychain to get addresses")
-          addressInfos <- keychainClient.getAddresses(keychainId, fromAddrIndex, toAddrIndex)
+          _ <- log.info("Calling keychain to get addresses")
+          addressInfos <- keychainClient
+            .getAddresses(keychainId, fromAddrIndex, toAddrIndex)
+            .handleErrorWith(_ => IO.raiseError(FindKeychainAddressesFailed(keychainId)))
 
           // For this batch of addresses, fetch transactions from the explorer.
           _ <- log.info("Fetching transactions from explorer")
@@ -167,14 +178,17 @@ class Worker(
               .parEvalMapUnordered(conf.maxConcurrent) { txs =>
                 // Ask to interpreter to save transactions.
                 for {
-                  _             <- log.info(s"Sending ${txs.size} transactions to interpreter")
-                  savedTxsCount <- interpreterClient.saveTransactions(accountId, txs)
-                  _             <- log.info(s"$savedTxsCount new transactions saved")
+                  _ <- log.info(s"Sending ${txs.size} transactions to interpreter")
+                  savedTxsCount <- interpreterClient
+                    .saveTransactions(accountId, txs)
+                    .handleErrorWith(_ => IO.raiseError(SaveTransactionsFailed(accountId)))
+                  _ <- log.info(s"$savedTxsCount new transactions saved")
                 } yield txs
               }
               .flatMap(Stream.emits(_))
               .compile
               .toList
+              .handleErrorWith(_ => IO.raiseError(GetConfirmedTransactionsFailed(keychainId)))
 
           // Filter only used addresses.
           usedAddressesInfos = addressInfos.filter { a =>
@@ -220,5 +234,11 @@ class Worker(
   def deleteAccount(workableEvent: WorkableEvent): IO[ReportableEvent] =
     interpreterClient
       .removeDataFromCursor(workableEvent.accountId, None)
+      .handleErrorWith(_ => IO.raiseError(RemoveDataFromCursorFailed(workableEvent.accountId)))
       .map(_ => workableEvent.reportSuccess(Json.obj()))
+      .handleErrorWith(_ =>
+        IO.pure(
+          workableEvent.reportFailure(DeleteAccountFailed(workableEvent.accountId).errorMessage)
+        )
+      )
 }

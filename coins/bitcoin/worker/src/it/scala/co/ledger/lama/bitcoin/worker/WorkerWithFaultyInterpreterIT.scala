@@ -1,35 +1,27 @@
 package co.ledger.lama.bitcoin.worker
 
-import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
-import co.ledger.lama.bitcoin.common.models.worker.Block
 import co.ledger.lama.bitcoin.common.services.ExplorerClientService
 import co.ledger.lama.bitcoin.worker.config.Config
-import co.ledger.lama.bitcoin.worker.mock.{InterpreterClientServiceMock, KeychainClientServiceMock}
-import co.ledger.lama.bitcoin.worker.models.PayloadData
+import co.ledger.lama.bitcoin.worker.mock.faulty.FaultyInterpreterClientServiceMock
+import co.ledger.lama.bitcoin.worker.mock.KeychainClientServiceMock
+import co.ledger.lama.bitcoin.worker.models.GetConfirmedTransactionsFailed
 import co.ledger.lama.bitcoin.worker.services.{CursorStateService, SyncEventService}
-import co.ledger.lama.common.models.{
-  AccountIdentifier,
-  Coin,
-  CoinFamily,
-  Status,
-  SyncEvent,
-  WorkableEvent
-}
+import co.ledger.lama.common.models.Status.SyncFailed
+import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.{IOAssertion, RabbitUtils}
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.ExchangeType
 import fs2.Stream
-import io.circe.syntax._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 
 import scala.concurrent.ExecutionContext
 
-class WorkerIT extends AnyFlatSpecLike with Matchers {
+class WorkerWithFaultyInterpreterIT extends AnyFlatSpecLike with Matchers {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   implicit val t: Timer[IO]         = IO.timer(ExecutionContext.global)
@@ -58,7 +50,7 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
 
           val explorerClient = new ExplorerClientService(httpClient, conf.explorer)
 
-          val interpreterClient = new InterpreterClientServiceMock
+          val interpreterClient = new FaultyInterpreterClientServiceMock
 
           val cursorStateService = new CursorStateService(explorerClient, interpreterClient)
 
@@ -97,34 +89,13 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
             .compile
             .last
             .map { reportableEvent =>
-              it should "have 35 used addresses for the account" in {
-                keychainClient.usedAddresses.size shouldBe 35
-              }
-
-              val expectedTxsSize         = 73
-              val expectedLastBlockHeight = 644553L
-
-              it should s"have synchronized $expectedTxsSize txs with last blockHeight=$expectedLastBlockHeight" in {
-                interpreterClient.savedTransactions
-                  .getOrElse(
-                    account.id,
-                    List.empty
-                  )
-                  .distinctBy(_.hash) should have size expectedTxsSize
-
-                reportableEvent shouldBe Some(
-                  registeredEvent.reportSuccess(
-                    PayloadData(
-                      lastBlock = Some(
-                        Block(
-                          "0000000000000000000c44bf26af3b5b3c97e5aed67407fd551a90bc175de5a0",
-                          expectedLastBlockHeight,
-                          Instant.parse("2020-08-20T13:01:16Z")
-                        )
-                      )
-                    ).asJson
-                  )
-                )
+              it should "report an inability to fetch confirmed transactions" in {
+                for {
+                  re <- reportableEvent
+                } yield {
+                  re.status shouldBe SyncFailed
+                  re.payload.data shouldBe GetConfirmedTransactionsFailed(keychainId).errorMessage
+                }
               }
             }
         }

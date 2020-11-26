@@ -6,9 +6,14 @@ import java.util.UUID
 import cats.effect.IO
 import com.google.protobuf.ByteString
 
+import scala.util.Try
+
 object UuidUtils {
 
   case object InvalidUUIDException extends Exception
+
+  def stringToUuidIO(s: String): IO[UUID] =
+    IO.fromTry(Try(UUID.fromString(s)))
 
   def uuidToBytes(uuid: UUID): ByteString = {
     val buffer = ByteBuffer.allocate(16) // uuid = 16 bits

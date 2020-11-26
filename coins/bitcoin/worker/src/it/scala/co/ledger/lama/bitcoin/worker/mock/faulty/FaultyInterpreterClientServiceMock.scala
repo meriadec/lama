@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.worker
+package co.ledger.lama.bitcoin.worker.mock.faulty
 
 import java.time.Instant
 import java.util.UUID
@@ -9,20 +9,14 @@ import co.ledger.lama.bitcoin.common.models.interpreter.grpc.{
   GetLastBlocksResult,
   GetOperationsResult
 }
-import co.ledger.lama.bitcoin.common.models.interpreter.{
-  AccountAddress,
-  Operation,
-  OperationType,
-  grpc
-}
+import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, grpc}
 import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction}
-import co.ledger.lama.bitcoin.common.services.{InterpreterClientService, SortingEnum}
-import co.ledger.lama.bitcoin.common.services.SortingEnum.SortingEnum
+import co.ledger.lama.bitcoin.common.services.InterpreterClientService
 import co.ledger.lama.common.models.Sort
 
 import scala.collection.mutable
 
-class InterpreterClientServiceMock extends InterpreterClientService {
+class FaultyInterpreterClientServiceMock extends InterpreterClientService {
 
   var savedTransactions: mutable.Map[UUID, List[ConfirmedTransaction]] = mutable.Map.empty
 
@@ -30,12 +24,7 @@ class InterpreterClientServiceMock extends InterpreterClientService {
       accountId: UUID,
       txs: List[ConfirmedTransaction]
   ): IO[Int] =
-    IO.delay {
-      savedTransactions.update(
-        accountId,
-        savedTransactions.getOrElse(accountId, List.empty) ++ txs
-      )
-    }.map(_ => txs.size)
+    IO.raiseError(new Exception)
 
   def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] = {
     val io = blockHeightCursor match {
@@ -51,48 +40,6 @@ class InterpreterClientServiceMock extends InterpreterClientService {
 
     io.map(_ => 0)
   }
-
-  //TODO useless in worker it test but needed in service it test.
-  def getTransactions(
-      accountId: UUID,
-      blockHeight: Option[Long],
-      limit: Option[Int],
-      offset: Option[Int],
-      sortingOrder: Option[SortingEnum]
-  ): IO[GetOperationsResult] =
-    IO.delay {
-      val filteredTransactions = savedTransactions
-        .getOrElse(accountId, List())
-        .filter(_.block.height >= blockHeight.getOrElse(0L))
-        .sortWith((t, t2) => {
-          sortingOrder.getOrElse(SortingEnum.Descending) match {
-            case SortingEnum.Descending => t.hash > t2.hash
-            case _                      => t.hash < t2.hash
-          }
-        })
-
-      val slicedTransactions =
-        filteredTransactions
-          .slice(offset.getOrElse(0), offset.getOrElse(0) + limit.getOrElse(0))
-          .map(tx =>
-            Operation(
-              accountId,
-              tx.hash,
-              None,
-              OperationType.Sent,
-              BigInt(0),
-              BigInt(0),
-              Instant.now()
-            )
-          )
-      val hasMore = filteredTransactions.drop(offset.getOrElse(0) + limit.getOrElse(0)).nonEmpty
-
-      GetOperationsResult(
-        operations = slicedTransactions,
-        truncated = hasMore,
-        size = slicedTransactions.size
-      )
-    }
 
   def compute(accountId: UUID, addresses: List[AccountAddress]): IO[Int] = {
     IO.pure(0)
