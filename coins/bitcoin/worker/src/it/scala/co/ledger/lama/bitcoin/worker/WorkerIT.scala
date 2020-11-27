@@ -8,7 +8,6 @@ import co.ledger.lama.bitcoin.common.services.mocks.{
   KeychainClientServiceMock
 }
 import co.ledger.lama.bitcoin.common.services.ExplorerClientService
-import co.ledger.lama.bitcoin.worker.mock.{InterpreterClientServiceMock, KeychainClientServiceMock}
 import co.ledger.lama.bitcoin.worker.models.PayloadData
 import co.ledger.lama.bitcoin.worker.services.CursorStateService
 import co.ledger.lama.common.utils.IOAssertion

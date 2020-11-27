@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.worker.mock.faulty
+package co.ledger.lama.bitcoin.worker.faultymocks
 
 import java.time.Instant
 import java.util.UUID

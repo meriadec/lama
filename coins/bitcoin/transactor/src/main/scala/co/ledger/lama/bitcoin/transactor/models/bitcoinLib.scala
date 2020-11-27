@@ -26,8 +26,8 @@ object bitcoinLib {
       hash: String,
       witnessHash: String
   ) {
-    def toProto: libgrpc.CreateTransactionResponse =
-      libgrpc.CreateTransactionResponse(
+    def toProto: libgrpc.RawTransactionResponse =
+      libgrpc.RawTransactionResponse(
         hex,
         hash,
         witnessHash
@@ -35,7 +35,7 @@ object bitcoinLib {
   }
 
   object CreateTransactionResponse {
-    def fromProto(proto: libgrpc.CreateTransactionResponse): CreateTransactionResponse =
+    def fromProto(proto: libgrpc.RawTransactionResponse): CreateTransactionResponse =
       CreateTransactionResponse(
         proto.hex,
         proto.hash,
@@ -45,16 +45,12 @@ object bitcoinLib {
 
   case class Input(
       outputHash: String,
-      outputIndex: Int,
-      script: String,
-      sequence: Long
+      outputIndex: Int
   ) {
     def toProto: libgrpc.Input =
       libgrpc.Input(
         outputHash,
-        outputIndex,
-        script,
-        sequence.toInt
+        outputIndex
       )
   }
 
@@ -62,9 +58,7 @@ object bitcoinLib {
     def fromProto(proto: libgrpc.Input): Input =
       Input(
         proto.outputHash,
-        proto.outputIndex,
-        proto.script,
-        proto.sequence
+        proto.outputIndex
       )
   }
 

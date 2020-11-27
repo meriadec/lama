@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.worker.mock.faulty
+package co.ledger.lama.bitcoin.worker.faultymocks
 
 import cats.effect.{ContextShift, IO, Timer}
 import co.ledger.lama.bitcoin.common.models.worker

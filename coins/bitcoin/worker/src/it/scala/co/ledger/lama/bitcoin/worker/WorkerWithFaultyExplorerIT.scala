@@ -1,7 +1,10 @@
 package co.ledger.lama.bitcoin.worker
 
-import co.ledger.lama.bitcoin.worker.mock.faulty.FaultyExplorerClientServiceMock
-import co.ledger.lama.bitcoin.worker.mock.{InterpreterClientServiceMock, KeychainClientServiceMock}
+import co.ledger.lama.bitcoin.common.services.mocks.{
+  InterpreterClientServiceMock,
+  KeychainClientServiceMock
+}
+import co.ledger.lama.bitcoin.worker.faultymocks.FaultyExplorerClientServiceMock
 import co.ledger.lama.bitcoin.worker.services.CursorStateService
 import co.ledger.lama.common.models.Status.SyncFailed
 import co.ledger.lama.common.utils.IOAssertion
