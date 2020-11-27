@@ -62,14 +62,6 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       interpreterClient: InterpreterClientService
   ): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
-      case GET -> Root =>
-        accountManagerClient
-          .getAccountInfo(toAccountInfoRequest(accountId), new Metadata)
-          .parProduct(interpreterClient.getBalance(accountId))
-          .flatMap { case (info, balance) =>
-            Ok(fromAccountInfo(info, balance))
-          }
-
       case GET -> Root / UUIDVar(accountId) =>
         accountManagerClient
           .getAccountInfo(toAccountInfoRequest(accountId), new Metadata)
