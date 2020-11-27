@@ -8,7 +8,7 @@ import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class WorkerWithFaultyExplorerIT extends WorkerITBase with AnyFlatSpecLike with Matchers {
+class WorkerWithFaultyExplorerIT extends WorkerResources with AnyFlatSpecLike with Matchers {
 
   IOAssertion {
     val keychainClient     = new KeychainClientServiceMock

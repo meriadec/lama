@@ -27,7 +27,7 @@ import pureconfig.ConfigSource
 
 import scala.concurrent.ExecutionContext
 
-trait WorkerITBase {
+trait WorkerResources {
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   implicit val t: Timer[IO]         = IO.timer(ExecutionContext.global)
 

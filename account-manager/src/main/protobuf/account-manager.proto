@@ -12,11 +12,6 @@ service AccountManagerService {
     rpc UpdateAccount(UpdateAccountRequest) returns (google.protobuf.Empty) {}
     rpc UnregisterAccount(UnregisterAccountRequest) returns (UnregisterAccountResult) {}
     rpc GetAccountInfo(AccountInfoRequest) returns (AccountInfoResult) {}
-    rpc GetAccounts(google.protobuf.Empty) returns (AccountsResult) {}
-}
-
-message AccountsResult {
-    repeated AccountInfoResult accounts = 1;
 }
 
 message RegisterAccountRequest {

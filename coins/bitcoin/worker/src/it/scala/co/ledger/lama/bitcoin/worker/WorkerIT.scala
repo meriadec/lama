@@ -12,7 +12,7 @@ import io.circe.syntax._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class WorkerIT extends WorkerITBase with AnyFlatSpecLike with Matchers {
+class WorkerIT extends WorkerResources with AnyFlatSpecLike with Matchers {
 
   IOAssertion {
     resources.use { case (_, httpClient) =>

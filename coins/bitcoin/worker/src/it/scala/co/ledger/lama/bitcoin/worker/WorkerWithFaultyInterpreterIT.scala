@@ -9,7 +9,7 @@ import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class WorkerWithFaultyInterpreterIT extends WorkerITBase with AnyFlatSpecLike with Matchers {
+class WorkerWithFaultyInterpreterIT extends WorkerResources with AnyFlatSpecLike with Matchers {
 
   IOAssertion {
     resources.use { case (_, httpClient) =>

@@ -197,7 +197,4 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       .flatMap {
         IO.fromOption(_)(AccountNotFoundException(accountId))
       }
-
-//  def getAccounts(, ctx: Metadata)
-
 }
