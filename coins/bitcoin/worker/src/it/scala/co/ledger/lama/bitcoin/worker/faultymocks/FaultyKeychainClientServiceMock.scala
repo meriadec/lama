@@ -19,7 +19,7 @@ class FaultyKeychainClientServiceMock extends KeychainClientService with FaultyB
   ): IO[keychain.KeychainInfo] =
     IO.raiseError(
       KeychainServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to create keychain for this expub $extendedPublicKey"
       )
     )
@@ -27,7 +27,7 @@ class FaultyKeychainClientServiceMock extends KeychainClientService with FaultyB
   def getKeychainInfo(keychainId: UUID): IO[keychain.KeychainInfo] =
     IO.raiseError(
       KeychainServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to get keychain informations for this keychain $keychainId"
       )
     )
@@ -35,7 +35,7 @@ class FaultyKeychainClientServiceMock extends KeychainClientService with FaultyB
   def getAddresses(keychainId: UUID, fromIndex: Int, toIndex: Int): IO[Seq[AddressInfo]] =
     IO.raiseError(
       KeychainServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to get addresses for this keychain $keychainId"
       )
     )
@@ -43,7 +43,7 @@ class FaultyKeychainClientServiceMock extends KeychainClientService with FaultyB
   def markAddressesAsUsed(keychainId: UUID, addresses: Seq[String]): IO[Unit] =
     IO.raiseError(
       KeychainServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to to mark addresses as used for this keychain $keychainId"
       )
     )

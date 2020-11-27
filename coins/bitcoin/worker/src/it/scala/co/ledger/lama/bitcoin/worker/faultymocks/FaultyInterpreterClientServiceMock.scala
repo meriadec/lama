@@ -22,7 +22,7 @@ class FaultyInterpreterClientServiceMock extends InterpreterClientService with F
   ): IO[Int] =
     IO.raiseError(
       InterpreterServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to save transactions for this account $accountId"
       )
     )
@@ -30,7 +30,7 @@ class FaultyInterpreterClientServiceMock extends InterpreterClientService with F
   def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] =
     IO.raiseError(
       InterpreterServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to remove data from cursor for this account $accountId"
       )
     )
@@ -38,7 +38,7 @@ class FaultyInterpreterClientServiceMock extends InterpreterClientService with F
   def compute(accountId: UUID, addresses: List[AccountAddress]): IO[Int] =
     IO.raiseError(
       InterpreterServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to compute addresses for this account $accountId"
       )
     )
@@ -46,7 +46,7 @@ class FaultyInterpreterClientServiceMock extends InterpreterClientService with F
   def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult] =
     IO.raiseError(
       InterpreterServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to get last blocks for this account $accountId"
       )
     )
@@ -60,7 +60,7 @@ class FaultyInterpreterClientServiceMock extends InterpreterClientService with F
   ): IO[GetOperationsResult] =
     IO.raiseError(
       InterpreterServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to get operations for this account $accountId"
       )
     )
@@ -73,7 +73,7 @@ class FaultyInterpreterClientServiceMock extends InterpreterClientService with F
   ): IO[grpc.GetUTXOsResult] =
     IO.raiseError(
       InterpreterServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to get utxos for this account $accountId"
       )
     )
@@ -81,7 +81,7 @@ class FaultyInterpreterClientServiceMock extends InterpreterClientService with F
   override def getBalance(accountId: UUID): IO[interpreter.BalanceHistory] =
     IO.raiseError(
       InterpreterServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to get balance for this account $accountId"
       )
     )
@@ -93,7 +93,7 @@ class FaultyInterpreterClientServiceMock extends InterpreterClientService with F
   ): IO[grpc.GetBalanceHistoryResult] =
     IO.raiseError(
       InterpreterServiceError(
-        cause = err,
+        rootCause = fakeCause,
         errorMessage = s"Failed to get balance history for this account $accountId"
       )
     )

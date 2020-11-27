@@ -31,8 +31,8 @@ trait WorkerResources {
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   implicit val t: Timer[IO]         = IO.timer(ExecutionContext.global)
 
-  val conf: Config                           = ConfigSource.default.loadOrThrow[Config]
-  val rabbit: Resource[IO, RabbitClient[IO]] = Clients.rabbit(conf.rabbit)
+  val conf: Config                                   = ConfigSource.default.loadOrThrow[Config]
+  def rabbitResource: Resource[IO, RabbitClient[IO]] = Clients.rabbit(conf.rabbit)
 
   val keychainId: UUID = UUID.randomUUID()
   val account: AccountIdentifier =
@@ -42,92 +42,83 @@ trait WorkerResources {
   val registeredEvent: WorkableEvent =
     WorkableEvent(account.id, syncId, Status.Registered, SyncEvent.Payload(account))
 
-  val resources = for {
-    rabbitClient <- rabbit
-    httpClient   <- Clients.htt4s
-  } yield (rabbitClient, httpClient)
-
-  def getLastExecution(
+  def runWorkerWorkflow(
       keychainClient: KeychainClientService,
       explorerClient: ExplorerClient,
       interpreterClient: InterpreterClientService,
       cursorStateService: CursorStateService
-  ): IO[Option[ReportableEvent]] = {
-    setupRabbit() *>
-      resources
-        .use { case (rabbitClient, _) =>
-          val syncEventService = new SyncEventService(
-            rabbitClient,
-            conf.queueName(conf.workerEventsExchangeName),
-            conf.lamaEventsExchangeName,
-            conf.routingKey
-          )
+  ): IO[Option[ReportableEvent]] =
+    rabbitResource.use { rabbitClient =>
+      setupRabbit(rabbitClient) *> {
+        val syncEventService = new SyncEventService(
+          rabbitClient,
+          conf.queueName(conf.workerEventsExchangeName),
+          conf.lamaEventsExchangeName,
+          conf.routingKey
+        )
 
-          val worker = new Worker(
-            syncEventService,
-            keychainClient,
-            explorerClient,
-            interpreterClient,
-            cursorStateService,
-            conf
-          )
+        val worker = new Worker(
+          syncEventService,
+          keychainClient,
+          explorerClient,
+          interpreterClient,
+          cursorStateService,
+          conf
+        )
 
-          val accountManager = new SimpleAccountManager(
-            rabbitClient,
-            conf.queueName(conf.lamaEventsExchangeName),
+        val accountManager = new SimpleAccountManager(
+          rabbitClient,
+          conf.queueName(conf.lamaEventsExchangeName),
+          conf.workerEventsExchangeName,
+          conf.routingKey
+        )
+
+        Stream
+          .eval {
+            accountManager.publishWorkableEvent(registeredEvent) *>
+              accountManager.consumeReportableEvent
+          }
+          .concurrently(worker.run)
+          .take(1)
+          .compile
+          .last
+      }
+    }
+
+  def setupRabbit(rabbitClient: RabbitClient[IO]): IO[Unit] =
+    for {
+      _ <- RabbitUtils.deleteBindings(
+        rabbitClient,
+        List(
+          conf.queueName(conf.workerEventsExchangeName),
+          conf.queueName(conf.lamaEventsExchangeName)
+        )
+      )
+      _ <- RabbitUtils.deleteExchanges(
+        rabbitClient,
+        List(conf.workerEventsExchangeName, conf.lamaEventsExchangeName)
+      )
+      _ <- RabbitUtils.declareExchanges(
+        rabbitClient,
+        List(
+          (conf.workerEventsExchangeName, ExchangeType.Topic),
+          (conf.lamaEventsExchangeName, ExchangeType.Topic)
+        )
+      )
+      res <- RabbitUtils.declareBindings(
+        rabbitClient,
+        List(
+          (
             conf.workerEventsExchangeName,
-            conf.routingKey
-          )
-
-          Stream
-            .eval {
-              accountManager.publishWorkableEvent(registeredEvent) *>
-                accountManager.consumeReportableEvent
-            }
-            .concurrently(worker.run)
-            .take(1)
-            .compile
-            .last
-
-        }
-  }
-
-  def setupRabbit(): IO[Unit] =
-    rabbit.use { client =>
-      for {
-        _ <- RabbitUtils.deleteBindings(
-          client,
-          List(
-            conf.queueName(conf.workerEventsExchangeName),
+            conf.routingKey,
+            conf.queueName(conf.workerEventsExchangeName)
+          ),
+          (
+            conf.lamaEventsExchangeName,
+            conf.routingKey,
             conf.queueName(conf.lamaEventsExchangeName)
           )
         )
-        _ <- RabbitUtils.deleteExchanges(
-          client,
-          List(conf.workerEventsExchangeName, conf.lamaEventsExchangeName)
-        )
-        _ <- RabbitUtils.declareExchanges(
-          client,
-          List(
-            (conf.workerEventsExchangeName, ExchangeType.Topic),
-            (conf.lamaEventsExchangeName, ExchangeType.Topic)
-          )
-        )
-        res <- RabbitUtils.declareBindings(
-          client,
-          List(
-            (
-              conf.workerEventsExchangeName,
-              conf.routingKey,
-              conf.queueName(conf.workerEventsExchangeName)
-            ),
-            (
-              conf.lamaEventsExchangeName,
-              conf.routingKey,
-              conf.queueName(conf.lamaEventsExchangeName)
-            )
-          )
-        )
-      } yield res
-    }
+      )
+    } yield res
 }

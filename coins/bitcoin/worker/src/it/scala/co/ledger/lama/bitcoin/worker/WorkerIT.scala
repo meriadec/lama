@@ -18,13 +18,13 @@ import org.scalatest.matchers.should.Matchers
 class WorkerIT extends WorkerResources with AnyFlatSpecLike with Matchers {
 
   IOAssertion {
-    resources.use { case (_, httpClient) =>
+    Clients.htt4s.use { httpClient =>
       val keychainClient     = new KeychainClientServiceMock
       val explorerClient     = new ExplorerClientService(httpClient, conf.explorer)
       val interpreterClient  = new InterpreterClientServiceMock
       val cursorStateService = new CursorStateService(explorerClient, interpreterClient)
 
-      getLastExecution(keychainClient, explorerClient, interpreterClient, cursorStateService)
+      runWorkerWorkflow(keychainClient, explorerClient, interpreterClient, cursorStateService)
         .map { reportableEvent =>
           it should "have 35 used addresses for the account" in {
             keychainClient.usedAddresses.size shouldBe 35

@@ -1,17 +1,21 @@
 package co.ledger.lama.bitcoin.common.models.worker
 
-trait WorkerError extends Exception {
-  val errorMessage: String
-  val cause: Throwable
+sealed trait WorkerError extends Exception {
+  val service: String
+  val message: String
+  val rootCause: Throwable
 
-  override def getMessage: String =
-    s"""
-       |$errorMessage
-       |
-       |${cause.getMessage}
-       |""".stripMargin
+  override def getMessage: String = s"$service - $message - ${rootCause.getMessage}"
 }
 
-case class ExplorerServiceError(cause: Throwable, errorMessage: String)    extends WorkerError
-case class InterpreterServiceError(cause: Throwable, errorMessage: String) extends WorkerError
-case class KeychainServiceError(cause: Throwable, errorMessage: String)    extends WorkerError
+case class ExplorerServiceError(rootCause: Throwable, message: String) extends WorkerError {
+  val service: String = "Explorer service"
+}
+
+case class InterpreterServiceError(rootCause: Throwable, message: String) extends WorkerError {
+  val service: String = "Interpreter service"
+}
+
+case class KeychainServiceError(rootCause: Throwable, message: String) extends WorkerError {
+  val service: String = "Keychain service"
+}

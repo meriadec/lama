@@ -12,13 +12,13 @@ import org.scalatest.matchers.should.Matchers
 class WorkerWithFaultyInterpreterIT extends WorkerResources with AnyFlatSpecLike with Matchers {
 
   IOAssertion {
-    resources.use { case (_, httpClient) =>
+    Clients.htt4s.use { httpClient =>
       val keychainClient     = new KeychainClientServiceMock
       val explorerClient     = new ExplorerClientService(httpClient, conf.explorer)
       val interpreterClient  = new FaultyInterpreterClientServiceMock
       val cursorStateService = new CursorStateService(explorerClient, interpreterClient)
 
-      getLastExecution(keychainClient, explorerClient, interpreterClient, cursorStateService)
+      runWorkerWorkflow(keychainClient, explorerClient, interpreterClient, cursorStateService)
         .map { reportableEvent =>
           it should "report a failed synchronization because of a save transaction error" in {
             reportableEvent.map(_.status) shouldBe Some(SyncFailed)
