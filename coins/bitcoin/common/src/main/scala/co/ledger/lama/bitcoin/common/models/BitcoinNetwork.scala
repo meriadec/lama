@@ -6,25 +6,26 @@ import pureconfig.error.CannotConvert
 import co.ledger.protobuf.bitcoin.keychain
 
 sealed abstract class BitcoinNetwork(val name: String) {
-  def toProto: keychain.BitcoinNetwork
+  def toKeychainProto: keychain.BitcoinNetwork
 }
 
 object BitcoinNetwork {
 
   case object MainNet extends BitcoinNetwork("MainNet") {
-    def toProto: keychain.BitcoinNetwork = keychain.BitcoinNetwork.BITCOIN_NETWORK_MAINNET
+    def toKeychainProto: keychain.BitcoinNetwork = keychain.BitcoinNetwork.BITCOIN_NETWORK_MAINNET
   }
   case object TestNet3 extends BitcoinNetwork("TestNet3") {
-    def toProto: keychain.BitcoinNetwork = keychain.BitcoinNetwork.BITCOIN_NETWORK_TESTNET3
+    def toKeychainProto: keychain.BitcoinNetwork = keychain.BitcoinNetwork.BITCOIN_NETWORK_TESTNET3
   }
   case object RegTest extends BitcoinNetwork("RegTest") {
-    def toProto: keychain.BitcoinNetwork = keychain.BitcoinNetwork.BITCOIN_NETWORK_REGTEST
+    def toKeychainProto: keychain.BitcoinNetwork = keychain.BitcoinNetwork.BITCOIN_NETWORK_REGTEST
   }
   case object Unspecified extends BitcoinNetwork("Unspecified") {
-    def toProto: keychain.BitcoinNetwork = keychain.BitcoinNetwork.BITCOIN_NETWORK_UNSPECIFIED
+    def toKeychainProto: keychain.BitcoinNetwork =
+      keychain.BitcoinNetwork.BITCOIN_NETWORK_UNSPECIFIED
   }
 
-  def fromProto(proto: keychain.BitcoinNetwork): BitcoinNetwork =
+  def fromKeychainProto(proto: keychain.BitcoinNetwork): BitcoinNetwork =
     proto match {
       case keychain.BitcoinNetwork.BITCOIN_NETWORK_MAINNET  => MainNet
       case keychain.BitcoinNetwork.BITCOIN_NETWORK_TESTNET3 => TestNet3

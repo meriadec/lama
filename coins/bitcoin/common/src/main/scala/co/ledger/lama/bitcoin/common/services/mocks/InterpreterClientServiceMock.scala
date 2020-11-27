@@ -1,0 +1,232 @@
+package co.ledger.lama.bitcoin.common.services.mocks
+
+import java.time.Instant
+import java.util.UUID
+
+import cats.effect.IO
+import co.ledger.lama.bitcoin.common.models.interpreter.grpc.GetOperationsResult
+import co.ledger.lama.bitcoin.common.models.interpreter._
+import co.ledger.lama.bitcoin.common.models.worker.{ConfirmedTransaction, DefaultInput}
+import co.ledger.lama.bitcoin.common.models.{interpreter, worker}
+import co.ledger.lama.bitcoin.common.services.InterpreterClientService
+import co.ledger.lama.common.models.Sort
+
+import scala.collection.mutable
+
+class InterpreterClientServiceMock extends InterpreterClientService {
+
+  var savedTransactions: mutable.Map[UUID, List[ConfirmedTransaction]] = mutable.Map.empty
+  var transactions: mutable.Map[UUID, List[TransactionView]]           = mutable.Map.empty
+  var operations: mutable.Map[UUID, List[Operation]]                   = mutable.Map.empty
+
+  def saveTransactions(
+      accountId: UUID,
+      txs: List[worker.ConfirmedTransaction]
+  ): IO[Int] = {
+    savedTransactions.update(
+      accountId,
+      txs ::: savedTransactions.getOrElse(accountId, Nil)
+    )
+
+    IO(txs.size)
+  }
+
+  def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] = {
+    savedTransactions.update(
+      accountId,
+      savedTransactions(accountId)
+        .filter(tx => tx.block.height < blockHeightCursor.getOrElse(0L))
+    )
+
+    transactions.update(
+      accountId,
+      transactions(accountId)
+        .filter(tx => tx.block.height < blockHeightCursor.getOrElse(0L))
+    )
+
+    operations.update(
+      accountId,
+      operations(accountId)
+        .filter(op => op.transaction.get.block.height < blockHeightCursor.getOrElse(0L))
+    )
+
+    IO.pure(0)
+  }
+
+  def getLastBlocks(accountId: UUID): IO[grpc.GetLastBlocksResult] = {
+    val lastBlocks: List[worker.Block] = savedTransactions(accountId)
+      .map(_.block)
+      .distinct
+      .sortBy(_.height)
+      .reverse
+
+    IO(grpc.GetLastBlocksResult(lastBlocks))
+  }
+
+  def compute(accountId: UUID, addresses: List[interpreter.AccountAddress]): IO[Int] = {
+
+    val txViews = savedTransactions(accountId).map(tx =>
+      TransactionView(
+        tx.id,
+        tx.hash,
+        tx.receivedAt,
+        tx.lockTime,
+        tx.fees,
+        tx.inputs.collect { case i: DefaultInput =>
+          InputView(
+            i.outputHash,
+            i.outputIndex,
+            i.inputIndex,
+            i.value,
+            i.address,
+            i.scriptSignature,
+            i.txinwitness,
+            i.sequence,
+            addresses.contains(i.address)
+          )
+
+        },
+        tx.outputs.map(o =>
+          OutputView(
+            o.outputIndex,
+            o.value,
+            o.address,
+            o.scriptHex,
+            addresses.map(_.accountAddress).contains(o.address),
+            addresses.find(a => a.accountAddress == o.address).map(a => a.changeType)
+          )
+        ),
+        BlockView(tx.block.hash, tx.block.height, tx.block.time),
+        tx.confirmations
+      )
+    )
+
+    transactions.update(accountId, txViews)
+
+    val operationToSave = transactions(accountId).flatMap { tx =>
+      val inputAmount = tx.inputs.filter(_.belongs).map(_.value).sum
+      val outputAmount = tx.outputs
+        .filter(o => o.belongs && o.changeType.contains(ChangeType.External))
+        .map(_.value)
+        .sum
+      val changeAmount = tx.outputs
+        .filter(o => o.belongs && o.changeType.contains(ChangeType.Internal))
+        .map(_.value)
+        .sum
+
+      (inputAmount > 0, outputAmount > 0) match {
+        // only input, consider changeAmount as deducted from spent
+        case (true, false) =>
+          List(makeOperation(accountId, tx, inputAmount - changeAmount, OperationType.Sent))
+        // only output, consider changeAmount as received
+        case (false, true) =>
+          List(makeOperation(accountId, tx, outputAmount + changeAmount, OperationType.Received))
+        // both input and output, consider change as deducted from spend
+        case (true, true) =>
+          List(
+            makeOperation(accountId, tx, inputAmount - changeAmount, OperationType.Sent),
+            makeOperation(accountId, tx, outputAmount, OperationType.Received)
+          )
+        case _ => Nil
+      }
+
+    }
+
+    operations.update(
+      accountId,
+      operationToSave
+    )
+
+    IO(operationToSave.size)
+  }
+
+  private def makeOperation(
+      accountId: UUID,
+      tx: TransactionView,
+      amount: BigInt,
+      operationType: OperationType
+  ) = {
+    Operation(
+      accountId,
+      tx.hash,
+      Some(tx),
+      operationType,
+      amount,
+      tx.fees,
+      tx.block.time
+    )
+  }
+
+  def getOperations(
+      accountId: UUID,
+      blockHeight: Long,
+      limit: Int,
+      offset: Int,
+      sort: Option[Sort]
+  ): IO[grpc.GetOperationsResult] = {
+
+    val ops: List[Operation] = operations(accountId)
+      .filter(_.transaction.get.block.height > blockHeight)
+      .sortBy(_.transaction.get.block.height)
+      .slice(offset, offset + limit)
+
+    IO(
+      new GetOperationsResult(
+        ops.size < operations(accountId).size,
+        ops,
+        ops.size
+      )
+    )
+  }
+
+  def getUTXOs(
+      accountId: UUID,
+      limit: Int,
+      offset: Int,
+      sort: Option[Sort]
+  ): IO[grpc.GetUTXOsResult] = {
+
+    val inputs = transactions(accountId)
+      .flatMap(_.inputs)
+      .filter(_.belongs)
+
+    val utxos = transactions(accountId)
+      .flatMap(tx => tx.outputs.map(o => (tx, o)))
+      .filter(o =>
+        o._2.belongs && !inputs.exists(i =>
+          i.outputHash == o._1.hash && i.address == o._2.address && i.outputIndex == o._2.outputIndex
+        )
+      )
+      .map { case (tx, output) =>
+        Utxo(
+          tx.hash,
+          output.outputIndex,
+          output.value,
+          output.address,
+          output.scriptHex,
+          output.belongs,
+          output.changeType,
+          tx.block.time
+        )
+      }
+
+    IO(
+      new grpc.GetUTXOsResult(
+        false,
+        utxos,
+        utxos.size
+      )
+    )
+
+  }
+
+  def getBalance(accountId: UUID): IO[interpreter.BalanceHistory] =
+    IO.raiseError(new Exception("Not implements Yet"))
+
+  def getBalanceHistory(
+      accountId: UUID,
+      start: Option[Instant],
+      end: Option[Instant]
+  ): IO[grpc.GetBalanceHistoryResult] =
+    IO.raiseError(new Exception("Not implements Yet"))
+}

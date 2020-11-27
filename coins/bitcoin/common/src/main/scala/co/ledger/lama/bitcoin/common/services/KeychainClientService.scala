@@ -35,7 +35,7 @@ class KeychainGrpcClientService(
         extendedPublicKey,
         scheme.toProto,
         lookaheadSize,
-        network.toProto
+        network.toKeychainProto
       ),
       new Metadata
     )

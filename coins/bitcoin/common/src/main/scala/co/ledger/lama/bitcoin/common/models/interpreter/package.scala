@@ -118,6 +118,7 @@ package object interpreter {
   }
 
   case class Utxo(
+      transactionHash: String,
       outputIndex: Int,
       value: BigInt,
       address: String,
@@ -128,6 +129,7 @@ package object interpreter {
   ) {
     def toProto: protobuf.Utxo =
       protobuf.Utxo(
+        transactionHash,
         outputIndex,
         value.toString,
         address,
@@ -144,6 +146,7 @@ package object interpreter {
 
     def fromProto(proto: protobuf.Utxo): Utxo =
       Utxo(
+        proto.transactionHash,
         proto.outputIndex,
         BigInt(proto.value),
         proto.address,

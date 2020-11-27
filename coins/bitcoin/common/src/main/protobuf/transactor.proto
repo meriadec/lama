@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "operation.proto";
+
+package pb.v1;
+
+option java_package = "co.ledger.lama.bitcoin.transactor.protobuf";
+
+service BitcoinTransactorService {
+  rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse) {}
+}
+
+enum CoinSelector {
+  DEPTH_FIRST = 0;
+}
+
+message CreateTransactionRequest {
+  bytes accountId = 1;
+  CoinSelector coinSelection = 2;
+  repeated PrepareTxOutput outputs = 3;
+}
+
+message CreateTransactionResponse {
+  string hex = 1;
+  string script = 2;
+  string witness_hash = 3;
+  repeated Utxo utxo = 4;
+}
+
+message PrepareTxOutput {
+  string address = 1;
+  string value = 2;
+}

@@ -36,8 +36,8 @@ jobs:
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinWorker/test
       - name: Run bitcoin interpreter unit tests
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinInterpreter/test
-      - name: Run bitcoin broadcaster unit tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinBroadcaster/test
+      - name: Run bitcoin transactor unit tests
+        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinTransactor/test
 
   it-tests:
     runs-on: ubuntu-latest
@@ -115,8 +115,8 @@ jobs:
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinWorker/it:test
       - name: Run bitcoin interpreter it tests
         run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinInterpreter/it:test
-      - name: Run bitcoin broadcaster it tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinBroadcaster/it:test
+      - name: Run bitcoin transactor it tests
+        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinTransactor/it:test
 
   e2e-tests:
     runs-on: ubuntu-latest

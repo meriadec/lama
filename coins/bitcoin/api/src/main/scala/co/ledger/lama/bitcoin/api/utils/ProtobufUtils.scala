@@ -5,8 +5,7 @@ import java.util.UUID
 import co.ledger.lama.common.models.{Coin, CoinFamily, Status, SyncEvent}
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.{protobuf => pbManager}
-import co.ledger.lama.bitcoin.api.models.{AccountInfo, AccountRegistered}
-import co.ledger.lama.bitcoin.api.routes.AccountController.CreationRequest
+import co.ledger.lama.bitcoin.api.models.accountManager._
 import co.ledger.lama.bitcoin.common.models.interpreter.BalanceHistory
 import co.ledger.protobuf.bitcoin.keychain
 import io.circe.parser.parse
@@ -20,7 +19,7 @@ object ProtobufUtils {
       extendedPublicKey = cr.extendedPublicKey,
       scheme = cr.scheme.toProto,
       lookaheadSize = cr.lookaheadSize,
-      network = cr.network.toProto
+      network = cr.network.toKeychainProto
     )
 
   def toCoinFamily(cf: CoinFamily): co.ledger.lama.manager.protobuf.CoinFamily =

@@ -60,13 +60,14 @@ message OutputView {
 }
 
 message Utxo {
-  int32 output_index = 1;
-  string value = 2;
-  string address = 3;
-  string script_hex = 4;
-  bool belongs = 5;
-  ChangeType changeType = 6;
-  google.protobuf.Timestamp time = 7;
+  string transaction_hash = 1;
+  int32 output_index = 2;
+  string value = 3;
+  string address = 4;
+  string script_hex = 5;
+  bool belongs = 6;
+  ChangeType changeType = 7;
+  google.protobuf.Timestamp time = 8;
 }
 
 message BlockView {

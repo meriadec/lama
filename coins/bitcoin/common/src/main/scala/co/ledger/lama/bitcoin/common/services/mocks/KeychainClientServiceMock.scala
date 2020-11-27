@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.worker
+package co.ledger.lama.bitcoin.common.services.mocks
 
 import java.util.UUID
 
@@ -7,7 +7,6 @@ import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.bitcoin.common.services.KeychainClientService
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.protobuf.bitcoin.keychain
-import co.ledger.protobuf.bitcoin.keychain.AddressInfo
 
 import scala.collection.mutable
 
@@ -15,7 +14,7 @@ class KeychainClientServiceMock extends KeychainClientService {
 
   var usedAddresses: mutable.Seq[String] = mutable.Seq.empty
 
-  private val derivedAddresses: Seq[AddressInfo] = Seq(
+  private val derivedAddresses: Seq[keychain.AddressInfo] = Seq(
     keychain.AddressInfo("1MZbRqZGpiSWGRLg8DUdVrDKHwNe1oesUZ"),
     keychain.AddressInfo("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ"),
     keychain.AddressInfo("1MfeDvj5AUBG4xVMrx1xPgmYdXQrzHtW5b"),
@@ -64,7 +63,7 @@ class KeychainClientServiceMock extends KeychainClientService {
   def getKeychainInfo(keychainId: UUID): IO[keychain.KeychainInfo] =
     IO.pure(keychain.KeychainInfo(lookaheadSize = 20))
 
-  def getAddresses(keychainId: UUID, fromIndex: Int, toIndex: Int): IO[Seq[AddressInfo]] =
+  def getAddresses(keychainId: UUID, fromIndex: Int, toIndex: Int): IO[Seq[keychain.AddressInfo]] =
     IO.delay(derivedAddresses.slice(fromIndex, toIndex))
 
   def markAddressesAsUsed(keychainId: UUID, addresses: Seq[String]): IO[Unit] =

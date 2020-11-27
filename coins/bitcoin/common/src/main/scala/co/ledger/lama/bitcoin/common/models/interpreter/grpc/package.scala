@@ -15,8 +15,10 @@ package object grpc {
   )
 
   object GetOperationsResult {
-    implicit val getOperationsResultDecoder: Decoder[GetOperationsResult] =
+    implicit val decoder: Decoder[GetOperationsResult] =
       deriveConfiguredDecoder[GetOperationsResult]
+    implicit val encoder: Encoder[GetOperationsResult] =
+      deriveConfiguredEncoder[GetOperationsResult]
 
     def fromProto(proto: protobuf.GetOperationsResult): GetOperationsResult =
       GetOperationsResult(
@@ -35,6 +37,8 @@ package object grpc {
   object GetUTXOsResult {
     implicit val getUTXOsResultDecoder: Decoder[GetUTXOsResult] =
       deriveConfiguredDecoder[GetUTXOsResult]
+    implicit val encoder: Encoder[GetUTXOsResult] =
+      deriveConfiguredEncoder[GetUTXOsResult]
 
     def fromProto(proto: protobuf.GetUTXOsResult): GetUTXOsResult =
       GetUTXOsResult(

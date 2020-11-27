@@ -4,8 +4,9 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
-import co.ledger.lama.bitcoin.common.models.worker.Block
+import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction}
 import co.ledger.lama.bitcoin.common.services.ExplorerClientService
+import co.ledger.lama.bitcoin.common.services.mocks.InterpreterClientServiceMock
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services.CursorStateService
 import co.ledger.lama.common.logging.IOLogging
@@ -39,6 +40,33 @@ class CursorStateServiceIT extends AnyFlatSpecLike with Matchers with IOLogging 
       val invalidHash     = "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608376"
 
       for {
+        // save transactions to create "blocks" in the interpreter
+        _ <- interpreterClient.saveTransactions(
+          accountId,
+          List(
+            createTx(
+              "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608371", //invalid
+              559035L
+            ),
+            createTx(
+              "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608372", //invalid
+              559034L
+            ),
+            createTx(
+              "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379", //last valid
+              559033L
+            ),
+            createTx(
+              "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608373", //invalid
+              559032L
+            ),
+            createTx(
+              "0000000000000000000bf68b57eacbff287ceafecb54a30dc3fd19630c9a3883", //valid but not last
+              559031L
+            )
+          )
+        )
+
         block <- cursorStateService.getLastValidState(
           accountId,
           Block(invalidHash, 0L, Instant.now())
@@ -50,5 +78,18 @@ class CursorStateServiceIT extends AnyFlatSpecLike with Matchers with IOLogging 
 
     }
   }
+
+  private def createTx(blockHash: String, height: Long) =
+    ConfirmedTransaction(
+      "id",
+      "hash",
+      Instant.now(),
+      0L,
+      1,
+      Nil,
+      Nil,
+      Block(blockHash, height, Instant.now()),
+      0
+    )
 
 }

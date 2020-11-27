@@ -87,7 +87,7 @@ object OperationQueries extends IOLogging {
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
 
     val query =
-      sql"""SELECT o.output_index, o.value, o.address, o.script_hex, o.belongs, o.change_type, tx.block_time
+      sql"""SELECT tx.hash, o.output_index, o.value, o.address, o.script_hex, o.belongs, o.change_type, tx.block_time
             FROM output o
               LEFT JOIN input i
                 ON o.account_id = i.account_id
