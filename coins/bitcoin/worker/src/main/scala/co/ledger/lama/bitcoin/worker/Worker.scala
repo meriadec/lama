@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.worker.{DefaultInput, WorkerError}
+import co.ledger.lama.bitcoin.common.models.worker.DefaultInput
 import co.ledger.lama.bitcoin.common.services.{
   ExplorerClient,
   InterpreterClientService,
@@ -44,25 +44,21 @@ class Worker(
         // In case of error, fallback to a reportable failed event.
         log.info(s"Received event: ${workableEvent.asJson.toString}") *>
           reportableEvent
-            .handleErrorWith {
-              case error: WorkerError =>
-                log.error(s"Failed event: $workableEvent", error) *>
-                  IO.pure(workableEvent.reportFailure(error.asJson))
-              case error =>
-                val previousState =
-                  workableEvent.payload.data
-                    .as[PayloadData]
-                    .toOption
+            .handleErrorWith { error =>
+              val previousState =
+                workableEvent.payload.data
+                  .as[PayloadData]
+                  .toOption
 
-                val payloadData = PayloadData(
-                  lastBlock = previousState.flatMap(_.lastBlock),
-                  errorMessage = Some(error.getMessage)
-                )
+              val payloadData = PayloadData(
+                lastBlock = previousState.flatMap(_.lastBlock),
+                errorMessage = Some(error.getMessage)
+              )
 
-                val failedEvent = workableEvent.reportFailure(payloadData.asJson)
+              val failedEvent = workableEvent.reportFailure(payloadData.asJson)
 
-                log.error(s"Failed event: $failedEvent", error) *>
-                  IO.pure(failedEvent)
+              log.error(s"Failed event: $failedEvent", error) *>
+                IO.pure(failedEvent)
             }
             // Always report the event at the end.
             .flatMap(syncEventService.reportEvent)

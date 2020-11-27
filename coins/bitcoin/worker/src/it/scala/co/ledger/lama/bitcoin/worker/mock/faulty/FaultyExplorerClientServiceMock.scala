@@ -9,14 +9,14 @@ class FaultyExplorerClientServiceMock extends ExplorerClient with FaultyBase {
 
   def getCurrentBlock: IO[worker.Block] = IO.raiseError(
     ExplorerServiceError(
-      thr = err,
+      cause = err,
       errorMessage = "Failed to get current block"
     )
   )
 
   def getBlock(hash: String): IO[Option[worker.Block]] = IO.raiseError(
     ExplorerServiceError(
-      thr = err,
+      cause = err,
       errorMessage = s"Failed to get a block for this hash $hash"
     )
   )
@@ -26,7 +26,7 @@ class FaultyExplorerClientServiceMock extends ExplorerClient with FaultyBase {
       t: Timer[IO]
   ): fs2.Stream[IO, worker.ConfirmedTransaction] = fs2.Stream.raiseError[IO](
     ExplorerServiceError(
-      thr = err,
+      cause = err,
       errorMessage = s"Failed to get confirmed transactions for this addresses: $addresses"
     )
   )

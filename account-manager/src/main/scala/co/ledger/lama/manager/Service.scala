@@ -96,13 +96,12 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         // Run queries and return an sync event result.
         queries
           .transact(db)
-          .map {
-            case (accountId, syncId, syncFrequency) =>
-              RegisterAccountResult(
-                UuidUtils.uuidToBytes(accountId),
-                UuidUtils.uuidToBytes(syncId),
-                syncFrequency.toSeconds
-              )
+          .map { case (accountId, syncId, syncFrequency) =>
+            RegisterAccountResult(
+              UuidUtils.uuidToBytes(accountId),
+              UuidUtils.uuidToBytes(syncId),
+              syncFrequency.toSeconds
+            )
           }
     } yield response
   }
@@ -198,5 +197,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       .flatMap {
         IO.fromOption(_)(AccountNotFoundException(accountId))
       }
+
+//  def getAccounts(, ctx: Metadata)
 
 }

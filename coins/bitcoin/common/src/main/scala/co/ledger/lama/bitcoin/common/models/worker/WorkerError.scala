@@ -1,16 +1,17 @@
 package co.ledger.lama.bitcoin.common.models.worker
 
-import io.circe.Json
-
 trait WorkerError extends Exception {
   val errorMessage: String
-  val thr: Throwable
-  val asJson: Json = Json.obj(
-    "error"     -> Json.fromString(errorMessage),
-    "exception" -> Json.fromString(thr.getMessage)
-  )
+  val cause: Throwable
+
+  override def getMessage: String =
+    s"""
+       |$errorMessage
+       |
+       |${cause.getMessage}
+       |""".stripMargin
 }
 
-case class ExplorerServiceError(thr: Throwable, errorMessage: String)    extends WorkerError
-case class InterpreterServiceError(thr: Throwable, errorMessage: String) extends WorkerError
-case class KeychainServiceError(thr: Throwable, errorMessage: String)    extends WorkerError
+case class ExplorerServiceError(cause: Throwable, errorMessage: String)    extends WorkerError
+case class InterpreterServiceError(cause: Throwable, errorMessage: String) extends WorkerError
+case class KeychainServiceError(cause: Throwable, errorMessage: String)    extends WorkerError
