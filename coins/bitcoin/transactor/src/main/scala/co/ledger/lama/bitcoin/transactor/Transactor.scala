@@ -126,9 +126,7 @@ class BitcoinLibTransactor(
   private def utxosToInputs(utxo: Utxo): bitcoinLib.Input = {
     bitcoinLib.Input(
       utxo.transactionHash,
-      utxo.outputIndex,
-      utxo.scriptHex,
-      Int.MaxValue * 2 //sequence is actually a unsigned Int in btcd
+      utxo.outputIndex
     )
   }
 
