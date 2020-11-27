@@ -22,7 +22,7 @@ object Config {
   case class BitcoinServicesConfig(
       keychain: GrpcClientConfig,
       interpreter: GrpcClientConfig,
-      broadcaster: GrpcClientConfig
+      transactor: GrpcClientConfig
   )
 
   case class ServerConfig(

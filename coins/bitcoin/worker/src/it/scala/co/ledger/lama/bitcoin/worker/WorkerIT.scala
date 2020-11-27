@@ -3,6 +3,10 @@ package co.ledger.lama.bitcoin.worker
 import java.time.Instant
 
 import co.ledger.lama.bitcoin.common.models.worker.Block
+import co.ledger.lama.bitcoin.common.services.mocks.{
+  InterpreterClientServiceMock,
+  KeychainClientServiceMock
+}
 import co.ledger.lama.bitcoin.common.services.ExplorerClientService
 import co.ledger.lama.bitcoin.worker.mock.{InterpreterClientServiceMock, KeychainClientServiceMock}
 import co.ledger.lama.bitcoin.worker.models.PayloadData

@@ -13,11 +13,6 @@ import co.ledger.lama.common.models.Sort
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import io.grpc.Metadata
 
-object SortingEnum extends Enumeration {
-  type SortingEnum = Value
-  val Ascending, Descending = Value
-}
-
 trait InterpreterClientService {
   def saveTransactions(accountId: UUID, txs: List[ConfirmedTransaction]): IO[Int]
 

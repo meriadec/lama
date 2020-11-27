@@ -14,19 +14,19 @@ object HealthController extends Http4sDsl[IO] with IOLogging {
   def routes(
       accountManagerHealthClient: HealthFs2Grpc[IO, Metadata],
       interpreterHealthClient: HealthFs2Grpc[IO, Metadata],
-      broadcasterHealthClient: HealthFs2Grpc[IO, Metadata]
+      transactorHealthClient: HealthFs2Grpc[IO, Metadata]
   ): HttpRoutes[IO] =
     HttpRoutes.of[IO] { case GET -> Root =>
       (for {
         interpreterHealth <- interpreterHealthClient.check(new HealthCheckRequest(), new Metadata)
         accountManagerHealth <-
           accountManagerHealthClient.check(new HealthCheckRequest(), new Metadata)
-        broadcasterHealth <-
-          broadcasterHealthClient.check(new HealthCheckRequest(), new Metadata)
+        transactorHealth <-
+          transactorHealthClient.check(new HealthCheckRequest(), new Metadata)
       } yield {
         accountManagerHealth.status == ServingStatus.SERVING &&
         interpreterHealth.status == ServingStatus.SERVING &&
-        broadcasterHealth.status == ServingStatus.SERVING
+        transactorHealth.status == ServingStatus.SERVING
       }).flatMap(_ => Ok())
     }
 }

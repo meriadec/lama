@@ -90,7 +90,10 @@ lazy val common = (project in file("common"))
     name := "lama-common",
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     libraryDependencies ++= (Dependencies.lamaCommon ++ Dependencies.test),
-    test in assembly := {}
+    test in assembly := {},
+    // Proto config
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    PB.protoSources in Compile += file("common/src/main/protobuf")
   )
 
 lazy val accountManager = (project in file("account-manager"))
@@ -103,7 +106,7 @@ lazy val accountManager = (project in file("account-manager"))
     libraryDependencies ++= (Dependencies.accountManager ++ Dependencies.test),
     // Proto config
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    PB.protoSources in Compile += file("coins/bitcoin/common/src/main/protobuf")
+    PB.protoSources in Compile += file("account-manager/src/main/protobuf")
   )
   .dependsOn(common)
 
@@ -114,26 +117,22 @@ lazy val bitcoinApi = (project in file("coins/bitcoin/api"))
     name := "lama-bitcoin-api",
     libraryDependencies ++= (Dependencies.btcApi ++ Dependencies.test),
     sharedSettings,
-    buildInfoSettings,
-    // Proto config
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    PB.protoSources in Compile := Seq(
-      file("common/src/main/protobuf"),
-      file("account-manager/src/main/protobuf"),
-      file("coins/bitcoin/keychain/pb/keychain"),
-      file("coins/bitcoin/common/src/main/protobuf")
-    )
+    buildInfoSettings
   )
   .dependsOn(accountManager, bitcoinCommon, common)
 
 lazy val bitcoinCommon = (project in file("coins/bitcoin/common"))
   .enablePlugins(Fs2Grpc)
+  .configs(IntegrationTest)
   .settings(
     name := "lama-bitcoin-common",
     libraryDependencies ++= Dependencies.btcCommon,
     // Proto config
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    PB.protoSources in Compile += file("coins/bitcoin/keychain/pb/keychain")
+    PB.protoSources in Compile := Seq(
+      file("coins/bitcoin/common/src/main/protobuf"),
+      file("coins/bitcoin/keychain/pb/keychain")
+    )
   )
   .dependsOn(common)
 
@@ -158,12 +157,17 @@ lazy val bitcoinInterpreter = (project in file("coins/bitcoin/interpreter"))
   )
   .dependsOn(common, bitcoinCommon)
 
-lazy val bitcoinBroadcaster = (project in file("coins/bitcoin/broadcaster"))
+lazy val bitcoinTransactor = (project in file("coins/bitcoin/transactor"))
   .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
   .configs(IntegrationTest)
   .settings(
-    name := "lama-bitcoin-broadcaster",
+    name := "lama-bitcoin-transactor",
     sharedSettings,
-    libraryDependencies ++= (Dependencies.btcCommon ++ Dependencies.test)
+    libraryDependencies ++= (Dependencies.btcCommon ++ Dependencies.test),
+    // Proto config
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    PB.protoSources in Compile := Seq(
+      file("coins/bitcoin/lib-grpc/pb/bitcoin")
+    )
   )
   .dependsOn(common, bitcoinCommon)

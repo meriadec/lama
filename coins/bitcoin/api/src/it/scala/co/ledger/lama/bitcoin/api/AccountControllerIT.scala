@@ -13,10 +13,9 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 import cats.implicits._
-import co.ledger.lama.bitcoin.api.models.{AccountInfo, AccountRegistered}
+import co.ledger.lama.bitcoin.api.models.accountManager._
 import co.ledger.lama.common.models.Status.{Deleted, Published, Registered, Synchronized}
 import co.ledger.lama.common.models.Sort
-import co.ledger.lama.bitcoin.api.routes.AccountController.UpdateRequest
 import co.ledger.lama.bitcoin.common.models.interpreter.grpc.{
   GetBalanceHistoryResult,
   GetOperationsResult,

@@ -3,7 +3,8 @@ package co.ledger.lama.bitcoin.api.routes
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
-import co.ledger.lama.common.models.implicits._
+import co.ledger.lama.bitcoin.api.models.accountManager._
+import co.ledger.lama.bitcoin.api.models.transactor._
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.{Coin, CoinFamily}
@@ -18,12 +19,9 @@ import co.ledger.lama.manager.protobuf.{
 }
 import co.ledger.lama.bitcoin.api.utils.ProtobufUtils._
 import co.ledger.lama.bitcoin.api.utils.RouterUtils._
-import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
-import co.ledger.lama.bitcoin.common.services.InterpreterClientService
-import co.ledger.protobuf.bitcoin.keychain.{DeleteKeychainRequest, KeychainServiceFs2Grpc}
-import io.circe.{Decoder, Encoder}
+import co.ledger.lama.bitcoin.common.services.{InterpreterClientService, TransactorClientService}
+import co.ledger.protobuf.bitcoin.keychain._
 import io.circe.generic.extras.auto._
-import io.circe.generic.extras.semiauto._
 import io.grpc.Metadata
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec._
@@ -33,33 +31,13 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
 
-  case class UpdateRequest(syncFrequency: Long)
-
-  object UpdateRequest {
-    implicit val encoder: Encoder[UpdateRequest] = deriveConfiguredEncoder[UpdateRequest]
-    implicit val decoder: Decoder[UpdateRequest] = deriveConfiguredDecoder[UpdateRequest]
-  }
-
-  case class CreationRequest(
-      extendedPublicKey: String,
-      scheme: Scheme,
-      lookaheadSize: Int,
-      network: BitcoinNetwork,
-      coinFamily: CoinFamily,
-      coin: Coin,
-      syncFrequency: Option[Long]
-  )
-
-  object CreationRequest {
-    implicit val encoder: Encoder[CreationRequest] = deriveConfiguredEncoder[CreationRequest]
-    implicit val decoder: Decoder[CreationRequest] = deriveConfiguredDecoder[CreationRequest]
-  }
-
+  // TODO: use keychainService from bitcoin.common
   def routes(
       notificationService: NotificationService,
       keychainClient: KeychainServiceFs2Grpc[IO, Metadata],
       accountManagerClient: AccountManagerServiceFs2Grpc[IO, Metadata],
-      interpreterClient: InterpreterClientService
+      interpreterClient: InterpreterClientService,
+      transactorClient: TransactorClientService
   ): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
       case GET -> Root / UUIDVar(accountId) =>
@@ -213,6 +191,22 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
               end
             )
             .flatMap(Ok(_))
+
+      case req @ POST -> Root / UUIDVar(
+            accountId
+          ) / "transactions" =>
+        for {
+          _                        <- log.info(s"preparing transaction creation for account: $accountId")
+          createTransactionRequest <- req.as[CreateTransactionRequest]
+          response <- transactorClient
+            .createTransaction(
+              createTransactionRequest.accountId,
+              createTransactionRequest.coinSelection,
+              createTransactionRequest.outputs
+            )
+            .flatMap(Ok(_))
+
+        } yield response
     }
 
 }
