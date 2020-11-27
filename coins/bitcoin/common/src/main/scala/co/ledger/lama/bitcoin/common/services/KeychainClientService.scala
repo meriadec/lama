@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.common.services
 import java.util.UUID
 
 import cats.effect.IO
+import co.ledger.lama.bitcoin.common.models.worker.KeychainServiceError
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.protobuf.bitcoin.keychain._
@@ -30,21 +31,39 @@ class KeychainGrpcClientService(
       lookaheadSize: Int,
       network: BitcoinNetwork
   ): IO[KeychainInfo] =
-    client.createKeychain(
-      CreateKeychainRequest(
-        extendedPublicKey,
-        scheme.toProto,
-        lookaheadSize,
-        network.toProto
-      ),
-      new Metadata
-    )
+    client
+      .createKeychain(
+        CreateKeychainRequest(
+          extendedPublicKey,
+          scheme.toProto,
+          lookaheadSize,
+          network.toProto
+        ),
+        new Metadata
+      )
+      .handleErrorWith(err =>
+        IO.raiseError(
+          KeychainServiceError(
+            thr = err,
+            errorMessage = s"Failed to create keychain for this expub $extendedPublicKey"
+          )
+        )
+      )
 
   def getKeychainInfo(keychainId: UUID): IO[KeychainInfo] =
-    client.getKeychainInfo(
-      GetKeychainInfoRequest(UuidUtils.uuidToBytes(keychainId)),
-      new Metadata
-    )
+    client
+      .getKeychainInfo(
+        GetKeychainInfoRequest(UuidUtils.uuidToBytes(keychainId)),
+        new Metadata
+      )
+      .handleErrorWith(err =>
+        IO.raiseError(
+          KeychainServiceError(
+            thr = err,
+            errorMessage = s"Failed to get keychain informations for this keychain $keychainId"
+          )
+        )
+      )
 
   def getAddresses(keychainId: UUID, fromIndex: Int, toIndex: Int): IO[Seq[AddressInfo]] =
     client
@@ -57,6 +76,14 @@ class KeychainGrpcClientService(
         new Metadata
       )
       .map(_.addresses)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          KeychainServiceError(
+            thr = err,
+            errorMessage = s"Failed to get addresses for this keychain $keychainId"
+          )
+        )
+      )
 
   def markAddressesAsUsed(keychainId: UUID, addresses: Seq[String]): IO[Unit] =
     client
@@ -65,4 +92,12 @@ class KeychainGrpcClientService(
         new Metadata
       )
       .void
+      .handleErrorWith(err =>
+        IO.raiseError(
+          KeychainServiceError(
+            thr = err,
+            errorMessage = s"Failed to to mark addresses as used for this keychain $keychainId"
+          )
+        )
+      )
 }

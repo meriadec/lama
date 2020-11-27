@@ -10,74 +10,46 @@ import co.ledger.lama.bitcoin.common.models.interpreter.grpc.{
   GetOperationsResult
 }
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, grpc}
-import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction}
+import co.ledger.lama.bitcoin.common.models.worker.{ConfirmedTransaction, InterpreterServiceError}
 import co.ledger.lama.bitcoin.common.services.InterpreterClientService
 import co.ledger.lama.common.models.Sort
 
-import scala.collection.mutable
-
-class FaultyInterpreterClientServiceMock extends InterpreterClientService {
-
-  var savedTransactions: mutable.Map[UUID, List[ConfirmedTransaction]] = mutable.Map.empty
+class FaultyInterpreterClientServiceMock extends InterpreterClientService with FaultyBase {
 
   def saveTransactions(
       accountId: UUID,
       txs: List[ConfirmedTransaction]
   ): IO[Int] =
-    IO.raiseError(new Exception)
-
-  def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] = {
-    val io = blockHeightCursor match {
-      case Some(blockHeight) =>
-        IO.delay {
-          savedTransactions.update(
-            accountId,
-            savedTransactions.getOrElse(accountId, List.empty).filter(_.block.height < blockHeight)
-          )
-        }
-      case None => IO.delay(savedTransactions.remove(accountId))
-    }
-
-    io.map(_ => 0)
-  }
-
-  def compute(accountId: UUID, addresses: List[AccountAddress]): IO[Int] = {
-    IO.pure(0)
-  }
-
-  def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult] = {
-    IO.pure(
-      GetLastBlocksResult(
-        List(
-          Block(
-            "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608371", //invalid
-            559035L,
-            Instant.now()
-          ),
-          Block(
-            "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608372", //invalid
-            559034L,
-            Instant.now()
-          ),
-          Block(
-            "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379", //last valid
-            559033L,
-            Instant.now()
-          ),
-          Block(
-            "0x00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608373", //invalid
-            559032L,
-            Instant.now()
-          ),
-          Block(
-            "0000000000000000000bf68b57eacbff287ceafecb54a30dc3fd19630c9a3883", //valid but not last
-            559031L,
-            Instant.now()
-          )
-        )
+    IO.raiseError(
+      InterpreterServiceError(
+        thr = err,
+        errorMessage = s"Failed to save transactions for this account $accountId"
       )
     )
-  }
+
+  def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] =
+    IO.raiseError(
+      InterpreterServiceError(
+        thr = err,
+        errorMessage = s"Failed to remove data from cursor for this account $accountId"
+      )
+    )
+
+  def compute(accountId: UUID, addresses: List[AccountAddress]): IO[Int] =
+    IO.raiseError(
+      InterpreterServiceError(
+        thr = err,
+        errorMessage = s"Failed to compute addresses for this account $accountId"
+      )
+    )
+
+  def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult] =
+    IO.raiseError(
+      InterpreterServiceError(
+        thr = err,
+        errorMessage = s"Failed to get last blocks for this account $accountId"
+      )
+    )
 
   override def getOperations(
       accountId: UUID,
@@ -85,22 +57,44 @@ class FaultyInterpreterClientServiceMock extends InterpreterClientService {
       limit: Int,
       offset: Int,
       sort: Option[Sort]
-  ): IO[GetOperationsResult] = IO.raiseError(new NotImplementedError("Implement if needed"))
+  ): IO[GetOperationsResult] =
+    IO.raiseError(
+      InterpreterServiceError(
+        thr = err,
+        errorMessage = s"Failed to get operations for this account $accountId"
+      )
+    )
 
   override def getUTXOs(
       accountId: UUID,
       limit: Int,
       offset: Int,
       sort: Option[Sort]
-  ): IO[grpc.GetUTXOsResult] = IO.raiseError(new NotImplementedError("Implement if needed"))
+  ): IO[grpc.GetUTXOsResult] =
+    IO.raiseError(
+      InterpreterServiceError(
+        thr = err,
+        errorMessage = s"Failed to get utxos for this account $accountId"
+      )
+    )
 
   override def getBalance(accountId: UUID): IO[interpreter.BalanceHistory] =
-    IO.raiseError(new NotImplementedError("Implement if needed"))
+    IO.raiseError(
+      InterpreterServiceError(
+        thr = err,
+        errorMessage = s"Failed to get balance for this account $accountId"
+      )
+    )
 
   override def getBalanceHistory(
       accountId: UUID,
       start: Option[Instant],
       end: Option[Instant]
   ): IO[grpc.GetBalanceHistoryResult] =
-    IO.raiseError(new NotImplementedError("Implement if needed"))
+    IO.raiseError(
+      InterpreterServiceError(
+        thr = err,
+        errorMessage = s"Failed to get balance history for this account $accountId"
+      )
+    )
 }

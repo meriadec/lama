@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.worker.ConfirmedTransaction
+import co.ledger.lama.bitcoin.common.models.worker.{ConfirmedTransaction, InterpreterServiceError}
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.common.models.interpreter.grpc._
 import co.ledger.lama.bitcoin.common.utils.BtcProtoUtils._
@@ -68,6 +68,14 @@ class InterpreterGrpcClientService(
         new Metadata()
       )
       .map(_.count)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          InterpreterServiceError(
+            thr = err,
+            errorMessage = s"Failed to save transactions for this account $accountId"
+          )
+        )
+      )
 
   def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] =
     grpcClient
@@ -79,6 +87,14 @@ class InterpreterGrpcClientService(
         new Metadata()
       )
       .map(_.count)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          InterpreterServiceError(
+            thr = err,
+            errorMessage = s"Failed to remove data from cursor for this account $accountId"
+          )
+        )
+      )
 
   def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult] =
     grpcClient
@@ -89,6 +105,14 @@ class InterpreterGrpcClientService(
         new Metadata()
       )
       .map(GetLastBlocksResult.fromProto)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          InterpreterServiceError(
+            thr = err,
+            errorMessage = s"Failed to get last blocks for this account $accountId"
+          )
+        )
+      )
 
   def compute(accountId: UUID, addresses: List[AccountAddress]): IO[Int] =
     grpcClient
@@ -100,6 +124,14 @@ class InterpreterGrpcClientService(
         new Metadata()
       )
       .map(_.count)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          InterpreterServiceError(
+            thr = err,
+            errorMessage = s"Failed to compute addresses for this account $accountId"
+          )
+        )
+      )
 
   def getOperations(
       accountId: UUID,
@@ -120,6 +152,14 @@ class InterpreterGrpcClientService(
         new Metadata
       )
       .map(GetOperationsResult.fromProto)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          InterpreterServiceError(
+            thr = err,
+            errorMessage = s"Failed to get operations for this account $accountId"
+          )
+        )
+      )
 
   def getUTXOs(
       accountId: UUID,
@@ -138,6 +178,14 @@ class InterpreterGrpcClientService(
         new Metadata
       )
       .map(GetUTXOsResult.fromProto)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          InterpreterServiceError(
+            thr = err,
+            errorMessage = s"Failed to get utxos for this account $accountId"
+          )
+        )
+      )
   }
 
   def getBalance(accountId: UUID): IO[BalanceHistory] = {
@@ -149,6 +197,14 @@ class InterpreterGrpcClientService(
         new Metadata
       )
       .map(BalanceHistory.fromProto)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          InterpreterServiceError(
+            thr = err,
+            errorMessage = s"Failed to get balance for this account $accountId"
+          )
+        )
+      )
   }
 
   def getBalanceHistory(
@@ -166,5 +222,13 @@ class InterpreterGrpcClientService(
         new Metadata
       )
       .map(GetBalanceHistoryResult.fromProto)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          InterpreterServiceError(
+            thr = err,
+            errorMessage = s"Failed to get balance history for this account $accountId"
+          )
+        )
+      )
   }
 }

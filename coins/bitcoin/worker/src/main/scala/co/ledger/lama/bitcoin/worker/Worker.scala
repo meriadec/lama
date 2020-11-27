@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.worker.DefaultInput
+import co.ledger.lama.bitcoin.common.models.worker.{DefaultInput, WorkerError}
 import co.ledger.lama.bitcoin.common.services.{
   ExplorerClient,
   InterpreterClientService,
@@ -44,21 +44,25 @@ class Worker(
         // In case of error, fallback to a reportable failed event.
         log.info(s"Received event: ${workableEvent.asJson.toString}") *>
           reportableEvent
-            .handleErrorWith { error =>
-              val previousState =
-                workableEvent.payload.data
-                  .as[PayloadData]
-                  .toOption
+            .handleErrorWith {
+              case error: WorkerError =>
+                log.error(s"Failed event: $workableEvent", error) *>
+                  IO.pure(workableEvent.reportFailure(error.asJson))
+              case error =>
+                val previousState =
+                  workableEvent.payload.data
+                    .as[PayloadData]
+                    .toOption
 
-              val payloadData = PayloadData(
-                lastBlock = previousState.flatMap(_.lastBlock),
-                errorMessage = Some(error.getMessage)
-              )
+                val payloadData = PayloadData(
+                  lastBlock = previousState.flatMap(_.lastBlock),
+                  errorMessage = Some(error.getMessage)
+                )
 
-              val failedEvent = workableEvent.reportFailure(payloadData.asJson)
+                val failedEvent = workableEvent.reportFailure(payloadData.asJson)
 
-              log.error(s"Failed event: $failedEvent", error) *>
-                IO.pure(failedEvent)
+                log.error(s"Failed event: $failedEvent", error) *>
+                  IO.pure(failedEvent)
             }
             // Always report the event at the end.
             .flatMap(syncEventService.reportEvent)
@@ -76,7 +80,7 @@ class Worker(
         .flatMap(_.lastBlock)
 
     // sync the whole account per streamed batch
-    val r = for {
+    for {
       _ <- log.info(s"Syncing from cursor state: $previousBlockState")
 
       keychainId   <- UuidUtils.stringToUuidIO(account.key)
@@ -94,7 +98,6 @@ class Worker(
               // remove all transactions and operations up until last valid block
               interpreterClient
                 .removeDataFromCursor(account.id, Some(lvb.height))
-                .handleErrorWith(_ => IO.raiseError(RemoveDataFromCursorFailed(account.id)))
         } yield lvb
       }.sequence
 
@@ -116,7 +119,6 @@ class Worker(
 
       opsCount <- interpreterClient
         .compute(account.id, addresses)
-        .handleErrorWith(_ => IO.raiseError(ComputeAddressesFailed(account.id)))
 
       _ <- log.info(s"$opsCount operations computed")
 
@@ -133,12 +135,6 @@ class Worker(
 
       // Create the reportable successful event.
       workableEvent.reportSuccess(payloadData.asJson)
-    }
-
-    r.handleErrorWith {
-      case err: WorkerErrors =>
-        IO.pure(workableEvent.reportFailure(err.errorMessage))
-      case err: Throwable => IO.pure(workableEvent.reportFailure(Json.fromString(err.getMessage)))
     }
   }
 
@@ -165,7 +161,6 @@ class Worker(
           _ <- log.info("Calling keychain to get addresses")
           addressInfos <- keychainClient
             .getAddresses(keychainId, fromAddrIndex, toAddrIndex)
-            .handleErrorWith(_ => IO.raiseError(FindKeychainAddressesFailed(keychainId)))
 
           // For this batch of addresses, fetch transactions from the explorer.
           _ <- log.info("Fetching transactions from explorer")
@@ -181,14 +176,12 @@ class Worker(
                   _ <- log.info(s"Sending ${txs.size} transactions to interpreter")
                   savedTxsCount <- interpreterClient
                     .saveTransactions(accountId, txs)
-                    .handleErrorWith(_ => IO.raiseError(SaveTransactionsFailed(accountId)))
                   _ <- log.info(s"$savedTxsCount new transactions saved")
                 } yield txs
               }
               .flatMap(Stream.emits(_))
               .compile
               .toList
-              .handleErrorWith(_ => IO.raiseError(GetConfirmedTransactionsFailed(keychainId)))
 
           // Filter only used addresses.
           usedAddressesInfos = addressInfos.filter { a =>
@@ -234,11 +227,5 @@ class Worker(
   def deleteAccount(workableEvent: WorkableEvent): IO[ReportableEvent] =
     interpreterClient
       .removeDataFromCursor(workableEvent.accountId, None)
-      .handleErrorWith(_ => IO.raiseError(RemoveDataFromCursorFailed(workableEvent.accountId)))
       .map(_ => workableEvent.reportSuccess(Json.obj()))
-      .handleErrorWith(_ =>
-        IO.pure(
-          workableEvent.reportFailure(DeleteAccountFailed(workableEvent.accountId).errorMessage)
-        )
-      )
 }

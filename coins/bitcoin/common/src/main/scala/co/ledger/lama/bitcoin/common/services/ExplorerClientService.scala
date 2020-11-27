@@ -27,15 +27,41 @@ class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig)
   private val btcBasePath = "/blockchain/v3/btc"
 
   def getCurrentBlock: IO[Block] =
-    httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/current"))
+    httpClient
+      .expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/current"))
+      .handleErrorWith(err =>
+        IO.raiseError(
+          ExplorerServiceError(
+            thr = err,
+            errorMessage = "Failed to get current block"
+          )
+        )
+      )
 
   def getBlock(hash: String): IO[Option[Block]] =
     httpClient
       .expect[List[Block]](conf.uri.withPath(s"$btcBasePath/blocks/$hash"))
       .map(_.headOption)
+      .handleErrorWith(err =>
+        IO.raiseError(
+          ExplorerServiceError(
+            thr = err,
+            errorMessage = s"Failed to get a block for this hash $hash"
+          )
+        )
+      )
 
   def getBlock(height: Long): IO[Block] =
-    httpClient.expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/$height"))
+    httpClient
+      .expect[Block](conf.uri.withPath(s"$btcBasePath/blocks/$height"))
+      .handleErrorWith(err =>
+        IO.raiseError(
+          ExplorerServiceError(
+            thr = err,
+            errorMessage = s"Failed to get a block for this height: $height"
+          )
+        )
+      )
 
   def getConfirmedTransactions(
       addresses: Seq[String],
@@ -58,6 +84,14 @@ class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig)
           }
       }
       .parJoinUnbounded
+      .handleErrorWith(err =>
+        Stream.raiseError[IO](
+          ExplorerServiceError(
+            thr = err,
+            errorMessage = s"Failed to get confirmed transactions for this addresses: $addresses"
+          )
+        )
+      )
 
   private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[String]) = {
     val baseUri =

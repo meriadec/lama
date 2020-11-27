@@ -5,7 +5,6 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.worker.Block
 import co.ledger.lama.bitcoin.common.services.{ExplorerClient, InterpreterClientService}
-import co.ledger.lama.bitcoin.worker.models.GetLastBlocksFailed
 import co.ledger.lama.common.logging.IOLogging
 import org.http4s.client.UnexpectedStatus
 
@@ -50,7 +49,6 @@ class CursorStateService(
       )
       getBlocksResult <- interpreterClient
         .getLastBlocks(accountId)
-        .handleErrorWith(_ => IO.raiseError(GetLastBlocksFailed(accountId)))
       lastValidBlock <- getlastValidBlockRec(getBlocksResult.blocks)
       _ <- log.info(
         s"block [hash: '${lastValidBlock.hash}', height: ${lastValidBlock.height}] is valid !"
@@ -75,7 +73,6 @@ class CursorStateService(
               case notFoundError: UnexpectedStatus if notFoundError.status.code == 404 =>
                 getlastValidBlockRec(tail)
             }
-
     }
 
   private def logUnexpectedError(b: Block, serverError: UnexpectedStatus): IO[Block] = {
