@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.worker
 import co.ledger.lama.bitcoin.common.services.ExplorerClientService
 import co.ledger.lama.bitcoin.common.services.mocks.KeychainClientServiceMock
 import co.ledger.lama.bitcoin.worker.faultymocks.FaultyInterpreterClientServiceMock
+import co.ledger.lama.bitcoin.worker.models.PayloadData
 import co.ledger.lama.bitcoin.worker.services.CursorStateService
 import co.ledger.lama.common.models.Status.SyncFailed
 import co.ledger.lama.common.utils.IOAssertion
@@ -22,8 +23,11 @@ class WorkerWithFaultyInterpreterIT extends WorkerResources with AnyFlatSpecLike
         .map { reportableEvent =>
           it should "report a failed synchronization because of a save transaction error" in {
             reportableEvent.map(_.status) shouldBe Some(SyncFailed)
-            reportableEvent.map(_.payload.data.toString).getOrElse("") should include(
-              "Failed to save transactions for this account"
+            reportableEvent
+              .flatMap(_.payload.data.as[PayloadData].toOption)
+              .flatMap(_.errorMessage)
+              .getOrElse("") should include(
+              "Interpreter service - Failed to save transactions for this account"
             )
           }
         }

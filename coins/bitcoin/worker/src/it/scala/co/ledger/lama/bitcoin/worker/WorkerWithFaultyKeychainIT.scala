@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.worker
 import co.ledger.lama.bitcoin.common.services.ExplorerClientService
 import co.ledger.lama.bitcoin.common.services.mocks.InterpreterClientServiceMock
 import co.ledger.lama.bitcoin.worker.faultymocks.FaultyKeychainClientServiceMock
+import co.ledger.lama.bitcoin.worker.models.PayloadData
 import co.ledger.lama.bitcoin.worker.services.CursorStateService
 import co.ledger.lama.common.models.Status.SyncFailed
 import co.ledger.lama.common.utils.IOAssertion
@@ -22,8 +23,11 @@ class WorkerWithFaultyKeychainIT extends WorkerResources with AnyFlatSpecLike wi
         .map { reportableEvent =>
           it should "report a failed synchronization because of failure to get keychain informations" in {
             reportableEvent.map(_.status) shouldBe Some(SyncFailed)
-            reportableEvent.map(_.payload.data.toString).getOrElse("") should include(
-              "Failed to get keychain informations for this keychain"
+            reportableEvent
+              .flatMap(_.payload.data.as[PayloadData].toOption)
+              .flatMap(_.errorMessage)
+              .getOrElse("") should include(
+              "Keychain service - Failed to get keychain informations for this keychain"
             )
           }
         }

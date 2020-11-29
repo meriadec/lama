@@ -28,8 +28,12 @@ class WorkerWithFaultyExplorerIT
       .map { reportableEvent =>
         it should "report a failed synchronization due to faulty explorer" in {
           reportableEvent.map(_.status) shouldBe Some(SyncFailed)
-          reportableEvent.map(getErrorMessage)
-          reportableEvent.flatMap(_.payload.data.as[PayloadData].toOption)
+          reportableEvent
+            .flatMap(_.payload.data.as[PayloadData].toOption)
+            .flatMap(_.errorMessage)
+            .getOrElse("") should include(
+            "Explorer service - Failed to get confirmed transactions for this addresses"
+          )
         }
       }
   }

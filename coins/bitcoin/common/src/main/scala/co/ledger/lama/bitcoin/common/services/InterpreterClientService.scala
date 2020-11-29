@@ -67,7 +67,7 @@ class InterpreterGrpcClientService(
         IO.raiseError(
           InterpreterServiceError(
             rootCause = err,
-            errorMessage = s"Failed to save transactions for this account $accountId"
+            message = s"Failed to save transactions for this account $accountId"
           )
         )
       )
@@ -86,7 +86,7 @@ class InterpreterGrpcClientService(
         IO.raiseError(
           InterpreterServiceError(
             rootCause = err,
-            errorMessage = s"Failed to remove data from cursor for this account $accountId"
+            message = s"Failed to remove data from cursor for this account $accountId"
           )
         )
       )
@@ -104,7 +104,7 @@ class InterpreterGrpcClientService(
         IO.raiseError(
           InterpreterServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get last blocks for this account $accountId"
+            message = s"Failed to get last blocks for this account $accountId"
           )
         )
       )
@@ -123,7 +123,7 @@ class InterpreterGrpcClientService(
         IO.raiseError(
           InterpreterServiceError(
             rootCause = err,
-            errorMessage = s"Failed to compute addresses for this account $accountId"
+            message = s"Failed to compute addresses for this account $accountId"
           )
         )
       )
@@ -151,7 +151,7 @@ class InterpreterGrpcClientService(
         IO.raiseError(
           InterpreterServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get operations for this account $accountId"
+            message = s"Failed to get operations for this account $accountId"
           )
         )
       )
@@ -177,7 +177,7 @@ class InterpreterGrpcClientService(
         IO.raiseError(
           InterpreterServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get utxos for this account $accountId"
+            message = s"Failed to get utxos for this account $accountId"
           )
         )
       )
@@ -196,7 +196,7 @@ class InterpreterGrpcClientService(
         IO.raiseError(
           InterpreterServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get balance for this account $accountId"
+            message = s"Failed to get balance for this account $accountId"
           )
         )
       )
@@ -221,7 +221,7 @@ class InterpreterGrpcClientService(
         IO.raiseError(
           InterpreterServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get balance history for this account $accountId"
+            message = s"Failed to get balance history for this account $accountId"
           )
         )
       )

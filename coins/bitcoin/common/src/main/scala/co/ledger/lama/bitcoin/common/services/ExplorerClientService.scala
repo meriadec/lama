@@ -33,7 +33,7 @@ class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig)
         IO.raiseError(
           ExplorerServiceError(
             rootCause = err,
-            errorMessage = "Failed to get current block"
+            message = "Failed to get current block"
           )
         )
       )
@@ -46,7 +46,7 @@ class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig)
         IO.raiseError(
           ExplorerServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get a block for this hash $hash"
+            message = s"Failed to get a block for this hash $hash"
           )
         )
       )
@@ -58,7 +58,7 @@ class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig)
         IO.raiseError(
           ExplorerServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get a block for this height: $height"
+            message = s"Failed to get a block for this height: $height"
           )
         )
       )
@@ -88,7 +88,7 @@ class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig)
         Stream.raiseError[IO](
           ExplorerServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get confirmed transactions for this addresses: $addresses"
+            message = s"Failed to get confirmed transactions for this addresses: $addresses"
           )
         )
       )

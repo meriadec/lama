@@ -20,7 +20,7 @@ class FaultyKeychainClientServiceMock extends KeychainClientService with FaultyB
     IO.raiseError(
       KeychainServiceError(
         rootCause = fakeCause,
-        errorMessage = s"Failed to create keychain for this expub $extendedPublicKey"
+        message = s"Failed to create keychain for this expub $extendedPublicKey"
       )
     )
 
@@ -28,7 +28,7 @@ class FaultyKeychainClientServiceMock extends KeychainClientService with FaultyB
     IO.raiseError(
       KeychainServiceError(
         rootCause = fakeCause,
-        errorMessage = s"Failed to get keychain informations for this keychain $keychainId"
+        message = s"Failed to get keychain informations for this keychain $keychainId"
       )
     )
 
@@ -36,7 +36,7 @@ class FaultyKeychainClientServiceMock extends KeychainClientService with FaultyB
     IO.raiseError(
       KeychainServiceError(
         rootCause = fakeCause,
-        errorMessage = s"Failed to get addresses for this keychain $keychainId"
+        message = s"Failed to get addresses for this keychain $keychainId"
       )
     )
 
@@ -44,7 +44,7 @@ class FaultyKeychainClientServiceMock extends KeychainClientService with FaultyB
     IO.raiseError(
       KeychainServiceError(
         rootCause = fakeCause,
-        errorMessage = s"Failed to to mark addresses as used for this keychain $keychainId"
+        message = s"Failed to to mark addresses as used for this keychain $keychainId"
       )
     )
 

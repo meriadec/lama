@@ -45,7 +45,7 @@ class KeychainGrpcClientService(
         IO.raiseError(
           KeychainServiceError(
             rootCause = err,
-            errorMessage = s"Failed to create keychain for this expub $extendedPublicKey"
+            message = s"Failed to create keychain for this expub $extendedPublicKey"
           )
         )
       )
@@ -60,7 +60,7 @@ class KeychainGrpcClientService(
         IO.raiseError(
           KeychainServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get keychain informations for this keychain $keychainId"
+            message = s"Failed to get keychain informations for this keychain $keychainId"
           )
         )
       )
@@ -80,7 +80,7 @@ class KeychainGrpcClientService(
         IO.raiseError(
           KeychainServiceError(
             rootCause = err,
-            errorMessage = s"Failed to get addresses for this keychain $keychainId"
+            message = s"Failed to get addresses for this keychain $keychainId"
           )
         )
       )
@@ -96,7 +96,7 @@ class KeychainGrpcClientService(
         IO.raiseError(
           KeychainServiceError(
             rootCause = err,
-            errorMessage = s"Failed to to mark addresses as used for this keychain $keychainId"
+            message = s"Failed to to mark addresses as used for this keychain $keychainId"
           )
         )
       )
