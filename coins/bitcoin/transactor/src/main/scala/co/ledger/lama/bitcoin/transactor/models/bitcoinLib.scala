@@ -21,7 +21,7 @@ object bitcoinLib {
       )
   }
 
-  case class CreateTransactionResponse(
+  case class RawTransactionResponse(
       hex: String,
       hash: String,
       witnessHash: String
@@ -34,9 +34,9 @@ object bitcoinLib {
       )
   }
 
-  object CreateTransactionResponse {
-    def fromProto(proto: libgrpc.RawTransactionResponse): CreateTransactionResponse =
-      CreateTransactionResponse(
+  object RawTransactionResponse {
+    def fromProto(proto: libgrpc.RawTransactionResponse): RawTransactionResponse =
+      RawTransactionResponse(
         proto.hex,
         proto.hash,
         proto.witnessHash

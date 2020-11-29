@@ -6,9 +6,9 @@ class BitcoinLibGrpcClientServiceMock extends BitcoinLibGrpcService {
 
   def createTransaction(
       transaction: bitcoinLib.CreateTransactionRequest
-  ): IO[bitcoinLib.CreateTransactionResponse] = {
+  ): IO[bitcoinLib.RawTransactionResponse] = {
     IO(
-      bitcoinLib.CreateTransactionResponse(
+      bitcoinLib.RawTransactionResponse(
         "hex",
         "hash",
         "witnessHash"
