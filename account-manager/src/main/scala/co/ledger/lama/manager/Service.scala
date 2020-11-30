@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 
 import cats.effect.{ConcurrentEffect, IO}
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models._
 import co.ledger.lama.common.models.SyncEvent.Payload
 import co.ledger.lama.common.utils.UuidUtils
@@ -28,7 +29,8 @@ import io.grpc.{Metadata, ServerServiceDefinition}
 import scala.concurrent.duration.FiniteDuration
 
 class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
-    extends AccountManagerServiceFs2Grpc[IO, Metadata] {
+    extends AccountManagerServiceFs2Grpc[IO, Metadata]
+    with IOLogging {
 
   def definition(implicit ce: ConcurrentEffect[IO]): ServerServiceDefinition =
     AccountManagerServiceFs2Grpc.bindService(this)
@@ -96,13 +98,12 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         // Run queries and return an sync event result.
         queries
           .transact(db)
-          .map {
-            case (accountId, syncId, syncFrequency) =>
-              RegisterAccountResult(
-                UuidUtils.uuidToBytes(accountId),
-                UuidUtils.uuidToBytes(syncId),
-                syncFrequency.toSeconds
-              )
+          .map { case (accountId, syncId, syncFrequency) =>
+            RegisterAccountResult(
+              UuidUtils.uuidToBytes(accountId),
+              UuidUtils.uuidToBytes(syncId),
+              syncFrequency.toSeconds
+            )
           }
     } yield response
   }
@@ -199,4 +200,31 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         IO.fromOption(_)(AccountNotFoundException(accountId))
       }
 
+  def getAccounts(request: GetAccountsRequest, ctx: Metadata): IO[AccountsResult] = {
+    val limit  = if (request.limit <= 0) 20 else request.limit
+    val offset = if (request.offset < 0) 0 else request.offset
+    for {
+      accounts <- Queries
+        .getAccounts(
+          offset = offset,
+          limit = limit
+        )
+        .transact(db)
+        .compile
+        .toList
+
+      total <- Queries.countAccounts().transact(db)
+    } yield {
+      AccountsResult(
+        accounts.map(accountInfo =>
+          AccountInfoResult(
+            UuidUtils.uuidToBytes(accountInfo.id),
+            accountInfo.key,
+            accountInfo.syncFrequency.toSeconds
+          )
+        ),
+        total
+      )
+    }
+  }
 }

@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.api.routes
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
+import cats.implicits._
 import co.ledger.lama.bitcoin.api.models.accountManager._
 import co.ledger.lama.bitcoin.api.models.transactor._
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
@@ -13,6 +14,7 @@ import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.protobuf.{
   AccountInfoRequest,
   AccountManagerServiceFs2Grpc,
+  GetAccountsRequest,
   RegisterAccountRequest,
   UnregisterAccountRequest,
   UpdateAccountRequest
@@ -21,11 +23,13 @@ import co.ledger.lama.bitcoin.api.utils.ProtobufUtils._
 import co.ledger.lama.bitcoin.api.utils.RouterUtils._
 import co.ledger.lama.bitcoin.common.services.{InterpreterClientService, TransactorClientService}
 import co.ledger.protobuf.bitcoin.keychain._
+import io.circe.Json
 import io.circe.generic.extras.auto._
 import io.grpc.Metadata
 import org.http4s.HttpRoutes
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.Http4sDsl
+import io.circe.syntax._
 
 object AccountController extends Http4sDsl[IO] with IOLogging {
 
@@ -40,6 +44,43 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       transactorClient: TransactorClientService
   ): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
+      case GET -> Root
+          :? OptionalLimitQueryParamMatcher(limit)
+          +& OptionalOffsetQueryParamMatcher(offset) =>
+        val t = for {
+          accountsResult <- accountManagerClient.getAccounts(
+            GetAccountsRequest(limit.getOrElse(0), offset.getOrElse(0)),
+            new Metadata
+          )
+          _ <- log.info(s"Fetched accounts with total: $accountsResult")
+
+          accounts = accountsResult.accounts.toList
+
+          accountsWithIds <- accounts
+            .parTraverse(account =>
+              UuidUtils.bytesToUuidIO(account.accountId).map(accountId => accountId -> account)
+            )
+
+          accountsWithBalances <- accountsWithIds.parTraverse { case (accountId, account) =>
+            interpreterClient.getBalance(accountId).map(balance => account -> balance)
+          }
+
+          _ <- log.info(s"Accounts with balances: $accountsWithBalances")
+
+        } yield (accountsWithBalances, accountsResult.total)
+
+        t.flatMap { case (accountsWithBalances, total) =>
+          val accountsInfos = accountsWithBalances.map { case (account, balance) =>
+            fromAccountInfo(account, balance)
+          }
+          val response =
+            Json.obj(
+              "accounts" -> Json.fromValues(accountsInfos.map(_.asJson)),
+              "total"    -> Json.fromInt(total)
+            )
+          Ok(response)
+        }
+
       case GET -> Root / UUIDVar(accountId) =>
         accountManagerClient
           .getAccountInfo(toAccountInfoRequest(accountId), new Metadata)
