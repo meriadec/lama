@@ -3,15 +3,38 @@ package co.ledger.lama.bitcoin.common.services
 import cats.effect.{ContextShift, IO, Timer}
 import co.ledger.lama.bitcoin.common.config.ExplorerConfig
 import co.ledger.lama.bitcoin.common.models.worker._
-import co.ledger.lama.bitcoin.common.models.explorer.GetTransactionsResponse
+import co.ledger.lama.bitcoin.common.models.explorer._
+import co.ledger.lama.bitcoin.common.models.transactor.FeeInfo
 import co.ledger.lama.common.logging.IOLogging
 import fs2.{Chunk, Pull, Stream}
-import io.circe.Decoder
+import io.circe.{Decoder, Json}
 import org.http4s.{Method, Request}
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.client.Client
 
-class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig) extends IOLogging {
+trait ExplorerClientService {
+
+  def getCurrentBlock: IO[Block]
+
+  def getBlock(hash: String): IO[Option[Block]]
+
+  def getBlock(height: Long): IO[Block]
+
+  def getConfirmedTransactions(
+      addresses: Seq[String],
+      blockHash: Option[String]
+  )(implicit
+      cs: ContextShift[IO],
+      t: Timer[IO]
+  ): Stream[IO, ConfirmedTransaction]
+
+  def getSmartFees: IO[FeeInfo]
+
+}
+
+class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig)
+    extends ExplorerClientService
+    with IOLogging {
 
   private val btcBasePath = "/blockchain/v3/btc"
 
@@ -47,6 +70,40 @@ class ExplorerClientService(httpClient: Client[IO], conf: ExplorerConfig) extend
           }
       }
       .parJoinUnbounded
+
+  def getSmartFees: IO[FeeInfo] = {
+
+    for {
+
+      json <- httpClient.expect[Json](
+        conf.uri.withPath(s"$btcBasePath/fees")
+      )
+
+      feeInfo <- IO.fromOption {
+        json.asObject
+          .flatMap { o =>
+            val sortedFees = o
+              .filterKeys(_.toIntOption.isDefined)
+              .toList
+              .flatMap { case (_, v) =>
+                v.asNumber.flatMap(_.toLong)
+              }
+              .sorted
+
+            sortedFees match {
+              case slow :: normal :: fast :: Nil => Some(FeeInfo(slow, normal, fast))
+              case _                             => None
+            }
+          }
+      }(
+        new Exception(
+          s"Explorer.fees did not conform to expected format. payload :\n${json.spaces2SortKeys}"
+        )
+      )
+
+    } yield feeInfo
+
+  }
 
   private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[String]) = {
     val baseUri =

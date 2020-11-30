@@ -5,7 +5,7 @@ import co.ledger.lama.bitcoin.transactor.protobuf
 import co.ledger.lama.common.models.implicits._
 import io.circe.generic.extras.semiauto.{deriveConfiguredDecoder, deriveConfiguredEncoder}
 
-object transactor {
+package object transactor {
 
   abstract class CoinSelectionStrategy(val name: String) {
     def toProto: protobuf.CoinSelector
@@ -55,5 +55,7 @@ object transactor {
         BigInt(proto.value)
       )
   }
+
+  case class FeeInfo(slow: Long, normal: Long, fast: Long)
 
 }

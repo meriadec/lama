@@ -5,11 +5,12 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction}
-import co.ledger.lama.bitcoin.common.services.ExplorerClientService
+import co.ledger.lama.bitcoin.common.services.ExplorerV3ClientService
 import co.ledger.lama.bitcoin.common.services.mocks.InterpreterClientServiceMock
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services.CursorStateService
 import co.ledger.lama.common.logging.IOLogging
+import co.ledger.lama.common.services.Clients
 import co.ledger.lama.common.utils.IOAssertion
 import org.http4s.client.Client
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -29,7 +30,7 @@ class CursorStateServiceIT extends AnyFlatSpecLike with Matchers with IOLogging 
 
   it should "get the last valid cursor state" in IOAssertion {
     resources.use { httpClient =>
-      val explorerClient     = new ExplorerClientService(httpClient, conf.explorer)
+      val explorerClient     = new ExplorerV3ClientService(httpClient, conf.explorer)
       val interpreterClient  = new InterpreterClientServiceMock
       val cursorStateService = new CursorStateService(explorerClient, interpreterClient)
 

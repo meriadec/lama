@@ -2,13 +2,14 @@ package co.ledger.lama.bitcoin.worker
 
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.common.services.{
-  ExplorerClientService,
+  ExplorerV3ClientService,
   InterpreterGrpcClientService,
   KeychainGrpcClientService
 }
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services._
+import co.ledger.lama.common.services.Clients
 import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.protobuf.bitcoin.keychain.KeychainServiceFs2Grpc
@@ -49,7 +50,7 @@ object App extends IOApp {
 
       val keychainClient = new KeychainGrpcClientService(keychainGrpcClient)
 
-      val explorerClient = new ExplorerClientService(res.httpClient, conf.explorer)
+      val explorerClient = new ExplorerV3ClientService(res.httpClient, conf.explorer)
 
       val interpreterGrpcClient =
         BitcoinInterpreterServiceFs2Grpc.stub[IO](res.interpreterChannel)

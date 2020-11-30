@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.worker
+package co.ledger.lama.common.services
 
 import java.util.concurrent.Executors
 

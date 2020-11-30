@@ -8,7 +8,7 @@ import co.ledger.lama.bitcoin.transactor.services.{BitcoinLibGrpcService, CoinSe
 import co.ledger.lama.bitcoin.common.models.BitcoinNetwork
 import co.ledger.lama.bitcoin.common.models.interpreter.Utxo
 import co.ledger.lama.bitcoin.common.models.transactor.{CoinSelectionStrategy, PrepareTxOutput}
-import co.ledger.lama.bitcoin.common.services.InterpreterClientService
+import co.ledger.lama.bitcoin.common.services.{ExplorerClientService, InterpreterClientService}
 import co.ledger.lama.bitcoin.transactor.models.bitcoinLib
 import co.ledger.lama.bitcoin.transactor.protobuf
 import co.ledger.lama.common.logging.IOLogging
@@ -23,6 +23,7 @@ trait Transactor extends protobuf.BitcoinTransactorServiceFs2Grpc[IO, Metadata] 
 
 class BitcoinLibTransactor(
     bitcoinLibClient: BitcoinLibGrpcService,
+    explorerClient: ExplorerClientService,
     interpreterClient: InterpreterClientService
 ) extends Transactor
     with IOLogging {
@@ -50,6 +51,8 @@ class BitcoinLibTransactor(
          """
       )
 
+      estimatedFeeSatPerKb <- explorerClient.getSmartFees.map(_.normal)
+
       outputs = request.outputs.map(PrepareTxOutput.fromProto(_)).toList
       pickedUtxos <- CoinSelectionService.pickUtxos(
         CoinSelectionStrategy.fromProto(request.coinSelection),
@@ -63,9 +66,10 @@ class BitcoinLibTransactor(
          """
       )
 
-      _                   <- validateTransaction(pickedUtxos, outputs)
+      _ <- validateTransaction(pickedUtxos, outputs)
+
       unsignedTx          <- IO(createTransactionRequest(pickedUtxos, outputs, 0L))
-      preparedTransaction <- bitcoinLibClient.createTransaction(unsignedTx)
+      preparedTransaction <- bitcoinLibClient.createTransaction(unsignedTx, estimatedFeeSatPerKb)
     } yield {
 
       new protobuf.CreateTransactionResponse(

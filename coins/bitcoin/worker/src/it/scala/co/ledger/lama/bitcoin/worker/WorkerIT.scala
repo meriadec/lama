@@ -9,7 +9,7 @@ import co.ledger.lama.bitcoin.common.services.mocks.{
   InterpreterClientServiceMock,
   KeychainClientServiceMock
 }
-import co.ledger.lama.bitcoin.common.services.ExplorerClientService
+import co.ledger.lama.bitcoin.common.services.ExplorerV3ClientService
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.PayloadData
 import co.ledger.lama.bitcoin.worker.services.{CursorStateService, SyncEventService}
@@ -22,6 +22,7 @@ import co.ledger.lama.common.models.{
   SyncEvent,
   WorkableEvent
 }
+import co.ledger.lama.common.services.Clients
 import co.ledger.lama.common.utils.{IOAssertion, RabbitUtils}
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.{ExchangeName, ExchangeType, QueueName, RoutingKey}
@@ -60,7 +61,7 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
 
           val keychainClient = new KeychainClientServiceMock
 
-          val explorerClient = new ExplorerClientService(httpClient, conf.explorer)
+          val explorerClient = new ExplorerV3ClientService(httpClient, conf.explorer)
 
           val interpreterClient = new InterpreterClientServiceMock
 

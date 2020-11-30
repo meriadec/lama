@@ -7,7 +7,10 @@ import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
 import co.ledger.lama.bitcoin.common.models.transactor.CoinSelectionStrategy
 import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction, Output}
-import co.ledger.lama.bitcoin.common.services.mocks.InterpreterClientServiceMock
+import co.ledger.lama.bitcoin.common.services.mocks.{
+  ExplorerClientServiceMock,
+  InterpreterClientServiceMock
+}
 import co.ledger.lama.bitcoin.transactor.services.BitcoinLibGrpcClientServiceMock
 import co.ledger.lama.bitcoin.transactor.protobuf.{CreateTransactionRequest, PrepareTxOutput}
 import co.ledger.lama.common.utils.{IOAssertion, UuidUtils}
@@ -21,7 +24,9 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
 
     val interpreterService = new InterpreterClientServiceMock
     val bitcoinLibService  = new BitcoinLibGrpcClientServiceMock
-    val transactor         = new BitcoinLibTransactor(bitcoinLibService, interpreterService)
+    val explorerService    = new ExplorerClientServiceMock
+    val transactor =
+      new BitcoinLibTransactor(bitcoinLibService, explorerService, interpreterService)
 
     val accountId = UUID.randomUUID()
 
