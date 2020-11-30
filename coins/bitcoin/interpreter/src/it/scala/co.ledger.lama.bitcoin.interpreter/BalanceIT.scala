@@ -2,6 +2,8 @@ package co.ledger.lama.bitcoin.interpreter
 
 import java.time.Instant
 import java.util.UUID
+
+import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.worker._
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.common.utils.IOAssertion
@@ -31,11 +33,14 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
 
   val accountId: UUID = UUID.fromString("b723c553-3a9a-4130-8883-ee2f6c2f9201")
 
-  val address1: AccountAddress = AccountAddress("address1", ChangeType.External)
-  val address2: AccountAddress = AccountAddress("address2", ChangeType.External)
-  val address3: AccountAddress = AccountAddress("address3", ChangeType.Internal)
+  val address1: AccountAddress =
+    AccountAddress("address1", ChangeType.External, NonEmptyList.of(1, 0))
+  val address2: AccountAddress =
+    AccountAddress("address2", ChangeType.External, NonEmptyList.of(1, 1))
+  val address3: AccountAddress =
+    AccountAddress("address3", ChangeType.Internal, NonEmptyList.of(0, 0))
 
-  val notBelongingAddress: AccountAddress = AccountAddress("fakeLama", ChangeType.External)
+  val notBelongingAddress: String = "notBelongingAddress"
 
   val tx1: ConfirmedTransaction =
     ConfirmedTransaction(
@@ -52,7 +57,7 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
 
   val outputs = List(
     Output(0, 30000, address2.accountAddress, "script"),
-    Output(1, 20000, notBelongingAddress.accountAddress, "script"),
+    Output(1, 20000, notBelongingAddress, "script"),
     Output(2, 9434, address3.accountAddress, "script")
   )
 

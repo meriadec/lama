@@ -71,8 +71,8 @@ object TransactionQueries {
   ) = {
     val query =
       s"""INSERT INTO input (
-            account_id, hash, output_hash, output_index, input_index, value, address, script_signature, txinwitness, sequence, belongs
-          ) VALUES ('$accountId', '$txHash', ?, ?, ?, ?, ?, ?, ?, ?, false)
+            account_id, hash, output_hash, output_index, input_index, value, address, script_signature, txinwitness, sequence
+          ) VALUES ('$accountId', '$txHash', ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT ON CONSTRAINT input_pkey DO NOTHING
        """
     Update[DefaultInput](query).updateMany(inputs)
@@ -84,7 +84,7 @@ object TransactionQueries {
       outputs: List[Output]
   ) = {
     val query = s"""INSERT INTO output (
-            account_id, hash, output_index, value, address, script_hex, belongs, change_type
+            account_id, hash, output_index, value, address, script_hex, change_type
           ) VALUES (
             '$accountId',
             '$txHash',
@@ -92,7 +92,6 @@ object TransactionQueries {
             ?,
             ?,
             ?,
-            false, -- until we know all known addresses, we consider all new transaction outputs as not belonging
             NULL   -- and so there is no changeType
           ) ON CONFLICT ON CONSTRAINT output_pkey DO NOTHING
         """

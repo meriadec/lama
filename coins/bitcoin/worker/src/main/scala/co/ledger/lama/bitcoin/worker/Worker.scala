@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.worker
 
 import java.util.UUID
 
+import cats.data.NonEmptyList
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.worker.DefaultInput
@@ -109,7 +110,8 @@ class Worker(
       addresses = batchResults.flatMap(_.addresses).map { a =>
         AccountAddress(
           a.address,
-          if (a.change.isChangeExternal) ChangeType.External else ChangeType.Internal
+          if (a.change.isChangeExternal) ChangeType.External else ChangeType.Internal,
+          NonEmptyList.fromListUnsafe(a.derivation.toList)
         )
       }
 

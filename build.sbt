@@ -129,10 +129,7 @@ lazy val bitcoinCommon = (project in file("coins/bitcoin/common"))
     libraryDependencies ++= Dependencies.btcCommon,
     // Proto config
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    PB.protoSources in Compile := Seq(
-      file("coins/bitcoin/common/src/main/protobuf"),
-      file("coins/bitcoin/keychain/pb/keychain")
-    )
+    PB.protoSources in Compile += file("coins/bitcoin/keychain/pb/keychain")
   )
   .dependsOn(common)
 

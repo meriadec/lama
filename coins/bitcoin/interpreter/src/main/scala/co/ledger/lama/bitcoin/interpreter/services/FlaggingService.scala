@@ -18,11 +18,10 @@ class FlaggingService(db: Transactor[IO]) {
     val (internalAddresses, externalAddresses) =
       accountAddresses
         .partition(_.changeType == ChangeType.Internal)
-        .bimap(_.map(_.accountAddress), _.map(_.accountAddress))
 
     val flagInputs =
       NonEmptyList
-        .fromList(accountAddresses.map(_.accountAddress))
+        .fromList(accountAddresses)
         .map { addresses =>
           OperationQueries
             .flagBelongingInputs(

@@ -87,7 +87,7 @@ object OperationQueries extends IOLogging {
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
 
     val query =
-      sql"""SELECT tx.hash, o.output_index, o.value, o.address, o.script_hex, o.belongs, o.change_type, tx.block_time
+      sql"""SELECT tx.hash, o.output_index, o.value, o.address, o.script_hex, o.change_type, o.derivation, tx.block_time
             FROM output o
               LEFT JOIN input i
                 ON o.account_id = i.account_id
@@ -98,7 +98,7 @@ object OperationQueries extends IOLogging {
                 ON o.account_id = tx.account_id
                 AND o.hash = tx.hash
             WHERE o.account_id = $accountId
-              AND o.belongs = true
+              AND o.derivation IS NOT NULL
               AND i.address IS NULL
          """ ++ orderF ++ limitF ++ offsetF
     query.query[Utxo].stream
@@ -130,7 +130,7 @@ object OperationQueries extends IOLogging {
       accountId: UUID,
       hash: String
   ): Stream[ConnectionIO, InputView] = {
-    sql"""SELECT output_hash, output_index, input_index, value, address, script_signature, txinwitness, sequence, belongs
+    sql"""SELECT output_hash, output_index, input_index, value, address, script_signature, txinwitness, sequence, derivation
           FROM input
           WHERE account_id = $accountId
           AND hash = $hash
@@ -143,7 +143,7 @@ object OperationQueries extends IOLogging {
       accountId: UUID,
       hash: String
   ): Stream[ConnectionIO, OutputView] =
-    sql"""SELECT output_index, value, address, script_hex, belongs, change_type
+    sql"""SELECT output_index, value, address, script_hex, change_type, derivation
           FROM output
           WHERE account_id = $accountId
           AND hash = $hash
@@ -171,25 +171,35 @@ object OperationQueries extends IOLogging {
     query.query[Operation].stream
   }
 
-  def flagBelongingInputs(accountId: UUID, addresses: NonEmptyList[String]): ConnectionIO[Int] = {
-    val query =
+  def flagBelongingInputs(
+      accountId: UUID,
+      addresses: NonEmptyList[AccountAddress]
+  ): ConnectionIO[Int] = {
+    val queries = addresses.map { addr =>
       sql"""UPDATE input
-            SET belongs = true
+            SET derivation = ${addr.derivation.toList}
             WHERE account_id = $accountId
-            AND """ ++ Fragments.in(fr"address", addresses)
-    query.update.run
+            AND address = ${addr.accountAddress}
+         """
+    }
+
+    queries.traverse(_.update.run).map(_.toList.sum)
   }
 
   def flagBelongingOutputs(
       accountId: UUID,
-      addresses: NonEmptyList[String],
+      addresses: NonEmptyList[AccountAddress],
       changeType: ChangeType
   ): ConnectionIO[Int] = {
-    val query =
+    val queries = addresses.map { addr =>
       sql"""UPDATE output
-            SET belongs = true, change_type = $changeType
+            SET change_type = $changeType,
+                derivation = ${addr.derivation.toList}
             WHERE account_id = $accountId
-            AND """ ++ Fragments.in(fr"address", addresses)
-    query.update.run
+            AND address = ${addr.accountAddress}
+         """
+    }
+
+    queries.traverse(_.update.run).map(_.toList.sum)
   }
 }

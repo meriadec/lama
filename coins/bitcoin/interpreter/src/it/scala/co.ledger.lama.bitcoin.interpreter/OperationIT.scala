@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.interpreter
 import java.time.Instant
 import java.util.UUID
 
+import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.worker._
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.interpreter.services.{FlaggingService, OperationService}
@@ -16,11 +17,11 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
   val accountId: UUID = UUID.fromString("b723c553-3a9a-4130-8883-ee2f6c2f9202")
 
   private val outputAddress1 =
-    AccountAddress("1DtwACvd338XtHBFYJRVKRLxviD7YtYADa", ChangeType.External)
+    AccountAddress("1DtwACvd338XtHBFYJRVKRLxviD7YtYADa", ChangeType.External, NonEmptyList.of(1, 0))
   private val outputAddress2 =
-    AccountAddress("1LK8UbiRwUzC8KFEbMKvgbvriM9zLMce3C", ChangeType.Internal)
+    AccountAddress("1LK8UbiRwUzC8KFEbMKvgbvriM9zLMce3C", ChangeType.Internal, NonEmptyList.of(0, 0))
   private val inputAddress =
-    AccountAddress("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ", ChangeType.External)
+    AccountAddress("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ", ChangeType.External, NonEmptyList.of(1, 1))
 
   val block1: Block = Block(
     "00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379",

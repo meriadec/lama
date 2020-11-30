@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.transactor
 import java.time.Instant
 import java.util.UUID
 
+import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
 import co.ledger.lama.bitcoin.common.models.transactor.CoinSelectionStrategy
 import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction, Output}
@@ -26,9 +27,21 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
 
     val transactionHash = "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1f"
 
-    val outputAddress1 = AccountAddress("1DtwACvd338XtHBFYJRVKRLxviD7YtYADa", ChangeType.External)
-    val outputAddress2 = AccountAddress("1LK8UbiRwUzC8KFEbMKvgbvriM9zLMce3C", ChangeType.External)
-    val outputAddress3 = AccountAddress("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ", ChangeType.External)
+    val outputAddress1 = AccountAddress(
+      "1DtwACvd338XtHBFYJRVKRLxviD7YtYADa",
+      ChangeType.External,
+      NonEmptyList.of(1, 0)
+    )
+    val outputAddress2 = AccountAddress(
+      "1LK8UbiRwUzC8KFEbMKvgbvriM9zLMce3C",
+      ChangeType.External,
+      NonEmptyList.of(1, 1)
+    )
+    val outputAddress3 = AccountAddress(
+      "1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ",
+      ChangeType.External,
+      NonEmptyList.of(1, 2)
+    )
 
     val outputs = List(
       Output(0, 10000, outputAddress1.accountAddress, "script"),

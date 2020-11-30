@@ -3,6 +3,8 @@ package co.ledger.lama.bitcoin.common.models
 import java.time.Instant
 import java.util.UUID
 
+import cats.data.NonEmptyList
+import cats.implicits._
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import io.circe.generic.extras.semiauto._
@@ -45,8 +47,10 @@ package object interpreter {
       scriptSignature: String,
       txinwitness: List[String],
       sequence: Long,
-      belongs: Boolean
+      derivation: Option[NonEmptyList[Int]]
   ) {
+    val belongs: Boolean = derivation.isDefined
+
     def toProto: protobuf.InputView =
       protobuf.InputView(
         outputHash,
@@ -57,7 +61,7 @@ package object interpreter {
         scriptSignature,
         txinwitness,
         sequence,
-        belongs
+        derivation.map(_.toList).getOrElse(Nil)
       )
   }
 
@@ -72,7 +76,7 @@ package object interpreter {
         proto.scriptSignature,
         proto.txinwitness.toList,
         proto.sequence,
-        proto.belongs
+        proto.derivation.toList.toNel
       )
 
     implicit val encoder: Encoder[InputView] = deriveConfiguredEncoder[InputView]
@@ -123,8 +127,8 @@ package object interpreter {
       value: BigInt,
       address: String,
       scriptHex: String,
-      belongs: Boolean,
       changeType: Option[ChangeType],
+      derivation: NonEmptyList[Int],
       time: Instant
   ) {
     def toProto: protobuf.Utxo =
@@ -134,8 +138,8 @@ package object interpreter {
         value.toString,
         address,
         scriptHex,
-        belongs,
         changeType.getOrElse(ChangeType.External).toProto,
+        derivation.toList,
         Some(ProtobufUtils.fromInstant(time))
       )
   }
@@ -151,8 +155,8 @@ package object interpreter {
         BigInt(proto.value),
         proto.address,
         proto.scriptHex,
-        proto.belongs,
         Some(ChangeType.fromProto(proto.changeType)),
+        NonEmptyList.fromListUnsafe(proto.derivation.toList),
         proto.time.map(ProtobufUtils.toInstant).getOrElse(Instant.now())
       )
   }
@@ -162,17 +166,19 @@ package object interpreter {
       value: BigInt,
       address: String,
       scriptHex: String,
-      belongs: Boolean,
-      changeType: Option[ChangeType]
+      changeType: Option[ChangeType],
+      derivation: Option[NonEmptyList[Int]]
   ) {
+    val belongs: Boolean = derivation.isDefined
+
     def toProto: protobuf.OutputView =
       protobuf.OutputView(
         outputIndex,
         value.toString,
         address,
         scriptHex,
-        belongs,
-        changeType.getOrElse(ChangeType.External).toProto
+        changeType.getOrElse(ChangeType.External).toProto,
+        derivation.map(_.toList).getOrElse(Nil)
       )
   }
 
@@ -186,8 +192,8 @@ package object interpreter {
         BigInt(proto.value),
         proto.address,
         proto.scriptHex,
-        proto.belongs,
-        Some(ChangeType.fromProto(proto.changeType))
+        Some(ChangeType.fromProto(proto.changeType)),
+        proto.derivation.toList.toNel
       )
   }
 
@@ -317,10 +323,11 @@ package object interpreter {
 
   case class AccountAddress(
       accountAddress: String,
-      changeType: ChangeType
+      changeType: ChangeType,
+      derivation: NonEmptyList[Int]
   ) {
     def toProto: protobuf.AccountAddress = {
-      protobuf.AccountAddress(accountAddress, changeType.toProto)
+      protobuf.AccountAddress(accountAddress, changeType.toProto, derivation.toList)
     }
   }
 
@@ -331,7 +338,8 @@ package object interpreter {
     def fromProto(proto: protobuf.AccountAddress): AccountAddress = {
       AccountAddress(
         proto.accountAddress,
-        ChangeType.fromProto(proto.changeType)
+        ChangeType.fromProto(proto.changeType),
+        NonEmptyList.fromListUnsafe(proto.derivation.toList)
       )
     }
   }

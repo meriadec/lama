@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.transactor.services
 
 import java.time.Instant
 
+import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.interpreter.{ChangeType, Utxo}
 import co.ledger.lama.bitcoin.common.models.transactor.CoinSelectionStrategy
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -17,8 +18,8 @@ class CoinSelectionServiceTest extends AnyFlatSpecLike with Matchers {
       100000,
       "address",
       "script",
-      true,
       Some(ChangeType.Internal),
+      NonEmptyList.of(0, 1),
       Instant.now
     )
 

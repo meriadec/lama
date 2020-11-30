@@ -47,7 +47,7 @@ message InputView {
   string script_signature = 6;
   repeated string txinwitness = 7;
   int64 sequence = 8;
-  bool belongs = 9;
+  repeated uint32 derivation = 9;
 }
 
 message OutputView {
@@ -55,8 +55,8 @@ message OutputView {
   string value = 2;
   string address = 3;
   string script_hex = 4;
-  bool belongs = 5;
-  ChangeType changeType = 6;
+  ChangeType changeType = 5;
+  repeated uint32 derivation = 6;
 }
 
 message Utxo {
@@ -65,8 +65,8 @@ message Utxo {
   string value = 3;
   string address = 4;
   string script_hex = 5;
-  bool belongs = 6;
-  ChangeType changeType = 7;
+  ChangeType changeType = 6;
+  repeated uint32 derivation = 7;
   google.protobuf.Timestamp time = 8;
 }
 
@@ -79,6 +79,7 @@ message BlockView {
 message AccountAddress {
   string account_address = 1;
   ChangeType change_type = 2;
+  repeated int32 derivation = 3;
 }
 
 message BalanceHistory {

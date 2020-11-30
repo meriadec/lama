@@ -82,7 +82,7 @@ class InterpreterClientServiceMock extends InterpreterClientService {
             i.scriptSignature,
             i.txinwitness,
             i.sequence,
-            addresses.contains(i.address)
+            addresses.find(_.accountAddress == i.address).map(_.derivation)
           )
 
         },
@@ -92,8 +92,8 @@ class InterpreterClientServiceMock extends InterpreterClientService {
             o.value,
             o.address,
             o.scriptHex,
-            addresses.map(_.accountAddress).contains(o.address),
-            addresses.find(a => a.accountAddress == o.address).map(a => a.changeType)
+            addresses.find(a => a.accountAddress == o.address).map(a => a.changeType),
+            addresses.find(_.accountAddress == o.address).map(_.derivation)
           )
         ),
         BlockView(tx.block.hash, tx.block.height, tx.block.time),
@@ -204,8 +204,8 @@ class InterpreterClientServiceMock extends InterpreterClientService {
           output.value,
           output.address,
           output.scriptHex,
-          output.belongs,
           output.changeType,
+          output.derivation.get,
           tx.block.time
         )
       }

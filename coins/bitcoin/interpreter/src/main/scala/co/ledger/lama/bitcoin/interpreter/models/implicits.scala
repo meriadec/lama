@@ -4,6 +4,7 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
 
+import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.worker.Output
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import doobie._
@@ -13,6 +14,12 @@ import doobie.implicits.javasql._
 import scala.math.BigDecimal.javaBigDecimal2bigDecimal
 
 object implicits {
+
+  implicit def getNel[A](implicit ev: Get[List[A]]): Get[NonEmptyList[A]] =
+    ev.map(NonEmptyList.fromList(_).getOrElse(sys.error("oops")))
+
+  implicit def putNel[A](implicit ev: Put[List[A]]): Put[NonEmptyList[A]] =
+    ev.contramap(_.toList)
 
   implicit val bigIntType: Meta[BigInt] =
     Meta.BigDecimalMeta.imap[BigInt](_.toBigInt)(BigDecimal(_).bigDecimal)

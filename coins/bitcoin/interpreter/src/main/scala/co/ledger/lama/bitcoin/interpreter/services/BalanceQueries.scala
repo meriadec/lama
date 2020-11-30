@@ -28,7 +28,7 @@ object BalanceQueries {
               AND o.output_index = i.output_index
 			        AND o.hash = i.output_hash
           WHERE o.account_id = $accountId
-            AND o.belongs = true
+            AND o.derivation IS NOT NULL
             AND i.address IS NULL
       """
         .query[(BigInt, Int)]
