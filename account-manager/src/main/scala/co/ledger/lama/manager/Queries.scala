@@ -27,7 +27,9 @@ import scala.concurrent.duration.FiniteDuration
 object Queries {
 
   def countAccounts(): ConnectionIO[Int] =
-    sql"""SELECT COUNT(*) FROM account_info""".query[Int].unique
+    sql"""SELECT COUNT(*) FROM account_sync_status"""
+      .query[Int]
+      .unique
 
   def fetchPublishableEvents(
       coinFamily: CoinFamily,
@@ -63,13 +65,15 @@ object Queries {
       .query[TriggerableEvent]
       .stream
 
-  def getAccounts(offset: Int, limit: Int): Stream[ConnectionIO, AccountInfo] =
-    sql"""SELECT account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60
-          FROM account_info
+  def getAccounts(offset: Int, limit: Int): Stream[ConnectionIO, AccountSyncStatus] =
+    sql"""SELECT account_id, key, coin_family, coin,
+            extract(epoch FROM sync_frequency) / 60 * 60,
+            sync_id, status, payload, updated
+          FROM account_sync_status
           LIMIT $limit
           OFFSET $offset
          """
-      .query[AccountInfo]
+      .query[AccountSyncStatus]
       .stream
 
   def getAccountInfo(accountId: UUID): ConnectionIO[Option[AccountInfo]] =

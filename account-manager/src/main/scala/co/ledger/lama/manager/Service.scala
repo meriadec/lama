@@ -16,7 +16,7 @@ import co.ledger.lama.manager.Exceptions.{
 }
 import co.ledger.lama.manager.config.CoinConfig
 import co.ledger.lama.manager.models.AccountInfo
-import co.ledger.lama.manager.protobuf._
+import co.ledger.lama.manager.protobuf.{SyncEvent => Se, _}
 import co.ledger.lama.manager.utils.ProtobufUtils
 import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
@@ -216,11 +216,18 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       total <- Queries.countAccounts().transact(db)
     } yield {
       AccountsResult(
-        accounts.map(accountInfo =>
+        accounts.map(account =>
           AccountInfoResult(
-            UuidUtils.uuidToBytes(accountInfo.id),
-            accountInfo.key,
-            accountInfo.syncFrequency.toSeconds
+            UuidUtils.uuidToBytes(account.id),
+            account.key,
+            account.syncFrequency.toSeconds,
+            Some(
+              Se(
+                UuidUtils.uuidToBytes(account.syncId),
+                account.status.name,
+                ByteString.copyFrom(account.payload.asJson.noSpaces.getBytes())
+              )
+            )
           )
         ),
         total

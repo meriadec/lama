@@ -18,10 +18,12 @@ import co.ledger.protobuf.bitcoin.keychain.KeychainServiceFs2Grpc
 import co.ledger.protobuf.lama.common.HealthFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import io.grpc.Metadata
+import org.http4s.server.middleware._
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
 import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
 import pureconfig.ConfigSource
+import scala.concurrent.duration._
 
 import scala.concurrent.ExecutionContext
 
@@ -84,22 +86,35 @@ object App extends IOApp {
         conf.maxConcurrent
       )
 
+      val methodConfig = CORSConfig(
+        anyOrigin = true,
+        anyMethod = true,
+        allowCredentials = false,
+        maxAge = 1.day.toSeconds
+      )
+
       val httpRoutes = Router[IO](
-        "accounts" -> loggingMiddleWare(
-          AccountController.routes(
-            notificationService,
-            serviceResources.grpcKeychainClient,
-            serviceResources.grpcAccountClient,
-            new InterpreterGrpcClientService(serviceResources.grpcBitcoinInterpreterClient),
-            new TransactorGrpcClientService(serviceResources.grpcBitcoinTransactorClient)
-          )
+        "accounts" -> CORS(
+          loggingMiddleWare(
+            AccountController.routes(
+              notificationService,
+              serviceResources.grpcKeychainClient,
+              serviceResources.grpcAccountClient,
+              new InterpreterGrpcClientService(serviceResources.grpcBitcoinInterpreterClient),
+              new TransactorGrpcClientService(serviceResources.grpcBitcoinTransactorClient)
+            )
+          ),
+          methodConfig
         ),
-        "_health" -> HealthController.routes(
-          serviceResources.grpcAccountManagerHealthClient,
-          serviceResources.grpcBitcoinInterpreterHealthClient,
-          serviceResources.grpcBitcoinTransactorHealthClient
+        "_health" -> CORS(
+          HealthController.routes(
+            serviceResources.grpcAccountManagerHealthClient,
+            serviceResources.grpcBitcoinInterpreterHealthClient,
+            serviceResources.grpcBitcoinTransactorHealthClient
+          ),
+          methodConfig
         ),
-        "_version" -> VersionController.routes()
+        "_version" -> CORS(VersionController.routes(), methodConfig)
       ).orNotFound
 
       BlazeServerBuilder[IO](ExecutionContext.global)
