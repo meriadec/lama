@@ -9,6 +9,7 @@ import io.grpc.Metadata
 trait BitcoinLibGrpcService {
   def createTransaction(
       transaction: CreateTransactionRequest,
+      changeAddress: String,
       estimatedFeeSatPerKb: Long
   ): IO[RawTransactionResponse]
 }
@@ -19,12 +20,14 @@ class BitcoinLibGrpcClientService(grpcClient: libgrpc.CoinServiceFs2Grpc[IO, Met
 
   def createTransaction(
       transaction: CreateTransactionRequest,
+      changeAddress: String,
       estimatedFeeSatPerKb: Long
   ): IO[RawTransactionResponse] = {
 
     // Whenever Bitcoin Lib is ready, pass the estimated fees to createTransaction.
     // For now, we log...
     log.info(s"Estimated fees per bytes : $estimatedFeeSatPerKb")
+    log.info(s"change Address : ${changeAddress}")
 
     grpcClient
       .createTransaction(

@@ -6,8 +6,9 @@ class BitcoinLibGrpcClientServiceMock extends BitcoinLibGrpcService {
 
   def createTransaction(
       transaction: bitcoinLib.CreateTransactionRequest,
+      changeAddress: String,
       estimatedFeeSatPerKb: Long
-  ): IO[bitcoinLib.RawTransactionResponse] = {
+  ): IO[bitcoinLib.RawTransactionResponse] =
     IO(
       bitcoinLib.RawTransactionResponse(
         "hex",
@@ -15,6 +16,5 @@ class BitcoinLibGrpcClientServiceMock extends BitcoinLibGrpcService {
         "witnessHash"
       )
     )
-  }
 
 }

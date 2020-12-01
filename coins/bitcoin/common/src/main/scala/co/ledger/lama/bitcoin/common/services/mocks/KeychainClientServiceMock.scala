@@ -3,14 +3,16 @@ package co.ledger.lama.bitcoin.common.services.mocks
 import java.util.UUID
 
 import cats.effect.IO
+import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.bitcoin.common.services.KeychainClientService
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.protobuf.bitcoin.keychain
 
 import scala.collection.mutable
 
-class KeychainClientServiceMock extends KeychainClientService {
+class KeychainClientServiceMock extends KeychainClientService with IOLogging {
 
   var usedAddresses: mutable.Seq[String] = mutable.Seq.empty
 
@@ -70,5 +72,8 @@ class KeychainClientServiceMock extends KeychainClientService {
     IO.delay {
       usedAddresses = usedAddresses ++ addresses
     }
+
+  def getFreshAddresses(keychainId: UUID, change: ChangeType, size: Int): IO[List[String]] =
+    IO(List("1MZbRqZGpiSWGRLg8DUdVrDKHwNe1oesUZ"))
 
 }

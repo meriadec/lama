@@ -10,6 +10,7 @@ import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import io.circe.generic.extras.semiauto._
 import io.circe.{Decoder, Encoder}
 import co.ledger.lama.common.models.implicits._
+import co.ledger.protobuf.bitcoin.keychain
 
 package object interpreter {
 
@@ -86,6 +87,7 @@ package object interpreter {
   sealed trait ChangeType {
     val name: String
     def toProto: protobuf.ChangeType
+    def toKeychainProto: keychain.Change
   }
 
   object ChangeType {
@@ -95,12 +97,19 @@ package object interpreter {
       def toProto: protobuf.ChangeType = {
         protobuf.ChangeType.INTERNAL
       }
+
+      def toKeychainProto: keychain.Change = {
+        keychain.Change.CHANGE_INTERNAL
+      }
     }
 
     case object External extends ChangeType {
       val name = "external"
       def toProto: protobuf.ChangeType = {
         protobuf.ChangeType.EXTERNAL
+      }
+      def toKeychainProto: keychain.Change = {
+        keychain.Change.CHANGE_EXTERNAL
       }
     }
 

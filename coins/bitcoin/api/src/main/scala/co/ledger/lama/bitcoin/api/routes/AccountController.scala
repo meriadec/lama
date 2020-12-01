@@ -239,9 +239,16 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
         for {
           _                        <- log.info(s"preparing transaction creation for account: $accountId")
           createTransactionRequest <- req.as[CreateTransactionRequest]
+
+          account <- accountManagerClient.getAccountInfo(
+            new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
+            new Metadata
+          )
+
           response <- transactorClient
             .createTransaction(
               createTransactionRequest.accountId,
+              UUID.fromString(account.key),
               createTransactionRequest.coinSelection,
               createTransactionRequest.outputs
             )

@@ -9,6 +9,7 @@ case class Config(
     grpcServer: GrpcServerConfig,
     explorer: ExplorerConfig,
     interpreter: GrpcClientConfig,
+    keychain: GrpcClientConfig,
     bitcoinLib: GrpcClientConfig
 )
 

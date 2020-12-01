@@ -17,8 +17,9 @@ enum CoinSelector {
 
 message CreateTransactionRequest {
   bytes accountId = 1;
-  CoinSelector coinSelection = 2;
-  repeated PrepareTxOutput outputs = 3;
+  bytes keychainId = 2;
+  CoinSelector coinSelection = 3;
+  repeated PrepareTxOutput outputs = 4;
 }
 
 message CreateTransactionResponse {

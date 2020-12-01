@@ -6,9 +6,13 @@ import cats.effect.{ConcurrentEffect, IO}
 import fs2.{Chunk, Stream}
 import co.ledger.lama.bitcoin.transactor.services.{BitcoinLibGrpcService, CoinSelectionService}
 import co.ledger.lama.bitcoin.common.models.BitcoinNetwork
-import co.ledger.lama.bitcoin.common.models.interpreter.Utxo
+import co.ledger.lama.bitcoin.common.models.interpreter.{ChangeType, Utxo}
 import co.ledger.lama.bitcoin.common.models.transactor.{CoinSelectionStrategy, PrepareTxOutput}
-import co.ledger.lama.bitcoin.common.services.{ExplorerClientService, InterpreterClientService}
+import co.ledger.lama.bitcoin.common.services.{
+  ExplorerClientService,
+  InterpreterClientService,
+  KeychainClientService
+}
 import co.ledger.lama.bitcoin.transactor.models.bitcoinLib
 import co.ledger.lama.bitcoin.transactor.protobuf
 import co.ledger.lama.common.logging.IOLogging
@@ -24,6 +28,7 @@ trait Transactor extends protobuf.BitcoinTransactorServiceFs2Grpc[IO, Metadata] 
 class BitcoinLibTransactor(
     bitcoinLibClient: BitcoinLibGrpcService,
     explorerClient: ExplorerClientService,
+    keychainClient: KeychainClientService,
     interpreterClient: InterpreterClientService
 ) extends Transactor
     with IOLogging {
@@ -51,8 +56,6 @@ class BitcoinLibTransactor(
          """
       )
 
-      estimatedFeeSatPerKb <- explorerClient.getSmartFees.map(_.normal)
-
       outputs = request.outputs.map(PrepareTxOutput.fromProto(_)).toList
       pickedUtxos <- CoinSelectionService.pickUtxos(
         CoinSelectionStrategy.fromProto(request.coinSelection),
@@ -68,8 +71,24 @@ class BitcoinLibTransactor(
 
       _ <- validateTransaction(pickedUtxos, outputs)
 
-      unsignedTx          <- IO(createTransactionRequest(pickedUtxos, outputs, 0L))
-      preparedTransaction <- bitcoinLibClient.createTransaction(unsignedTx, estimatedFeeSatPerKb)
+      estimatedFeeSatPerKb <- explorerClient.getSmartFees.map(_.normal)
+      keychainId           <- UuidUtils.bytesToUuidIO(request.keychainId)
+      changeAddress <- keychainClient
+        .getFreshAddresses(keychainId, ChangeType.Internal, 1)
+        .flatMap { addresses =>
+          IO.fromOption(addresses.headOption)(
+            new NoSuchElementException(
+              s"Could not get fresh change address from keychain with id : $keychainId"
+            )
+          )
+        }
+
+      unsignedTx <- IO(createTransactionRequest(pickedUtxos, outputs, 0L))
+      preparedTransaction <- bitcoinLibClient.createTransaction(
+        unsignedTx,
+        changeAddress,
+        estimatedFeeSatPerKb
+      )
     } yield {
 
       new protobuf.CreateTransactionResponse(
