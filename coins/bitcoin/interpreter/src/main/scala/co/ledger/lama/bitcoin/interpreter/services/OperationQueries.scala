@@ -76,6 +76,21 @@ object OperationQueries extends IOLogging {
       .query[TransactionAmounts]
       .stream
 
+  def countUTXOs(accountId: UUID): ConnectionIO[Int] =
+    sql"""SELECT COUNT(*)
+          FROM output o
+           LEFT JOIN input i
+             ON o.account_id = i.account_id
+             AND o.address = i.address
+             AND o.output_index = i.output_index
+             AND o.hash = i.output_hash
+           INNER JOIN transaction tx
+            ON o.account_id = tx.account_id
+            AND o.hash = tx.hash
+          WHERE o.account_id = $accountId
+            AND o.derivation IS NOT NULL
+            AND i.address IS NULL""".query[Int].unique
+
   def fetchUTXOs(
       accountId: UUID,
       sort: Sort = Sort.Ascending,
@@ -150,6 +165,11 @@ object OperationQueries extends IOLogging {
        """
       .query[OutputView]
       .stream
+
+  def countOperations(accountId: UUID, blockHeight: Long = 0L) =
+    sql"""SELECT COUNT(*) FROM operation WHERE account_id = $accountId AND block_height >= $blockHeight"""
+      .query[Int]
+      .unique
 
   def fetchOperations(
       accountId: UUID,

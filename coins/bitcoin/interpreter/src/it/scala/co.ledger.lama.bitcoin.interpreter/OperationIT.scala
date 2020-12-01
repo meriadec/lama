@@ -101,9 +101,10 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
             offset = 0,
             sort = Sort.Ascending
           )
-          (ops, trunc) = res
+          (ops, total, trunc) = res
         } yield {
           ops should have size 1
+          total shouldBe 1
           trunc shouldBe false
 
           val op = ops.head
@@ -144,9 +145,10 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
             offset = 0,
             sort = Sort.Ascending
           )
-          (ops, trunc) = res
+          (ops, total, trunc) = res
         } yield {
           ops should have size 1
+          total shouldBe 1
           trunc shouldBe false
 
           val op = ops.head
@@ -180,9 +182,10 @@ class OperationIT extends AnyFlatSpecLike with Matchers with TestResources {
             .compile
             .toList
           res <- operationService.getUTXOs(accountId, Sort.Ascending, 20, 0)
-          (utxos, trunc) = res
+          (utxos, total, trunc) = res
         } yield {
           utxos should have size 1
+          total shouldBe 1
           trunc shouldBe false
 
           val utxo = utxos.head

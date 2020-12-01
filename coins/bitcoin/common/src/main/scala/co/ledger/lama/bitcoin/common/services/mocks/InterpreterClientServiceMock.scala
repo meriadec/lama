@@ -170,11 +170,14 @@ class InterpreterClientServiceMock extends InterpreterClientService {
       .sortBy(_.transaction.get.block.height)
       .slice(offset, offset + limit)
 
+    val total = operations(accountId).count(_.transaction.get.block.height > blockHeight)
+
     IO(
       new GetOperationsResult(
         ops.size < operations(accountId).size,
         ops,
-        ops.size
+        ops.size,
+        total
       )
     )
   }
@@ -210,11 +213,14 @@ class InterpreterClientServiceMock extends InterpreterClientService {
         )
       }
 
+    val total = transactions(accountId).size
+
     IO(
       new grpc.GetUTXOsResult(
         false,
         utxos,
-        utxos.size
+        utxos.size,
+        total
       )
     )
 

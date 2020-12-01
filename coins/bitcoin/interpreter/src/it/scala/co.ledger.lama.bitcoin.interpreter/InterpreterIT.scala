@@ -112,7 +112,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
             Sort.Ascending
           )
 
-          (opsBeforeDeletion, opsBeforeDeletionTrunc) = resOpsBeforeDeletion
+          (opsBeforeDeletion, opsBeforeDeletionTotal, opsBeforeDeletionTrunc) = resOpsBeforeDeletion
 
           resUtxoBeforeDeletion <- operationService.getUTXOs(
             accountId,
@@ -121,7 +121,8 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
             offset = 0
           )
 
-          (utxosBeforeDeletion, utxosBeforeDeletionTrunc) = resUtxoBeforeDeletion
+          (utxosBeforeDeletion, utxosBeforeDeletionTotal, utxosBeforeDeletionTrunc) =
+            resUtxoBeforeDeletion
 
           now   = Instant.now()
           start = now.minusSeconds(86400)
@@ -139,7 +140,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
             Sort.Ascending
           )
 
-          (opsAfterDeletion, opsAfterDeletionTrunc) = resOpsAfterDeletion
+          (opsAfterDeletion, opsAfterDeletionTotal, opsAfterDeletionTrunc) = resOpsAfterDeletion
 
           balancesAfterDeletion <- balanceService.getBalancesHistory(accountId, start, end)
 
@@ -148,14 +149,17 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
           blocks should be(blocksToSave.sortBy(_.height)(Ordering[Long].reverse))
 
           opsBeforeDeletion should have size 3
+          opsBeforeDeletionTotal shouldBe 3
           opsBeforeDeletionTrunc shouldBe false
 
           utxosBeforeDeletion should have size 3
+          utxosBeforeDeletionTotal shouldBe 3
           utxosBeforeDeletionTrunc shouldBe false
 
           balancesBeforeDeletion should have size 2
 
           opsAfterDeletion shouldBe empty
+          opsAfterDeletionTotal shouldBe 0
           opsAfterDeletionTrunc shouldBe false
 
           balancesAfterDeletion shouldBe empty

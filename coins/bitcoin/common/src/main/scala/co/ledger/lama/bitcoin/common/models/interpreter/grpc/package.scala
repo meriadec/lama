@@ -11,7 +11,8 @@ package object grpc {
   case class GetOperationsResult(
       truncated: Boolean,
       operations: List[Operation],
-      size: Int
+      size: Int,
+      total: Int
   )
 
   object GetOperationsResult {
@@ -24,14 +25,16 @@ package object grpc {
       GetOperationsResult(
         proto.truncated,
         proto.operations.map(Operation.fromProto).toList,
-        proto.operations.size
+        proto.operations.size,
+        proto.total
       )
   }
 
   case class GetUTXOsResult(
       truncated: Boolean,
       utxos: List[Utxo],
-      size: Int
+      size: Int,
+      total: Int
   )
 
   object GetUTXOsResult {
@@ -44,12 +47,14 @@ package object grpc {
       GetUTXOsResult(
         proto.truncated,
         proto.utxos.map(Utxo.fromProto).toList,
-        proto.utxos.size
+        proto.utxos.size,
+        proto.total
       )
   }
 
   case class GetBalanceHistoryResult(
-      balances: Seq[BalanceHistory]
+      balances: Seq[BalanceHistory],
+      total: Int
   )
 
   object GetBalanceHistoryResult {
@@ -60,7 +65,8 @@ package object grpc {
 
     def fromProto(proto: protobuf.GetBalanceHistoryResult): GetBalanceHistoryResult =
       GetBalanceHistoryResult(
-        proto.balances.map(BalanceHistory.fromProto)
+        proto.balances.map(BalanceHistory.fromProto),
+        proto.total
       )
   }
 

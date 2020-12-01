@@ -22,7 +22,7 @@ class OperationService(
       limit: Int,
       offset: Int,
       sort: Sort
-  )(implicit cs: ContextShift[IO]): IO[(List[Operation], Boolean)] =
+  )(implicit cs: ContextShift[IO]): IO[(List[Operation], Int, Boolean)] =
     for {
       opsWithTx <-
         OperationQueries
@@ -37,11 +37,13 @@ class OperationService(
           .compile
           .toList
 
+      total <- OperationQueries.countOperations(accountId, blockHeight).transact(db)
+
       // we get 1 more than necessary to know if there's more, then we return the correct number
       truncated = opsWithTx.size > limit
     } yield {
       val operations = opsWithTx.slice(0, limit)
-      (operations, truncated)
+      (operations, total, truncated)
     }
 
   def getUTXOs(
@@ -49,7 +51,7 @@ class OperationService(
       sort: Sort,
       limit: Int,
       offset: Int
-  ): IO[(List[Utxo], Boolean)] =
+  ): IO[(List[Utxo], Int, Boolean)] =
     for {
       utxos <-
         OperationQueries
@@ -58,9 +60,11 @@ class OperationService(
           .compile
           .toList
 
+      total <- OperationQueries.countUTXOs(accountId).transact(db)
+
       // we get 1 more than necessary to know if there's more, then we return the correct number
       truncated = utxos.size > limit
-    } yield (utxos.slice(0, limit), truncated)
+    } yield (utxos.slice(0, limit), total, truncated)
 
   def compute(accountId: UUID): Stream[IO, OperationToSave] =
     operationSource(accountId)

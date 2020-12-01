@@ -59,7 +59,8 @@ message GetOperationsRequest {
 
 message GetOperationsResult {
   repeated Operation operations = 1;
-  bool truncated = 2;
+  int32 total = 2;
+  bool truncated = 3;
 }
 
 message GetUTXOsRequest {
@@ -71,7 +72,8 @@ message GetUTXOsRequest {
 
 message GetUTXOsResult {
   repeated Utxo utxos = 1;
-  bool truncated = 2;
+  int32 total = 2;
+  bool truncated = 3;
 }
 
 message GetBalanceRequest {
@@ -86,6 +88,7 @@ message GetBalanceHistoryRequest {
 
 message GetBalanceHistoryResult {
   repeated BalanceHistory balances = 1;
+  int32 total = 2;
 }
 
 message ResultCount {

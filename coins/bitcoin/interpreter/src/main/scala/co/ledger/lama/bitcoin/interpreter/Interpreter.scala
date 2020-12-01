@@ -92,8 +92,8 @@ class DbInterpreter(
                   |- offset: $offset
                   |- sort: $sort""".stripMargin)
       opResult  <- operationService.getOperations(accountId, blockHeight, limit, offset, sort)
-      (operations, truncated) = opResult
-    } yield protobuf.GetOperationsResult(operations.map(_.toProto), truncated)
+      (operations, total, truncated) = opResult
+    } yield protobuf.GetOperationsResult(operations.map(_.toProto), total, truncated)
   }
 
   def getUTXOs(request: protobuf.GetUTXOsRequest, ctx: Metadata): IO[protobuf.GetUTXOsResult] = {
@@ -109,9 +109,9 @@ class DbInterpreter(
                                |- offset: $offset
                                |- sort: $sort""".stripMargin)
       res       <- operationService.getUTXOs(accountId, sort, limit, offset)
-      (utxos, truncated) = res
+      (utxos, total, truncated) = res
     } yield {
-      protobuf.GetUTXOsResult(utxos.map(_.toProto), truncated)
+      protobuf.GetUTXOsResult(utxos.map(_.toProto), total, truncated)
     }
   }
 
@@ -216,5 +216,6 @@ class DbInterpreter(
                        |- offset: $end""".stripMargin)
 
       balances <- balanceService.getBalancesHistory(accountId, start, end)
-    } yield protobuf.GetBalanceHistoryResult(balances.map(_.toProto))
+      total    <- balanceService.getBalancesHistoryCount(accountId)
+    } yield protobuf.GetBalanceHistoryResult(balances.map(_.toProto), total)
 }

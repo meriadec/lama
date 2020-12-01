@@ -73,12 +73,13 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           val accountsInfos = accountsWithBalances.map { case (account, balance) =>
             fromAccountInfo(account, balance)
           }
-          val response =
+
+          Ok(
             Json.obj(
               "accounts" -> Json.fromValues(accountsInfos.map(_.asJson)),
               "total"    -> Json.fromInt(total)
             )
-          Ok(response)
+          )
         }
 
       case GET -> Root / UUIDVar(accountId) =>
