@@ -10,7 +10,12 @@ on:
 
 jobs:
   unit-tests:
+    name: unit-test-${{ matrix.component }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [common, accountManager, bitcoinApi, bitcoinWorker, bitcoinInterpreter, bitcoinTransactor]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -26,21 +31,16 @@ jobs:
             lama-docker-cache-${{github.ref}}-${{ hashFiles('build.sbt') }}
             lama-docker-cache-${{github.ref}}
             lama-docker-cache-
-      - name: Run common unit tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt common/test
-      - name: Run account manager unit tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt accountManager/test
-      - name: Run bitcoin api unit tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinApi/test
-      - name: Run bitcoin worker unit tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinWorker/test
-      - name: Run bitcoin interpreter unit tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinInterpreter/test
-      - name: Run bitcoin transactor unit tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinTransactor/test
+      - name: Run ${{ matrix.component }} unit tests
+        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt ${{ matrix.component }}/test
 
   it-tests:
+    name: it-test-${{ matrix.component }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [accountManager, bitcoinWorker, bitcoinInterpreter, bitcoinTransactor]
     services:
       rabbitmq:
         image: rabbitmq:3.8.5
@@ -109,14 +109,8 @@ jobs:
           PGPASSWORD=${POSTGRES_PASSWORD} createdb -h localhost -p 5432 -w -U $POSTGRES_USER lama_btc
           PGPASSWORD=${POSTGRES_PASSWORD} createdb -h localhost -p 5432 -w -U $POSTGRES_USER test_lama
           PGPASSWORD=${POSTGRES_PASSWORD} createdb -h localhost -p 5432 -w -U $POSTGRES_USER test_lama_btc
-      - name: Run account manager it tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt accountManager/it:test
-      - name: Run bitcoin worker it tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinWorker/it:test
-      - name: Run bitcoin interpreter it tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinInterpreter/it:test
-      - name: Run bitcoin transactor it tests
-        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt bitcoinTransactor/it:test
+      - name: Run ${{ matrix.component }} it tests
+        run: SBT_OPTS="-Xss512m" sbt -Dsbt.ivy.home=.ivy2 -sbt-dir .sbt ${{ matrix.component }}/it:test
 
   e2e-tests:
     runs-on: ubuntu-latest
