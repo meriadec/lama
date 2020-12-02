@@ -5,7 +5,7 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.transactor.{CoinSelectionStrategy, PrepareTxOutput}
 import co.ledger.lama.bitcoin.transactor.protobuf
-import co.ledger.lama.common.models.Coin.Btc
+import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.utils.UuidUtils
 import io.grpc.Metadata
 
@@ -15,7 +15,8 @@ trait TransactorClientService {
       accountId: UUID,
       keychainId: UUID,
       coinSelection: CoinSelectionStrategy,
-      outputs: List[PrepareTxOutput]
+      outputs: List[PrepareTxOutput],
+      coin: Coin
   ): IO[String]
 
 }
@@ -28,7 +29,8 @@ class TransactorGrpcClientService(
       accountId: UUID,
       keychainId: UUID,
       coinSelection: CoinSelectionStrategy,
-      outputs: List[PrepareTxOutput]
+      outputs: List[PrepareTxOutput],
+      coin: Coin
   ): IO[String] =
     grpcClient
       .createTransaction(
@@ -37,7 +39,7 @@ class TransactorGrpcClientService(
           UuidUtils.uuidToBytes(keychainId),
           coinSelection.toProto,
           outputs.map(_.toProto),
-          Btc.name
+          coin.name
         ),
         new Metadata
       )

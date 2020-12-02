@@ -254,7 +254,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
               createTransactionRequest.accountId,
               UUID.fromString(account.key),
               createTransactionRequest.coinSelection,
-              createTransactionRequest.outputs
+              createTransactionRequest.outputs,
+              fromCoin(account.coin)
             )
             .flatMap(Ok(_))
 
