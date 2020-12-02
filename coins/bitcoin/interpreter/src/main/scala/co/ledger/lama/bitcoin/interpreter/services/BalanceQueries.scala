@@ -54,10 +54,13 @@ object BalanceQueries {
     }
   }
 
-  def saveBalanceHistory(accountId: UUID, b: BalanceHistory, blockHeight: Long): ConnectionIO[Int] =
+  def saveBalanceHistory(accountId: UUID,
+                         b: BalanceHistory,
+                         blockHeight: Long): ConnectionIO[BalanceHistory] =
     sql"""INSERT INTO balance_history(account_id, balance, utxos, received, sent, block_height)
           VALUES($accountId, ${b.balance}, ${b.utxos}, ${b.received}, ${b.sent}, $blockHeight)
-       """.update.run
+          RETURNING balance, utxos, received, sent, time ;
+       """.query[BalanceHistory].unique
 
   def getBalancesHistory(
       accountId: UUID,

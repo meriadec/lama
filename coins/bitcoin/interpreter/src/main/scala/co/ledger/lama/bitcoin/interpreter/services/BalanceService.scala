@@ -15,10 +15,10 @@ class BalanceService(db: Transactor[IO]) extends IOLogging {
     for {
       currentBalance <- getBalance(accountId)
       block          <- BalanceQueries.getLastBlock(accountId).transact(db)
-      _ <- BalanceQueries
+      savedBalanceHistory <- BalanceQueries
         .saveBalanceHistory(accountId, currentBalance, block.height)
         .transact(db)
-    } yield currentBalance
+    } yield savedBalanceHistory
 
   def getBalance(accountId: UUID): IO[BalanceHistory] =
     BalanceQueries.getCurrentBalance(accountId).transact(db)
