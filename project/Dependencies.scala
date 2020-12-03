@@ -23,12 +23,12 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
   val flywayVersion = "7.3.0"
   val doobieVersion = "0.9.4"
   val postgres: Seq[ModuleID] = Seq(
-    "com.h2database" % "h2"              % H2Version,
-    "org.flywaydb"   % "flyway-core"     % flywayVersion,
-    "org.tpolecat"  %% "doobie-core"     % doobieVersion,
-    "org.tpolecat"  %% "doobie-postgres" % doobieVersion,
-    "org.tpolecat"  %% "doobie-hikari"   % doobieVersion,
-    "org.tpolecat"  %% "doobie-h2"       % doobieVersion
+    "com.h2database" % "h2"               % H2Version,
+    "org.flywaydb"   % "flyway-core"      % flywayVersion,
+    "org.tpolecat"   %% "doobie-core"     % doobieVersion,
+    "org.tpolecat"   %% "doobie-postgres" % doobieVersion,
+    "org.tpolecat"   %% "doobie-hikari"   % doobieVersion,
+    "org.tpolecat"   %% "doobie-h2"       % doobieVersion
   )
 
   val pureconfigVersion   = "0.14.0"
@@ -39,14 +39,12 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
   val scalaLoggingVersion = "3.9.2"
 
   val utilities: Seq[ModuleID] = Seq(
-    "com.typesafe.scala-logging" %% "scala-logging"     % scalaLoggingVersion,
-    "co.fs2"                     %% "fs2-core"          % fs2Version,
-    "org.lyranthe.fs2-grpc"      %% "java-runtime"      % fs2GrpcVersion,
-    "ch.qos.logback"              % "logback-classic"   % logbackVersion,
-    "com.github.pureconfig"      %% "pureconfig"        % pureconfigVersion,
-    "com.github.pureconfig"      %% "pureconfig-cats"   % pureconfigVersion,
-    "io.grpc"                     % "grpc-netty-shaded" % scalapb.compiler.Version.grpcJavaVersion,
-    "com.google.protobuf"         % "protobuf-java"     % protobufJava
+    "com.typesafe.scala-logging" %% "scala-logging"   % scalaLoggingVersion,
+    "co.fs2"                     %% "fs2-core"        % fs2Version,
+    "org.lyranthe.fs2-grpc"      %% "java-runtime"    % fs2GrpcVersion,
+    "ch.qos.logback"             % "logback-classic"  % logbackVersion,
+    "com.github.pureconfig"      %% "pureconfig"      % pureconfigVersion,
+    "com.github.pureconfig"      %% "pureconfig-cats" % pureconfigVersion
   )
 
   val fs2RabbitVersion = "3.0.1"
@@ -65,20 +63,22 @@ object Dependencies extends DependencyBuilders with LibraryManagementSyntax {
   val otjPgEmbeddedVersion = "0.13.3"
   val embeddedRedisVersion = "0.7.3"
   val test: Seq[ModuleID] = Seq(
-    "org.scalatest"           %% "scalatest"        % scalaTestVersion     % "it, test",
-    "org.scalacheck"          %% "scalacheck"       % scalaCheckVersion    % "it, test",
-    "org.scalatestplus"       %% "scalacheck-1-14"  % scalaTestPlusVersion % "it, test",
-    "org.tpolecat"            %% "doobie-scalatest" % doobieVersion        % "it, test",
-    "com.opentable.components" % "otj-pg-embedded"  % otjPgEmbeddedVersion % Test,
-    "it.ozimov"                % "embedded-redis"   % embeddedRedisVersion % Test
+    "org.scalatest"            %% "scalatest"        % scalaTestVersion     % "it, test",
+    "org.scalacheck"           %% "scalacheck"       % scalaCheckVersion    % "it, test",
+    "org.scalatestplus"        %% "scalacheck-1-14"  % scalaTestPlusVersion % "it, test",
+    "org.tpolecat"             %% "doobie-scalatest" % doobieVersion        % "it, test",
+    "com.opentable.components" % "otj-pg-embedded"   % otjPgEmbeddedVersion % Test,
+    "it.ozimov"                % "embedded-redis"    % embeddedRedisVersion % Test
   )
 
   // https://scalapb.github.io/docs/faq/#i-am-getting-import-was-not-found-or-had-errors
   val commonProtos: Seq[ModuleID] = Seq(
-    "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
+    "com.thesamet.scalapb" %% "scalapb-runtime"  % scalapb.compiler.Version.scalapbVersion % "protobuf",
+    "io.grpc"              % "grpc-netty-shaded" % scalapb.compiler.Version.grpcJavaVersion,
+    "com.google.protobuf"  % "protobuf-java"     % protobufJava
   )
 
-  val lamaCommon: Seq[ModuleID] = circe ++ rabbit ++ utilities ++ postgres ++ commonProtos ++ http4s
+  val lamaCommon: Seq[ModuleID] = circe ++ rabbit ++ utilities ++ postgres ++ http4s
 
   val btcCommon: Seq[ModuleID]      = lamaCommon
   val btcWorker: Seq[ModuleID]      = btcCommon
