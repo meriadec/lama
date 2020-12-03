@@ -4,7 +4,8 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 
 import co.ledger.lama.common.models.Sort
-import org.http4s.{QueryParamCodec, QueryParamDecoder}
+import co.ledger.protobuf.bitcoin.keychain
+import org.http4s.{ParseFailure, QueryParamCodec, QueryParamDecoder}
 import org.http4s.dsl.impl.OptionalQueryParamDecoderMatcher
 
 object RouterUtils {
@@ -26,5 +27,19 @@ object RouterUtils {
 
   object OptionalEndInstantQueryParamMatcher
       extends OptionalQueryParamDecoderMatcher[Instant]("end")
+
+  object OptionalFromIndexQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("from")
+
+  object OptionalToIndexQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("to")
+
+  implicit val changeQueryParamDecoder: QueryParamDecoder[keychain.Change] =
+    QueryParamDecoder[String].emap {
+      case "external" => Right(keychain.Change.CHANGE_EXTERNAL)
+      case "internal" => Right(keychain.Change.CHANGE_INTERNAL)
+      case unknown    => Left(ParseFailure("Unknown change type", unknown))
+    }
+
+  object OptionalKeychainChangeParamMatcher
+      extends OptionalQueryParamDecoderMatcher[keychain.Change]("change")
 
 }

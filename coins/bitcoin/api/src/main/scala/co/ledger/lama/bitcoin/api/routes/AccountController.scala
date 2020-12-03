@@ -44,8 +44,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
   ): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
       case GET -> Root
-            :? OptionalLimitQueryParamMatcher(limit)
-              +& OptionalOffsetQueryParamMatcher(offset) =>
+          :? OptionalLimitQueryParamMatcher(limit)
+          +& OptionalOffsetQueryParamMatcher(offset) =>
         val t = for {
           accountsResult <- accountManagerClient.getAccounts(
             GetAccountsRequest(limit.getOrElse(0), offset.getOrElse(0)),
@@ -57,47 +57,46 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
           accountsWithIds <- accounts
             .parTraverse(account =>
-              UuidUtils.bytesToUuidIO(account.accountId).map(accountId => accountId -> account))
+              UuidUtils.bytesToUuidIO(account.accountId).map(accountId => accountId -> account)
+            )
 
-          accountsWithBalances <- accountsWithIds.parTraverse {
-            case (accountId, account) =>
-              interpreterClient.getBalance(accountId).map(balance => account -> balance)
+          accountsWithBalances <- accountsWithIds.parTraverse { case (accountId, account) =>
+            interpreterClient.getBalance(accountId).map(balance => account -> balance)
           }
 
           _ <- log.info(s"Accounts with balances: $accountsWithBalances")
 
         } yield (accountsWithBalances, accountsResult.total)
 
-        t.flatMap {
-          case (accountsWithBalances, total) =>
-            val accountsInfos = accountsWithBalances.map {
-              case (account, balance) =>
-                fromAccountInfo(account, balance)
-            }
+        t.flatMap { case (accountsWithBalances, total) =>
+          val accountsInfos = accountsWithBalances.map { case (account, balance) =>
+            fromAccountInfo(account, balance)
+          }
 
-            Ok(
-              Json.obj(
-                "accounts" -> Json.fromValues(accountsInfos.map(_.asJson)),
-                "total"    -> Json.fromInt(total)
-              )
+          Ok(
+            Json.obj(
+              "accounts" -> Json.fromValues(accountsInfos.map(_.asJson)),
+              "total"    -> Json.fromInt(total)
             )
+          )
         }
 
       case GET -> Root / UUIDVar(accountId) =>
         accountManagerClient
           .getAccountInfo(toAccountInfoRequest(accountId), new Metadata)
           .parProduct(interpreterClient.getBalance(accountId))
-          .flatMap {
-            case (info, balance) =>
-              Ok(fromAccountInfo(info, balance))
+          .flatMap { case (info, balance) =>
+            Ok(fromAccountInfo(info, balance))
           }
 
       case req @ POST -> Root =>
         val ra = for {
           creationRequest <- req.as[CreationRequest]
           _               <- log.info(s"Creating keychain with arguments: $creationRequest")
-          createdKeychain <- keychainClient.createKeychain(toCreateKeychainRequest(creationRequest),
-                                                           new Metadata)
+          createdKeychain <- keychainClient.createKeychain(
+            toCreateKeychainRequest(creationRequest),
+            new Metadata
+          )
           keychainId <- IO.fromOption(
             UuidUtils.bytesToUuid(createdKeychain.keychainId)
           )(MalformedProtobufUuidException)
@@ -116,9 +115,11 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           account = fromRegisterAccount(registeredAccount)
 
           // This creates a new queue for this account notifications
-          _ <- notificationService.createQueue(account.accountId,
-                                               creationRequest.coinFamily,
-                                               creationRequest.coin)
+          _ <- notificationService.createQueue(
+            account.accountId,
+            creationRequest.coinFamily,
+            creationRequest.coin
+          )
 
           _ <- log.info(
             s"Account registered with id: ${account.accountId}"
@@ -168,7 +169,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             )
             .map(_ => log.info("Keychain deleted"))
             .handleErrorWith(_ =>
-              log.info("An error occurred while deleting the keychain, moving on"))
+              log.info("An error occurred while deleting the keychain, moving on")
+            )
 
           _ <- log.info("Unregistering account")
 
@@ -195,9 +197,9 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       case GET -> Root / UUIDVar(
             accountId
           ) / "operations" :? OptionalBlockHeightQueryParamMatcher(blockHeight)
-            +& OptionalLimitQueryParamMatcher(limit)
-            +& OptionalOffsetQueryParamMatcher(offset)
-            +& OptionalSortQueryParamMatcher(sort) =>
+          +& OptionalLimitQueryParamMatcher(limit)
+          +& OptionalOffsetQueryParamMatcher(offset)
+          +& OptionalSortQueryParamMatcher(sort) =>
         log.info(s"Fetching operations for account: $accountId") *>
           interpreterClient
             .getOperations(
@@ -212,8 +214,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       case GET -> Root / UUIDVar(
             accountId
           ) / "utxos" :? OptionalLimitQueryParamMatcher(limit)
-            +& OptionalOffsetQueryParamMatcher(offset)
-            +& OptionalSortQueryParamMatcher(sort) =>
+          +& OptionalOffsetQueryParamMatcher(offset)
+          +& OptionalSortQueryParamMatcher(sort) =>
         log.info(s"Fetching UTXOs for account: $accountId") *>
           interpreterClient
             .getUTXOs(
@@ -227,7 +229,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       case GET -> Root / UUIDVar(
             accountId
           ) / "balances" :? OptionalStartInstantQueryParamMatcher(start)
-            +& OptionalEndInstantQueryParamMatcher(end) =>
+          +& OptionalEndInstantQueryParamMatcher(end) =>
         log.info(s"Fetching balances history for account: $accountId") *>
           interpreterClient
             .getBalanceHistory(
@@ -259,6 +261,81 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             )
             .flatMap(Ok(_))
 
+        } yield response
+
+      case GET -> Root / UUIDVar(
+            accountId
+          ) / "addresses" :? OptionalFromIndexQueryParamMatcher(from)
+          +& OptionalToIndexQueryParamMatcher(to)
+          +& OptionalKeychainChangeParamMatcher(change) =>
+        // TODO: refactor when moving keychainService into bitcoin.common
+        for {
+          account <- accountManagerClient.getAccountInfo(
+            new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
+            new Metadata
+          )
+
+          response <- keychainClient
+            .getAllObservableAddresses(
+              GetAllObservableAddressesRequest(
+                keychainId = UuidUtils.uuidToBytes(UUID.fromString(account.key)),
+                change = change.getOrElse(Change.CHANGE_EXTERNAL),
+                fromIndex = from.getOrElse(0),
+                toIndex = to.getOrElse(0)
+              ),
+              new Metadata
+            )
+            .flatMap { res =>
+              val jsonResults = res.addresses.map { a =>
+                Json.obj(
+                  "address"    -> Json.fromString(a.address),
+                  "derivation" -> Json.fromString(a.derivation.mkString("/")),
+                  "change"     -> Json.fromString(a.change.name)
+                )
+              }
+
+              Ok(jsonResults)
+            }
+        } yield response
+
+      case GET -> Root / UUIDVar(
+            accountId
+          ) / "addresses" / "fresh" :? OptionalKeychainChangeParamMatcher(change) =>
+        // TODO: refactor when moving keychainService into bitcoin.common
+        for {
+          account <- accountManagerClient.getAccountInfo(
+            new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
+            new Metadata
+          )
+
+          keychainId = UuidUtils.uuidToBytes(UUID.fromString(account.key))
+
+          keychainInfo <- keychainClient
+            .getKeychainInfo(
+              GetKeychainInfoRequest(keychainId),
+              new Metadata
+            )
+
+          response <- keychainClient
+            .getFreshAddresses(
+              GetFreshAddressesRequest(
+                keychainId = keychainId,
+                change = change.getOrElse(Change.CHANGE_EXTERNAL),
+                batchSize = keychainInfo.lookaheadSize
+              ),
+              new Metadata
+            )
+            .flatMap { res =>
+              val jsonResults = res.addresses.map { a =>
+                Json.obj(
+                  "address"    -> Json.fromString(a.address),
+                  "derivation" -> Json.fromString(a.derivation.mkString("/")),
+                  "change"     -> Json.fromString(a.change.name)
+                )
+              }
+
+              Ok(jsonResults)
+            }
         } yield response
     }
 

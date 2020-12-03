@@ -40,7 +40,8 @@ class BitcoinLibTransactor(
     for {
       coin <- IO.fromOption(Coin.fromKey(request.coinId))(
         new IllegalArgumentException(
-          s"Unknown coin type ${request.coinId}) in CreateTransactionRequest")
+          s"Unknown coin type ${request.coinId}) in CreateTransactionRequest"
+        )
       )
 
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
@@ -92,7 +93,7 @@ class BitcoinLibTransactor(
       unsignedTx <- IO(createTransactionRequest(pickedUtxos, outputs, 0L))
       preparedTransaction <- bitcoinLibClient.createTransaction(
         unsignedTx,
-        changeAddress,
+        changeAddress.address,
         estimatedFeeSatPerKb
       )
     } yield {
@@ -142,12 +143,12 @@ class BitcoinLibTransactor(
     bitcoinLib.CreateTransactionRequest(
       lockTime.toInt,
       utxos.map(utxosToInputs),
-      recipients.map(
-        prepareTxOutput =>
-          bitcoinLib.Output(
-            prepareTxOutput.address,
-            prepareTxOutput.value
-        )),
+      recipients.map(prepareTxOutput =>
+        bitcoinLib.Output(
+          prepareTxOutput.address,
+          prepareTxOutput.value
+        )
+      ),
       BitcoinNetwork.MainNet
     )
   }

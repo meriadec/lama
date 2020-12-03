@@ -19,7 +19,7 @@ trait KeychainClientService {
   def getKeychainInfo(keychainId: UUID): IO[KeychainInfo]
   def getAddresses(keychainId: UUID, fromIndex: Int, toIndex: Int): IO[Seq[AddressInfo]]
   def markAddressesAsUsed(keychainId: UUID, addresses: Seq[String]): IO[Unit]
-  def getFreshAddresses(keychainId: UUID, change: ChangeType, size: Int): IO[List[String]]
+  def getFreshAddresses(keychainId: UUID, change: ChangeType, size: Int): IO[Seq[AddressInfo]]
 }
 
 class KeychainGrpcClientService(
@@ -68,7 +68,7 @@ class KeychainGrpcClientService(
       )
       .void
 
-  def getFreshAddresses(keychainId: UUID, change: ChangeType, size: Int): IO[List[String]] =
+  def getFreshAddresses(keychainId: UUID, change: ChangeType, size: Int): IO[Seq[AddressInfo]] =
     client
       .getFreshAddresses(
         GetFreshAddressesRequest(
@@ -78,6 +78,6 @@ class KeychainGrpcClientService(
         ),
         new Metadata
       )
-      .map(_.addresses.toList)
+      .map(_.addresses)
 
 }

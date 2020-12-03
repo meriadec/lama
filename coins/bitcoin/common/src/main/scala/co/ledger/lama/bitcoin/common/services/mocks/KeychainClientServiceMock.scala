@@ -73,7 +73,11 @@ class KeychainClientServiceMock extends KeychainClientService with IOLogging {
       usedAddresses = usedAddresses ++ addresses
     }
 
-  def getFreshAddresses(keychainId: UUID, change: ChangeType, size: Int): IO[List[String]] =
-    IO(List("1MZbRqZGpiSWGRLg8DUdVrDKHwNe1oesUZ"))
+  def getFreshAddresses(
+      keychainId: UUID,
+      change: ChangeType,
+      size: Int
+  ): IO[Seq[keychain.AddressInfo]] =
+    IO(derivedAddresses)
 
 }
