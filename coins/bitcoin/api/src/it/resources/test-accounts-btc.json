@@ -6,7 +6,8 @@
       "lookahead_size": 20,
       "network": "MainNet",
       "coin_family": "bitcoin",
-      "coin": "btc"
+      "coin": "btc",
+      "label" : "btc account 1"
     },
     "expected": {
       "ops_size": 6,
@@ -42,7 +43,8 @@
       "lookahead_size": 20,
       "network": "MainNet",
       "coin_family": "bitcoin",
-      "coin": "btc"
+      "coin": "btc",
+      "label" : "btc account 3"
     },
     "expected": {
       "ops_size": 118,
@@ -60,7 +62,8 @@
       "lookahead_size": 20,
       "network": "MainNet",
       "coin_family": "bitcoin",
-      "coin": "btc"
+      "coin": "btc",
+      "label" : "btc account 4"
     },
     "expected": {
       "ops_size": 131,

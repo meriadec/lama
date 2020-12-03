@@ -42,9 +42,7 @@ object Queries {
           AND coin = $coin
           AND """
         ++ Fragments.in(fr"status", NonEmptyList.fromListUnsafe(WorkableStatus.all.values.toList))
-    )
-      .query[WorkableEvent]
-      .stream
+    ).query[WorkableEvent].stream
 
   def fetchTriggerableEvents(
       coinFamily: CoinFamily,
@@ -61,9 +59,7 @@ object Queries {
           fr"status",
           NonEmptyList.fromListUnsafe(TriggerableStatus.all.values.toList)
         )
-    )
-      .query[TriggerableEvent]
-      .stream
+    ).query[TriggerableEvent].stream
 
   def getAccounts(offset: Int, limit: Int): Stream[ConnectionIO, AccountSyncStatus] =
     sql"""SELECT account_id, key, coin_family, coin,
@@ -97,6 +93,7 @@ object Queries {
 
   def insertAccountInfo(
       accountIdentifier: AccountIdentifier,
+      label: Option[String],
       syncFrequency: FiniteDuration
   ): ConnectionIO[AccountInfo] = {
     val accountId  = accountIdentifier.id
@@ -108,8 +105,8 @@ object Queries {
     syncFrequencyInterval.setSeconds(syncFrequency.toSeconds.toDouble)
 
     // Yes, this is weird but DO NOTHING does not return anything unfortunately
-    sql"""INSERT INTO account_info(account_id, key, coin_family, coin, sync_frequency)
-          VALUES($accountId, $key, $coinFamily, $coin, $syncFrequencyInterval)
+    sql"""INSERT INTO account_info(account_id, key, coin_family, coin, sync_frequency, label)
+          VALUES($accountId, $key, $coinFamily, $coin, $syncFrequencyInterval, $label)
           RETURNING account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60
           """
       .query[AccountInfo]

@@ -6,7 +6,8 @@
       "lookahead_size": 20,
       "network": "TestNet3",
       "coin_family": "bitcoin",
-      "coin": "btc_testnet"
+      "coin": "btc_testnet",
+      "label" : "btc testnet account 1"
     },
     "expected": {
       "ops_size": 4,

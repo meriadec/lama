@@ -45,6 +45,7 @@ object accountManager {
 
   case class CreationRequest(
       extendedPublicKey: String,
+      label: Option[String],
       scheme: Scheme,
       lookaheadSize: Int,
       network: BitcoinNetwork,

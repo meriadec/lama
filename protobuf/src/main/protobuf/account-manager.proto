@@ -34,7 +34,13 @@ message RegisterAccountRequest {
     oneof cursor {
         BlockHeightState block_height = 5;
     }
+    AccountLabel label = 6;
 }
+
+message AccountLabel {
+    string value = 1;
+}
+
 
 message UpdateAccountRequest {
     bytes account_id = 1;

@@ -1,0 +1,1 @@
+ALTER TABLE account_info ADD COLUMN label VARCHAR NULL ;

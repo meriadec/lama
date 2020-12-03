@@ -56,6 +56,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
     val coinFamily = account.coinFamily
     val coin       = account.coin
     val cursor     = cursorToJson(request)
+    val label      = request.label.map(_.value)
 
     val syncFrequencyFromRequest =
       if (request.syncFrequency > 0L) Some(FiniteDuration(request.syncFrequency, TimeUnit.SECONDS))
@@ -74,12 +75,12 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       // Build queries.
       queries = for {
         // Insert the account info.
-        accountInfo <-
-          Queries
-            .insertAccountInfo(
-              account,
-              syncFrequency
-            )
+        accountInfo <- Queries
+          .insertAccountInfo(
+            account,
+            label,
+            syncFrequency
+          )
         accountId     = accountInfo.id
         syncFrequency = accountInfo.syncFrequency
 
@@ -95,16 +96,17 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       } yield (accountId, syncEvent.syncId, syncFrequency)
 
       response <-
-        // Run queries and return an sync event result.
-        queries
-          .transact(db)
-          .map { case (accountId, syncId, syncFrequency) =>
+      // Run queries and return an sync event result.
+      queries
+        .transact(db)
+        .map {
+          case (accountId, syncId, syncFrequency) =>
             RegisterAccountResult(
               UuidUtils.uuidToBytes(accountId),
               UuidUtils.uuidToBytes(syncId),
               syncFrequency.toSeconds
             )
-          }
+        }
     } yield response
   }
 
@@ -113,14 +115,13 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       ctx: Metadata
   ): IO[UnregisterAccountResult] =
     for {
-      accountId <-
-        IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(MalformedProtobufUuidException)
+      accountId <- IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(
+        MalformedProtobufUuidException)
 
-      existing <-
-        Queries
-          .getLastSyncEvent(accountId)
-          .transact(db)
-          .map(_.filter(e => e.status == Status.Unregistered || e.status == Status.Deleted))
+      existing <- Queries
+        .getLastSyncEvent(accountId)
+        .transact(db)
+        .map(_.filter(e => e.status == Status.Unregistered || e.status == Status.Deleted))
 
       result <- existing match {
         case Some(e) =>
@@ -143,16 +144,15 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
               Payload(AccountIdentifier(account.key, account.coinFamily, account.coin))
             )
 
-            result <-
-              Queries
-                .insertSyncEvent(event)
-                .transact(db)
-                .map(_ =>
+            result <- Queries
+              .insertSyncEvent(event)
+              .transact(db)
+              .map(
+                _ =>
                   UnregisterAccountResult(
                     UuidUtils.uuidToBytes(event.accountId),
                     UuidUtils.uuidToBytes(event.syncId)
-                  )
-                )
+                ))
           } yield result
       }
     } yield result
@@ -171,8 +171,8 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
 
   def getAccountInfo(request: AccountInfoRequest, ctx: Metadata): IO[AccountInfoResult] =
     for {
-      accountId <-
-        IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(MalformedProtobufUuidException)
+      accountId <- IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(
+        MalformedProtobufUuidException)
       accountInfo   <- getAccountInfo(accountId)
       lastSyncEvent <- Queries.getLastSyncEvent(accountInfo.id).transact(db)
     } yield {
@@ -216,20 +216,20 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       total <- Queries.countAccounts().transact(db)
     } yield {
       AccountsResult(
-        accounts.map(account =>
-          AccountInfoResult(
-            UuidUtils.uuidToBytes(account.id),
-            account.key,
-            account.syncFrequency.toSeconds,
-            Some(
-              Se(
-                UuidUtils.uuidToBytes(account.syncId),
-                account.status.name,
-                ByteString.copyFrom(account.payload.asJson.noSpaces.getBytes())
+        accounts.map(
+          account =>
+            AccountInfoResult(
+              UuidUtils.uuidToBytes(account.id),
+              account.key,
+              account.syncFrequency.toSeconds,
+              Some(
+                Se(
+                  UuidUtils.uuidToBytes(account.syncId),
+                  account.status.name,
+                  ByteString.copyFrom(account.payload.asJson.noSpaces.getBytes())
+                )
               )
-            )
-          )
-        ),
+          )),
         total
       )
     }

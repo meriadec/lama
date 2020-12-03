@@ -12,6 +12,7 @@ import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.protobuf.{
   AccountInfoRequest,
+  AccountLabel,
   AccountManagerServiceFs2Grpc,
   GetAccountsRequest,
   RegisterAccountRequest,
@@ -107,7 +108,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
               key = keychainId.toString,
               coinFamily = toCoinFamily(creationRequest.coinFamily),
               coin = toCoin(creationRequest.coin),
-              syncFrequency = creationRequest.syncFrequency.getOrElse(0L)
+              syncFrequency = creationRequest.syncFrequency.getOrElse(0L),
+              label = creationRequest.label.map(AccountLabel(_))
             ),
             new Metadata
           )
