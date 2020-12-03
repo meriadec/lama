@@ -77,6 +77,7 @@ message AccountInfoResult {
     SyncEvent last_sync_event = 4;
     CoinFamily coin_family = 5;
     Coin coin = 6;
+    AccountLabel label = 7;
 }
 
 message SyncEvent {

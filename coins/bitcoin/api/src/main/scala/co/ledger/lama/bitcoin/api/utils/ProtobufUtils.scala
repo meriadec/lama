@@ -77,7 +77,8 @@ object ProtobufUtils {
       balance.balance,
       balance.utxos,
       balance.received,
-      balance.sent
+      balance.sent,
+      info.label.map(_.value)
     )
   }
 

@@ -116,7 +116,8 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
   ): IO[UnregisterAccountResult] =
     for {
       accountId <- IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(
-        MalformedProtobufUuidException)
+        MalformedProtobufUuidException
+      )
 
       existing <- Queries
         .getLastSyncEvent(accountId)
@@ -172,7 +173,8 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
   def getAccountInfo(request: AccountInfoRequest, ctx: Metadata): IO[AccountInfoResult] =
     for {
       accountId <- IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(
-        MalformedProtobufUuidException)
+        MalformedProtobufUuidException
+      )
       accountInfo   <- getAccountInfo(accountId)
       lastSyncEvent <- Queries.getLastSyncEvent(accountInfo.id).transact(db)
     } yield {
@@ -188,7 +190,8 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         UuidUtils.uuidToBytes(accountInfo.id),
         accountInfo.key,
         accountInfo.syncFrequency.toSeconds,
-        lastSyncEventProto
+        lastSyncEventProto,
+        label = accountInfo.label.map(AccountLabel(_))
       )
     }
 
@@ -228,7 +231,8 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
                   account.status.name,
                   ByteString.copyFrom(account.payload.asJson.noSpaces.getBytes())
                 )
-              )
+              ),
+              label = account.label.map(AccountLabel(_))
           )),
         total
       )

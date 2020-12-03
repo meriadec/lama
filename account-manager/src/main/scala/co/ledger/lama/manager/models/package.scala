@@ -20,19 +20,21 @@ package object models {
       key: String,
       coinFamily: CoinFamily,
       coin: Coin,
-      syncFrequency: FiniteDuration
+      syncFrequency: FiniteDuration,
+      label: Option[String]
   )
 
   object AccountInfo {
     implicit val doobieRead: Read[AccountInfo] =
-      Read[(UUID, String, CoinFamily, Coin, Long)].map {
-        case (accountId, key, coinFamily, coin, syncFrequencyInSeconds) =>
+      Read[(UUID, String, CoinFamily, Coin, Long, Option[String])].map {
+        case (accountId, key, coinFamily, coin, syncFrequencyInSeconds, label) =>
           AccountInfo(
             accountId,
             key,
             coinFamily,
             coin,
-            FiniteDuration(syncFrequencyInSeconds, TimeUnit.SECONDS)
+            FiniteDuration(syncFrequencyInSeconds, TimeUnit.SECONDS),
+            label
           )
       }
   }
@@ -43,6 +45,7 @@ package object models {
       coinFamily: CoinFamily,
       coin: Coin,
       syncFrequency: FiniteDuration,
+      label: Option[String],
       syncId: UUID,
       status: Status,
       payload: Payload,
@@ -51,24 +54,21 @@ package object models {
 
   object AccountSyncStatus {
     implicit val doobieRead: Read[AccountSyncStatus] =
-      Read[(UUID, String, CoinFamily, Coin, Long, UUID, Status, Payload, Instant)].map {
+      Read[(AccountInfo, UUID, Status, Payload, Instant)].map {
         case (
-              accountId,
-              key,
-              coinFamily,
-              coin,
-              syncFrequencyInSeconds,
-              syncId,
-              status,
-              payload,
-              updated
+            accountInfo,
+            syncId,
+            status,
+            payload,
+            updated
             ) =>
           AccountSyncStatus(
-            accountId,
-            key,
-            coinFamily,
-            coin,
-            FiniteDuration(syncFrequencyInSeconds, TimeUnit.SECONDS),
+            accountInfo.id,
+            accountInfo.key,
+            accountInfo.coinFamily,
+            accountInfo.coin,
+            accountInfo.syncFrequency,
+            accountInfo.label,
             syncId,
             status,
             payload,

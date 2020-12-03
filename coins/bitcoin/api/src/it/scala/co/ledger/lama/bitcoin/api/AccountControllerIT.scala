@@ -209,6 +209,7 @@ trait AccountControllerIT extends AnyFlatSpecLike with Matchers {
                 accountInfoAfterRegister.accountId shouldBe accountRegistered.accountId
                 accountInfoAfterRegister.lastSyncEvent
                   .map(_.status) should (contain(Registered) or contain(Published))
+                accountInfoAfterRegister.label shouldBe account.registerRequest.label
               }
 
               it should "emit a balance notification" in {

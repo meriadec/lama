@@ -17,7 +17,8 @@ object accountManager {
       balance: BigInt,
       utxos: Int,
       received: BigInt,
-      sent: BigInt
+      sent: BigInt,
+      label: Option[String]
   )
 
   object AccountInfo {

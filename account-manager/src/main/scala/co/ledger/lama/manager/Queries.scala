@@ -63,7 +63,7 @@ object Queries {
 
   def getAccounts(offset: Int, limit: Int): Stream[ConnectionIO, AccountSyncStatus] =
     sql"""SELECT account_id, key, coin_family, coin,
-            extract(epoch FROM sync_frequency) / 60 * 60,
+            extract(epoch FROM sync_frequency) / 60 * 60, label,
             sync_id, status, payload, updated
           FROM account_sync_status
           LIMIT $limit
@@ -73,7 +73,7 @@ object Queries {
       .stream
 
   def getAccountInfo(accountId: UUID): ConnectionIO[Option[AccountInfo]] =
-    sql"""SELECT account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60
+    sql"""SELECT account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60, label
           FROM account_info
           WHERE account_id = $accountId
          """
@@ -107,7 +107,7 @@ object Queries {
     // Yes, this is weird but DO NOTHING does not return anything unfortunately
     sql"""INSERT INTO account_info(account_id, key, coin_family, coin, sync_frequency, label)
           VALUES($accountId, $key, $coinFamily, $coin, $syncFrequencyInterval, $label)
-          RETURNING account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60
+          RETURNING account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60, label
           """
       .query[AccountInfo]
       .unique
