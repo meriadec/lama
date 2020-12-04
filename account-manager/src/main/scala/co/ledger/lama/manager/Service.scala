@@ -1,12 +1,9 @@
 package co.ledger.lama.manager
 
-import java.util.UUID
-import java.util.concurrent.TimeUnit
-
 import cats.effect.{ConcurrentEffect, IO}
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models._
+import co.ledger.lama.common.models
 import co.ledger.lama.common.models.SyncEvent.Payload
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.Exceptions.{
@@ -16,7 +13,7 @@ import co.ledger.lama.manager.Exceptions.{
 }
 import co.ledger.lama.manager.config.CoinConfig
 import co.ledger.lama.manager.models.AccountInfo
-import co.ledger.lama.manager.protobuf.{SyncEvent => Se, _}
+import co.ledger.lama.manager.protobuf._
 import co.ledger.lama.manager.utils.ProtobufUtils
 import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
@@ -26,6 +23,8 @@ import io.circe.Json
 import io.circe.syntax._
 import io.grpc.{Metadata, ServerServiceDefinition}
 
+import java.util.UUID
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
 class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
@@ -85,10 +84,10 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         syncFrequency = accountInfo.syncFrequency
 
         // Create then insert the registered event.
-        syncEvent = WorkableEvent(
+        syncEvent = models.WorkableEvent(
           account.id,
           UUID.randomUUID(),
-          Status.Registered,
+          models.Status.Registered,
           Payload(account, cursor)
         )
         _ <- Queries.insertSyncEvent(syncEvent)
@@ -122,7 +121,9 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       existing <- Queries
         .getLastSyncEvent(accountId)
         .transact(db)
-        .map(_.filter(e => e.status == Status.Unregistered || e.status == Status.Deleted))
+        .map(
+          _.filter(e => e.status == models.Status.Unregistered || e.status == models.Status.Deleted)
+        )
 
       result <- existing match {
         case Some(e) =>
@@ -138,11 +139,11 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
             account <- getAccountInfo(accountId)
 
             // Create then insert an unregistered event.
-            event = WorkableEvent(
+            event = models.WorkableEvent(
               accountId,
               UUID.randomUUID(),
-              Status.Unregistered,
-              Payload(AccountIdentifier(account.key, account.coinFamily, account.coin))
+              models.Status.Unregistered,
+              Payload(models.AccountIdentifier(account.key, account.coinFamily, account.coin))
             )
 
             result <- Queries
@@ -158,7 +159,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       }
     } yield result
 
-  private def cursorToJson(request: protobuf.RegisterAccountRequest): Json = {
+  private def cursorToJson(request: RegisterAccountRequest): Json = {
     if (request.cursor.isBlockHeight) {
       Json.obj(
         "blockHeight" -> Json.fromLong(
@@ -226,7 +227,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
               account.key,
               account.syncFrequency.toSeconds,
               Some(
-                Se(
+                SyncEvent(
                   UuidUtils.uuidToBytes(account.syncId),
                   account.status.name,
                   ByteString.copyFrom(account.payload.asJson.noSpaces.getBytes())
