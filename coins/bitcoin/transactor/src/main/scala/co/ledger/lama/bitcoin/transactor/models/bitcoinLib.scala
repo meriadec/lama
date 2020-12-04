@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.transactor.models
 import co.ledger.lama.bitcoin.common.models.BitcoinNetwork
 import co.ledger.lama.bitcoin.transactor.models.implicits._
 import co.ledger.protobuf.bitcoin.libgrpc
+import com.google.protobuf.ByteString
 
 object bitcoinLib {
 
@@ -10,27 +11,49 @@ object bitcoinLib {
       lockTime: Long,
       inputs: Seq[Input],
       outputs: Seq[Output],
-      network: BitcoinNetwork
+      network: BitcoinNetwork,
+      changeAddress: String,
+      feeSatPerKb: Long
   ) {
     def toProto: libgrpc.CreateTransactionRequest =
       libgrpc.CreateTransactionRequest(
         lockTime.toInt, // We use toInt because, even though we have Long (for
         inputs.map(_.toProto),
         outputs.map(_.toProto),
-        network.toLibGrpcProto
+        network.toLibGrpcProto,
+        changeAddress,
+        feeSatPerKb
+      )
+  }
+
+  case class NotEnoughUtxo(
+      missingAmount: BigInt
+  ) {
+    def toProto: libgrpc.NotEnoughUtxo =
+      libgrpc.NotEnoughUtxo(
+        missingAmount.toLong
+      )
+  }
+
+  object NotEnoughUtxo {
+    def fromProto(proto: libgrpc.NotEnoughUtxo): NotEnoughUtxo =
+      NotEnoughUtxo(
+        BigInt(proto.missingAmount)
       )
   }
 
   case class RawTransactionResponse(
       hex: String,
       hash: String,
-      witnessHash: String
+      witnessHash: String,
+      notEnoughUtxo: Option[NotEnoughUtxo]
   ) {
     def toProto: libgrpc.RawTransactionResponse =
       libgrpc.RawTransactionResponse(
         hex,
         hash,
-        witnessHash
+        witnessHash,
+        notEnoughUtxo.map(_.toProto)
       )
   }
 
@@ -39,18 +62,43 @@ object bitcoinLib {
       RawTransactionResponse(
         proto.hex,
         proto.hash,
-        proto.witnessHash
+        proto.witnessHash,
+        proto.notEnoughUtxo.map(NotEnoughUtxo.fromProto)
+      )
+  }
+
+  case class SignatureMetadata(
+      derSignature: ByteString,
+      publicKey: String
+  ) {
+    def toProto: libgrpc.SignatureMetadata =
+      libgrpc.SignatureMetadata(
+        derSignature,
+        publicKey = publicKey,
+        addrEncoding = libgrpc.AddressEncoding.ADDRESS_ENCODING_P2PKH
+      )
+  }
+
+  object SignatureMetadata {
+    def fromProto(proto: libgrpc.SignatureMetadata): SignatureMetadata =
+      SignatureMetadata(
+        proto.derSignature,
+        proto.publicKey
       )
   }
 
   case class Input(
       outputHash: String,
-      outputIndex: Int
+      outputIndex: Int,
+      script: String,
+      value: BigInt
   ) {
     def toProto: libgrpc.Input =
       libgrpc.Input(
         outputHash,
-        outputIndex
+        outputIndex,
+        ByteString.copyFromUtf8(script), // ???
+        value.toLong
       )
   }
 
@@ -58,7 +106,9 @@ object bitcoinLib {
     def fromProto(proto: libgrpc.Input): Input =
       Input(
         proto.outputHash,
-        proto.outputIndex
+        proto.outputIndex,
+        proto.script.toString,
+        BigInt(proto.value)
       )
   }
 

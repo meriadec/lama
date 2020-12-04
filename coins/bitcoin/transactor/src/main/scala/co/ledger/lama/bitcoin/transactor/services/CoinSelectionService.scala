@@ -6,7 +6,7 @@ import co.ledger.lama.bitcoin.common.models.transactor.CoinSelectionStrategy
 
 object CoinSelectionService {
 
-  def pickUtxos(
+  def coinSelection(
       coinSelection: CoinSelectionStrategy,
       utxos: List[Utxo],
       amount: BigInt

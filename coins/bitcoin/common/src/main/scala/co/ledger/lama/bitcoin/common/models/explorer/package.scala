@@ -16,4 +16,11 @@ package object explorer {
       deriveConfiguredDecoder[GetTransactionsResponse]
   }
 
+  case class SendTransactionResult(result: String)
+
+  object SendTransactionResult {
+    implicit val decoder: Decoder[SendTransactionResult] =
+      deriveConfiguredDecoder[SendTransactionResult]
+  }
+
 }

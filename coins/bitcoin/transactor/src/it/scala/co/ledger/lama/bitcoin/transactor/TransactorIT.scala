@@ -12,7 +12,7 @@ import co.ledger.lama.bitcoin.common.services.mocks.{
   InterpreterClientServiceMock,
   KeychainClientServiceMock
 }
-import co.ledger.lama.bitcoin.transactor.services.BitcoinLibGrpcClientServiceMock
+import co.ledger.lama.bitcoin.transactor.services.BitcoinLibClientServiceMock
 import co.ledger.lama.bitcoin.transactor.protobuf.{CreateTransactionRequest, PrepareTxOutput}
 import co.ledger.lama.common.models.Coin.Btc
 import co.ledger.lama.common.utils.{IOAssertion, UuidUtils}
@@ -25,14 +25,16 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
   "Transactor" should "create hex transaction" in IOAssertion {
 
     val interpreterService = new InterpreterClientServiceMock
-    val bitcoinLibService  = new BitcoinLibGrpcClientServiceMock
+    val bitcoinLibService  = new BitcoinLibClientServiceMock
     val keychainService    = new KeychainClientServiceMock
     val explorerService    = new ExplorerClientServiceMock
     val transactor =
-      new BitcoinLibTransactor(bitcoinLibService,
-                               _ => explorerService,
-                               keychainService,
-                               interpreterService)
+      new BitcoinLibTransactor(
+        bitcoinLibService,
+        _ => explorerService,
+        keychainService,
+        interpreterService
+      )
 
     val accountId = UUID.randomUUID()
 
@@ -94,7 +96,7 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
       _ <- interpreterService.compute(
         accountId,
         Btc,
-        List(outputAddress1, outputAddress2, outputAddress3),
+        List(outputAddress1, outputAddress2, outputAddress3)
       )
 
       // create a transaction using prevously saved utxoq

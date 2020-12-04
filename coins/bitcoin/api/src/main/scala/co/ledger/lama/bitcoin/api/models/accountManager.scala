@@ -12,6 +12,8 @@ object accountManager {
 
   case class AccountInfo(
       accountId: UUID,
+      coinFamily: CoinFamily,
+      coin: Coin,
       syncFrequency: Long,
       lastSyncEvent: Option[SyncEvent],
       balance: BigInt,

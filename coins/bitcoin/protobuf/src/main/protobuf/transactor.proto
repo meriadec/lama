@@ -9,6 +9,7 @@ option java_package = "co.ledger.lama.bitcoin.transactor.protobuf";
 
 service BitcoinTransactorService {
   rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse) {}
+  rpc BroadcastTransaction(BroadcastTransactionRequest) returns (BroadcastTransactionResponse) {}
 }
 
 enum CoinSelector {
@@ -25,9 +26,23 @@ message CreateTransactionRequest {
 
 message CreateTransactionResponse {
   string hex = 1;
-  string script = 2;
+  string hash = 2;
   string witness_hash = 3;
-  repeated Utxo utxo = 4;
+  repeated Utxo utxos = 4;
+}
+
+message BroadcastTransactionRequest {
+  bytes accountId = 1;
+  bytes keychainId = 2;
+  string coinId = 3;
+  CreateTransactionResponse raw_transaction = 4;
+  string privkey = 5; //only for now
+}
+
+message BroadcastTransactionResponse {
+  string hex = 1;
+  string hash = 2;
+  string witness_hash = 3;
 }
 
 message PrepareTxOutput {

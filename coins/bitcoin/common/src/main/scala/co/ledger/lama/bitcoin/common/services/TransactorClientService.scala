@@ -3,7 +3,12 @@ package co.ledger.lama.bitcoin.common.services
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.transactor.{CoinSelectionStrategy, PrepareTxOutput}
+import co.ledger.lama.bitcoin.common.models.transactor.{
+  BroadcastTransactionResponse,
+  CoinSelectionStrategy,
+  CreateTransactionResponse,
+  PrepareTxOutput
+}
 import co.ledger.lama.bitcoin.transactor.protobuf
 import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.utils.UuidUtils
@@ -17,8 +22,15 @@ trait TransactorClientService {
       coinSelection: CoinSelectionStrategy,
       outputs: List[PrepareTxOutput],
       coin: Coin
-  ): IO[String]
+  ): IO[CreateTransactionResponse]
 
+  def broadcastTransaction(
+      accountId: UUID,
+      keychainId: UUID,
+      coinId: String,
+      rawTransaction: CreateTransactionResponse,
+      privKey: String
+  ): IO[BroadcastTransactionResponse]
 }
 
 class TransactorGrpcClientService(
@@ -31,7 +43,7 @@ class TransactorGrpcClientService(
       coinSelection: CoinSelectionStrategy,
       outputs: List[PrepareTxOutput],
       coin: Coin
-  ): IO[String] =
+  ): IO[CreateTransactionResponse] =
     grpcClient
       .createTransaction(
         new protobuf.CreateTransactionRequest(
@@ -43,6 +55,26 @@ class TransactorGrpcClientService(
         ),
         new Metadata
       )
-      .map(_.hex) //TODO return whole reponse
+      .map(CreateTransactionResponse.fromProto)
 
+  def broadcastTransaction(
+      accountId: UUID,
+      keychainId: UUID,
+      coinId: String,
+      rawTransaction: CreateTransactionResponse,
+      privKey: String
+  ): IO[BroadcastTransactionResponse] = {
+    grpcClient
+      .broadcastTransaction(
+        protobuf.BroadcastTransactionRequest(
+          UuidUtils.uuidToBytes(accountId),
+          UuidUtils.uuidToBytes(keychainId),
+          coinId,
+          Some(rawTransaction.toProto),
+          privKey: String
+        ),
+        new Metadata
+      )
+      .map(BroadcastTransactionResponse.fromProto)
+  }
 }

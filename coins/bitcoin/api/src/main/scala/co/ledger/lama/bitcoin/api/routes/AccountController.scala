@@ -10,6 +10,7 @@ import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.UuidUtils
+import co.ledger.lama.common.utils.{ProtobufUtils => CommonProtobufUtils}
 import co.ledger.lama.manager.protobuf.{
   AccountInfoRequest,
   AccountLabel,
@@ -106,8 +107,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           registeredAccount <- accountManagerClient.registerAccount(
             new RegisterAccountRequest(
               key = keychainId.toString,
-              coinFamily = toCoinFamily(creationRequest.coinFamily),
-              coin = toCoin(creationRequest.coin),
+              coinFamily = CommonProtobufUtils.toCoinFamily(creationRequest.coinFamily),
+              coin = CommonProtobufUtils.toCoin(creationRequest.coin),
               syncFrequency = creationRequest.syncFrequency.getOrElse(0L),
               label = creationRequest.label.map(AccountLabel(_))
             ),
@@ -187,8 +188,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
           _ <- notificationService.deleteQueue(
             accountId = accountId,
-            coinFamily = fromCoinFamily(ai.coinFamily),
-            coin = fromCoin(ai.coin)
+            coinFamily = CommonProtobufUtils.fromCoinFamily(ai.coinFamily),
+            coin = CommonProtobufUtils.fromCoin(ai.coin)
           )
           _ <- log.info("Queue deleted")
 
@@ -245,7 +246,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             accountId
           ) / "transactions" =>
         for {
-          _                        <- log.info(s"preparing transaction creation for account: $accountId")
+          _                        <- log.info(s"Preparing transaction creation for account: $accountId")
           createTransactionRequest <- req.as[CreateTransactionRequest]
 
           account <- accountManagerClient.getAccountInfo(
@@ -255,11 +256,44 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
           response <- transactorClient
             .createTransaction(
-              createTransactionRequest.accountId,
+              accountId,
               UUID.fromString(account.key),
               createTransactionRequest.coinSelection,
               createTransactionRequest.outputs,
-              fromCoin(account.coin)
+              CommonProtobufUtils.fromCoin(account.coin)
+            )
+            .flatMap(Ok(_))
+
+        } yield response
+
+      case req @ POST -> Root / UUIDVar(
+            accountId
+          ) / "transactions" / "demo" =>
+        for {
+          _       <- log.info(s"Preparing transaction creation for account: $accountId")
+          request <- req.as[CreateTransactionDemoRequest]
+
+          account <- accountManagerClient.getAccountInfo(
+            new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
+            new Metadata
+          )
+
+          rawTransaction <- transactorClient
+            .createTransaction(
+              accountId,
+              UUID.fromString(account.key),
+              request.coinSelection,
+              request.outputs,
+              CommonProtobufUtils.fromCoin(account.coin)
+            )
+
+          response <- transactorClient
+            .broadcastTransaction(
+              accountId,
+              UUID.fromString(account.key),
+              account.coin.name,
+              rawTransaction,
+              request.privKey
             )
             .flatMap(Ok(_))
 

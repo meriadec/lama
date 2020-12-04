@@ -29,11 +29,11 @@ class CoinSelectionServiceTest extends AnyFlatSpecLike with Matchers {
     )
 
     CoinSelectionService
-      .pickUtxos(CoinSelectionStrategy.DepthFirst, utxos, 10000)
+      .coinSelection(CoinSelectionStrategy.DepthFirst, utxos, 10000)
       .unsafeRunSync() should have size 1
 
     CoinSelectionService
-      .pickUtxos(CoinSelectionStrategy.DepthFirst, utxos, 100001)
+      .coinSelection(CoinSelectionStrategy.DepthFirst, utxos, 100001)
       .unsafeRunSync() should have size 2
 
   }

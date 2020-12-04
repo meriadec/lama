@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.common.services
 
 import java.util.UUID
 
+import cats.data.NonEmptyList
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
@@ -20,6 +21,10 @@ trait KeychainClientService {
   def getAddresses(keychainId: UUID, fromIndex: Int, toIndex: Int): IO[Seq[AddressInfo]]
   def markAddressesAsUsed(keychainId: UUID, addresses: Seq[String]): IO[Unit]
   def getFreshAddresses(keychainId: UUID, change: ChangeType, size: Int): IO[Seq[AddressInfo]]
+  def getAddressesPublicKeys(
+      keychainId: UUID,
+      derivations: NonEmptyList[NonEmptyList[Int]]
+  ): IO[List[String]]
 }
 
 class KeychainGrpcClientService(
@@ -79,5 +84,25 @@ class KeychainGrpcClientService(
         new Metadata
       )
       .map(_.addresses)
+
+  def getAddressesPublicKeys(
+      keychainId: UUID,
+      derivations: NonEmptyList[NonEmptyList[Int]]
+  ): IO[List[String]] =
+    client
+      .getAddressesPublicKeys(
+        GetAddressesPublicKeysRequest(
+          UuidUtils.uuidToBytes(keychainId),
+          derivations
+            .map(derivation =>
+              DerivationPath(
+                derivation.toList
+              )
+            )
+            .toList
+        ),
+        new Metadata
+      )
+      .map(_.publicKeys.toList)
 
 }

@@ -2,8 +2,9 @@ package co.ledger.lama.bitcoin.api.utils
 
 import java.util.UUID
 
-import co.ledger.lama.common.models.{Coin, CoinFamily, Status, SyncEvent}
+import co.ledger.lama.common.models.{Status, SyncEvent}
 import co.ledger.lama.common.utils.UuidUtils
+import co.ledger.lama.common.utils.{ProtobufUtils => CommonProtobufUtils}
 import co.ledger.lama.manager.{protobuf => pbManager}
 import co.ledger.lama.bitcoin.api.models.accountManager._
 import co.ledger.lama.bitcoin.common.models.interpreter.BalanceHistory
@@ -21,28 +22,6 @@ object ProtobufUtils {
       lookaheadSize = cr.lookaheadSize,
       network = cr.network.toKeychainProto
     )
-
-  def toCoinFamily(cf: CoinFamily): co.ledger.lama.manager.protobuf.CoinFamily =
-    cf match {
-      case CoinFamily.Bitcoin => co.ledger.lama.manager.protobuf.CoinFamily.bitcoin
-      case _                  => co.ledger.lama.manager.protobuf.CoinFamily.Unrecognized(-1)
-    }
-
-  def toCoin(c: Coin): co.ledger.lama.manager.protobuf.Coin =
-    c match {
-      case Coin.Btc        => co.ledger.lama.manager.protobuf.Coin.btc
-      case Coin.BtcTestnet => co.ledger.lama.manager.protobuf.Coin.btc_testnet
-      case _               => co.ledger.lama.manager.protobuf.Coin.Unrecognized(-1)
-    }
-
-  val fromCoin: PartialFunction[co.ledger.lama.manager.protobuf.Coin, Coin] = {
-    case co.ledger.lama.manager.protobuf.Coin.btc         => Coin.Btc
-    case co.ledger.lama.manager.protobuf.Coin.btc_testnet => Coin.BtcTestnet
-  }
-
-  val fromCoinFamily: PartialFunction[co.ledger.lama.manager.protobuf.CoinFamily, CoinFamily] = {
-    case co.ledger.lama.manager.protobuf.CoinFamily.bitcoin => CoinFamily.Bitcoin
-  }
 
   def fromRegisterAccount(ra: pbManager.RegisterAccountResult): AccountRegistered =
     AccountRegistered(
@@ -72,6 +51,8 @@ object ProtobufUtils {
     val accountId = UuidUtils.bytesToUuid(info.accountId).get
     AccountInfo(
       accountId,
+      CommonProtobufUtils.fromCoinFamily(info.coinFamily),
+      CommonProtobufUtils.fromCoin(info.coin),
       info.syncFrequency,
       info.lastSyncEvent.flatMap(fromSyncEvent(accountId, _)),
       balance.balance,

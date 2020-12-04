@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.common.services.mocks
 
 import java.util.UUID
 
+import cats.data.NonEmptyList
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
@@ -80,4 +81,8 @@ class KeychainClientServiceMock extends KeychainClientService with IOLogging {
   ): IO[Seq[keychain.AddressInfo]] =
     IO(derivedAddresses)
 
+  override def getAddressesPublicKeys(
+      keychainId: UUID,
+      derivations: NonEmptyList[NonEmptyList[Int]]
+  ): IO[List[String]] = ???
 }

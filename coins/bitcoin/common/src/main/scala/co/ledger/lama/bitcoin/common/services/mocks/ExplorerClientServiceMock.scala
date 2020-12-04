@@ -22,4 +22,6 @@ class ExplorerClientServiceMock extends ExplorerClientService {
     IO(FeeInfo(500, 1000, 1500))
   }
 
+  override def broadcastTransaction(tx: String): IO[String] = ???
+
 }

@@ -10,6 +10,7 @@ import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.models.Coin.{Btc, BtcTestnet}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.{Decoder, Json}
+import org.http4s.circe.CirceEntityEncoder._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.client.Client
 import org.http4s.{Method, Request}
@@ -28,6 +29,8 @@ trait ExplorerClientService {
   )(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, ConfirmedTransaction]
 
   def getSmartFees: IO[FeeInfo]
+
+  def broadcastTransaction(tx: String): IO[String]
 
 }
 
@@ -62,9 +65,8 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
         fetchPaginatedTransactions(chunk.toList, blockHash).stream
           .flatMap { res =>
             // The explorer v3 returns also unconfirmed txs, so we need to remove it
-            val confirmedTxs = res.txs.collect {
-              case confirmedTx: ConfirmedTransaction =>
-                confirmedTx
+            val confirmedTxs = res.txs.collect { case confirmedTx: ConfirmedTransaction =>
+              confirmedTx
             }
             Stream.emits(confirmedTxs)
           }
@@ -85,9 +87,8 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
             val sortedFees = o
               .filterKeys(_.toIntOption.isDefined)
               .toList
-              .flatMap {
-                case (_, v) =>
-                  v.asNumber.flatMap(_.toLong)
+              .flatMap { case (_, v) =>
+                v.asNumber.flatMap(_.toLong)
               }
               .sorted
 
@@ -104,6 +105,19 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
 
     } yield feeInfo
 
+  }
+
+  def broadcastTransaction(tx: String): IO[String] = {
+    println(s"Broadcast tx: $tx")
+    println(s"$coinBasePath/transactions/send")
+    httpClient
+      .expect[SendTransactionResult](
+        Request[IO](
+          Method.POST,
+          conf.uri.withPath(s"$coinBasePath/transactions/send")
+        ).withEntity(Json.obj("tx" -> Json.fromString(tx)))
+      )
+      .map(_.result)
   }
 
   private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[String]) = {
@@ -127,9 +141,10 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
       addresses: Seq[String],
       blockHash: Option[String]
   )(implicit
-    cs: ContextShift[IO],
-    t: Timer[IO],
-    decoder: Decoder[GetTransactionsResponse]): Pull[IO, GetTransactionsResponse, Unit] =
+      cs: ContextShift[IO],
+      t: Timer[IO],
+      decoder: Decoder[GetTransactionsResponse]
+  ): Pull[IO, GetTransactionsResponse, Unit] =
     Pull
       .eval(
         log.info(
@@ -152,9 +167,8 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
           // get the most recent fetched block hash for the next cursor
           val lastBlockHash =
             res.txs
-              .collect {
-                case confirmedTx: ConfirmedTransaction =>
-                  confirmedTx
+              .collect { case confirmedTx: ConfirmedTransaction =>
+                confirmedTx
               }
               .maxByOption(_.block.time)
               .map(_.block.hash)

@@ -3,7 +3,7 @@ package co.ledger.lama.manager
 import cats.effect.{ConcurrentEffect, IO}
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.models
+import co.ledger.lama.common.models._
 import co.ledger.lama.common.models.SyncEvent.Payload
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.Exceptions.{
@@ -13,8 +13,9 @@ import co.ledger.lama.manager.Exceptions.{
 }
 import co.ledger.lama.manager.config.CoinConfig
 import co.ledger.lama.manager.models.AccountInfo
-import co.ledger.lama.manager.protobuf._
+import co.ledger.lama.manager.protobuf
 import co.ledger.lama.manager.utils.ProtobufUtils
+import co.ledger.lama.common.utils.{ProtobufUtils => CommonProtobufUtils}
 import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import doobie.implicits._
@@ -28,14 +29,14 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
 class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
-    extends AccountManagerServiceFs2Grpc[IO, Metadata]
+    extends protobuf.AccountManagerServiceFs2Grpc[IO, Metadata]
     with IOLogging {
 
   def definition(implicit ce: ConcurrentEffect[IO]): ServerServiceDefinition =
-    AccountManagerServiceFs2Grpc.bindService(this)
+    protobuf.AccountManagerServiceFs2Grpc.bindService(this)
 
   def updateAccount(
-      request: UpdateAccountRequest,
+      request: protobuf.UpdateAccountRequest,
       ctx: Metadata
   ): IO[Empty] = {
     val accountIdIo   = UuidUtils.bytesToUuidIO(request.accountId)
@@ -48,9 +49,9 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
   }
 
   def registerAccount(
-      request: RegisterAccountRequest,
+      request: protobuf.RegisterAccountRequest,
       ctx: Metadata
-  ): IO[RegisterAccountResult] = {
+  ): IO[protobuf.RegisterAccountResult] = {
     val account    = ProtobufUtils.from(request)
     val coinFamily = account.coinFamily
     val coin       = account.coin
@@ -84,10 +85,10 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         syncFrequency = accountInfo.syncFrequency
 
         // Create then insert the registered event.
-        syncEvent = models.WorkableEvent(
+        syncEvent = WorkableEvent(
           account.id,
           UUID.randomUUID(),
-          models.Status.Registered,
+          Status.Registered,
           Payload(account, cursor)
         )
         _ <- Queries.insertSyncEvent(syncEvent)
@@ -95,24 +96,23 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       } yield (accountId, syncEvent.syncId, syncFrequency)
 
       response <-
-      // Run queries and return an sync event result.
-      queries
-        .transact(db)
-        .map {
-          case (accountId, syncId, syncFrequency) =>
-            RegisterAccountResult(
+        // Run queries and return an sync event result.
+        queries
+          .transact(db)
+          .map { case (accountId, syncId, syncFrequency) =>
+            protobuf.RegisterAccountResult(
               UuidUtils.uuidToBytes(accountId),
               UuidUtils.uuidToBytes(syncId),
               syncFrequency.toSeconds
             )
-        }
+          }
     } yield response
   }
 
   def unregisterAccount(
-      request: UnregisterAccountRequest,
+      request: protobuf.UnregisterAccountRequest,
       ctx: Metadata
-  ): IO[UnregisterAccountResult] =
+  ): IO[protobuf.UnregisterAccountResult] =
     for {
       accountId <- IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(
         MalformedProtobufUuidException
@@ -122,13 +122,13 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         .getLastSyncEvent(accountId)
         .transact(db)
         .map(
-          _.filter(e => e.status == models.Status.Unregistered || e.status == models.Status.Deleted)
+          _.filter(e => e.status == Status.Unregistered || e.status == Status.Deleted)
         )
 
       result <- existing match {
         case Some(e) =>
           IO.pure(
-            UnregisterAccountResult(
+            protobuf.UnregisterAccountResult(
               UuidUtils.uuidToBytes(e.accountId),
               UuidUtils.uuidToBytes(e.syncId)
             )
@@ -139,27 +139,27 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
             account <- getAccountInfo(accountId)
 
             // Create then insert an unregistered event.
-            event = models.WorkableEvent(
+            event = WorkableEvent(
               accountId,
               UUID.randomUUID(),
-              models.Status.Unregistered,
-              Payload(models.AccountIdentifier(account.key, account.coinFamily, account.coin))
+              Status.Unregistered,
+              Payload(AccountIdentifier(account.key, account.coinFamily, account.coin))
             )
 
             result <- Queries
               .insertSyncEvent(event)
               .transact(db)
-              .map(
-                _ =>
-                  UnregisterAccountResult(
-                    UuidUtils.uuidToBytes(event.accountId),
-                    UuidUtils.uuidToBytes(event.syncId)
-                ))
+              .map(_ =>
+                protobuf.UnregisterAccountResult(
+                  UuidUtils.uuidToBytes(event.accountId),
+                  UuidUtils.uuidToBytes(event.syncId)
+                )
+              )
           } yield result
       }
     } yield result
 
-  private def cursorToJson(request: RegisterAccountRequest): Json = {
+  private def cursorToJson(request: protobuf.RegisterAccountRequest): Json = {
     if (request.cursor.isBlockHeight) {
       Json.obj(
         "blockHeight" -> Json.fromLong(
@@ -171,7 +171,10 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
     } else Json.obj()
   }
 
-  def getAccountInfo(request: AccountInfoRequest, ctx: Metadata): IO[AccountInfoResult] =
+  def getAccountInfo(
+      request: protobuf.AccountInfoRequest,
+      ctx: Metadata
+  ): IO[protobuf.AccountInfoResult] =
     for {
       accountId <- IO.fromOption(UuidUtils.bytesToUuid(request.accountId))(
         MalformedProtobufUuidException
@@ -187,12 +190,14 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         )
       }
 
-      AccountInfoResult(
+      protobuf.AccountInfoResult(
         UuidUtils.uuidToBytes(accountInfo.id),
         accountInfo.key,
         accountInfo.syncFrequency.toSeconds,
         lastSyncEventProto,
-        label = accountInfo.label.map(AccountLabel(_))
+        CommonProtobufUtils.toCoinFamily(accountInfo.coinFamily),
+        CommonProtobufUtils.toCoin(accountInfo.coin),
+        accountInfo.label.map(protobuf.AccountLabel(_))
       )
     }
 
@@ -204,7 +209,10 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
         IO.fromOption(_)(AccountNotFoundException(accountId))
       }
 
-  def getAccounts(request: GetAccountsRequest, ctx: Metadata): IO[AccountsResult] = {
+  def getAccounts(
+      request: protobuf.GetAccountsRequest,
+      ctx: Metadata
+  ): IO[protobuf.AccountsResult] = {
     val limit  = if (request.limit <= 0) 20 else request.limit
     val offset = if (request.offset < 0) 0 else request.offset
     for {
@@ -219,22 +227,24 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
 
       total <- Queries.countAccounts().transact(db)
     } yield {
-      AccountsResult(
-        accounts.map(
-          account =>
-            AccountInfoResult(
-              UuidUtils.uuidToBytes(account.id),
-              account.key,
-              account.syncFrequency.toSeconds,
-              Some(
-                SyncEvent(
-                  UuidUtils.uuidToBytes(account.syncId),
-                  account.status.name,
-                  ByteString.copyFrom(account.payload.asJson.noSpaces.getBytes())
-                )
-              ),
-              label = account.label.map(AccountLabel(_))
-          )),
+      protobuf.AccountsResult(
+        accounts.map(account =>
+          protobuf.AccountInfoResult(
+            UuidUtils.uuidToBytes(account.id),
+            account.key,
+            account.syncFrequency.toSeconds,
+            Some(
+              protobuf.SyncEvent(
+                UuidUtils.uuidToBytes(account.syncId),
+                account.status.name,
+                ByteString.copyFrom(account.payload.asJson.noSpaces.getBytes())
+              )
+            ),
+            CommonProtobufUtils.toCoinFamily(account.coinFamily),
+            CommonProtobufUtils.toCoin(account.coin),
+            account.label.map(protobuf.AccountLabel(_))
+          )
+        ),
         total
       )
     }
