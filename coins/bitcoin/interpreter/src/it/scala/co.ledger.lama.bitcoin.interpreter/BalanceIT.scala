@@ -49,30 +49,15 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
       time,
       0,
       0,
-      List(DefaultInput("txId0", 0, 0, 60000, "anotherAccount", "script", List(), 1L)),
-      List(Output(0, 60000, address1.accountAddress, "script")),
+      List(
+        DefaultInput("txId0", 0, 0, 60000, notBelongingAddress, "script", List(), 1L)
+      ),
+      List(
+        Output(0, 60000, address1.accountAddress, "script")
+      ),
       block1,
       1
     )
-
-  val outputs = List(
-    Output(0, 30000, address2.accountAddress, "script"),
-    Output(1, 20000, notBelongingAddress, "script"),
-    Output(2, 9434, address3.accountAddress, "script")
-  )
-
-  val inputs = List(
-    DefaultInput(
-      "txId1",
-      0,
-      0,
-      60000,
-      address1.accountAddress,
-      "script",
-      List(),
-      4294967295L
-    )
-  )
 
   val tx2: ConfirmedTransaction =
     ConfirmedTransaction(
@@ -81,8 +66,23 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
       time,
       0,
       566,
-      inputs,
-      outputs,
+      List(
+        DefaultInput(
+          "txId1",
+          0,
+          0,
+          60000,
+          address1.accountAddress,
+          "script",
+          List(),
+          4294967295L
+        )
+      ),
+      List(
+        Output(0, 30000, address2.accountAddress, "script"),
+        Output(1, 20000, notBelongingAddress, "script"),
+        Output(2, 9434, address3.accountAddress, "script")
+      ),
       block2,
       1
     )
@@ -99,7 +99,20 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
         val end   = now.plusSeconds(86400)
 
         for {
+          // save a transaction and compute balance
           _ <- QueryUtils.saveTx(db, tx1, accountId)
+          _ <- flaggingService.flagInputsAndOutputs(
+            accountId,
+            List(address2, address3, address1)
+          )
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .toList
+          _ <- balanceService.compute(accountId)
+
+          //save another transaction and compute balance
           _ <- QueryUtils.saveTx(db, tx2, accountId)
           _ <- flaggingService.flagInputsAndOutputs(
             accountId,
@@ -110,10 +123,10 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
             .through(operationService.saveOperationSink)
             .compile
             .toList
-
           savedBalance <- balanceService.compute(accountId)
-          current      <- balanceService.getBalance(accountId)
-          balances     <- balanceService.getBalancesHistory(accountId, start, end)
+
+          current  <- balanceService.getBalance(accountId)
+          balances <- balanceService.getBalancesHistory(accountId, start, end)
         } yield {
           savedBalance.balance shouldBe BigInt(39434)
           savedBalance.utxos shouldBe 2
@@ -125,11 +138,11 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
           current.received shouldBe BigInt(90000)
           current.sent shouldBe BigInt(50566)
 
-          balances should have size 1
-          balances.head.balance shouldBe current.balance
-          balances.head.utxos shouldBe current.utxos
-          balances.head.received shouldBe current.received
-          balances.head.sent shouldBe current.sent
+          balances should have size 2
+          balances.last.balance shouldBe current.balance
+          balances.last.utxos shouldBe current.utxos
+          balances.last.received shouldBe current.received
+          balances.last.sent shouldBe current.sent
         }
       }
   }

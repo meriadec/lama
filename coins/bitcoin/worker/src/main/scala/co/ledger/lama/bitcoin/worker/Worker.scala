@@ -6,7 +6,11 @@ import cats.data.NonEmptyList
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.worker.DefaultInput
-import co.ledger.lama.bitcoin.common.services.{ExplorerClientService, InterpreterClientService, KeychainClientService}
+import co.ledger.lama.bitcoin.common.services.{
+  ExplorerClientService,
+  InterpreterClientService,
+  KeychainClientService
+}
 import co.ledger.lama.bitcoin.common.models.interpreter.AccountAddress
 import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
 import co.ledger.lama.bitcoin.worker.config.Config
@@ -86,13 +90,17 @@ class Worker(
       lastValidBlock <- previousBlockState.map { block =>
         for {
           lvb <- cursorStateService(coin).getLastValidState(account.id, block)
+          _   <- log.info(s"Last valid block : $lvb")
           _ <-
-            if (block.hash == lvb.hash)
+            if (lvb.hash.endsWith(block.hash))
               // If the previous block is still valid, do not reorg
               IO.unit
-            else
+            else {
               // remove all transactions and operations up until last valid block
-              interpreterClient.removeDataFromCursor(account.id, Some(lvb.height))
+              log.info(
+                s"${block.hash} is different than ${lvb.hash}, reorg is happening"
+              ) *> interpreterClient.removeDataFromCursor(account.id, Some(lvb.height))
+            }
         } yield lvb
       }.sequence
 
@@ -114,7 +122,11 @@ class Worker(
         )
       }
 
-      opsCount <- interpreterClient.compute(account.id, workableEvent.payload.account.coin, addresses)
+      opsCount <- interpreterClient.compute(
+        account.id,
+        workableEvent.payload.account.coin,
+        addresses
+      )
 
       _ <- log.info(s"$opsCount operations computed")
 

@@ -9,6 +9,7 @@ import co.ledger.lama.bitcoin.common.services.{
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.bitcoin.transactor.services.BitcoinLibGrpcClientService
 import co.ledger.lama.common.grpc.HealthService
+import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.services.Clients
 import co.ledger.lama.common.utils.ResourceUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
@@ -16,7 +17,7 @@ import co.ledger.protobuf.bitcoin.{keychain, libgrpc}
 import fs2._
 import pureconfig.ConfigSource
 
-object App extends IOApp {
+object App extends IOApp with IOLogging {
 
   def run(args: List[String]): IO[ExitCode] = {
     val conf = ConfigSource.default.loadOrThrow[Config]
@@ -58,7 +59,7 @@ object App extends IOApp {
 
     Stream
       .resource(resources)
-      .evalMap(server => IO(server.start()))
+      .evalMap(server => IO(server.start()) *> log.info("Transactor started"))
       .evalMap(_ => IO.never)
       .compile
       .drain

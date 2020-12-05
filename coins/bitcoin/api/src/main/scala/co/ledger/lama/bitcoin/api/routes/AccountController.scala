@@ -53,7 +53,6 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             GetAccountsRequest(limit.getOrElse(0), offset.getOrElse(0)),
             new Metadata
           )
-          _ <- log.info(s"Fetched accounts with total: $accountsResult")
 
           accounts = accountsResult.accounts.toList
 
@@ -65,8 +64,6 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           accountsWithBalances <- accountsWithIds.parTraverse { case (accountId, account) =>
             interpreterClient.getBalance(accountId).map(balance => account -> balance)
           }
-
-          _ <- log.info(s"Accounts with balances: $accountsWithBalances")
 
         } yield (accountsWithBalances, accountsResult.total)
 

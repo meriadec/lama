@@ -1,6 +1,7 @@
 package co.ledger.lama.bitcoin.interpreter
 
 import java.time.Instant
+import java.util.UUID
 
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.interpreter._
@@ -133,27 +134,32 @@ class DbInterpreter(
       ctx: Metadata
   ): IO[protobuf.ResultCount] =
     for {
-
       coin <- IO.fromOption(Coin.fromKey(request.coinId))(
         new IllegalArgumentException(s"Unknown coin type ${request.coinId}) in compute request")
       )
+      accountId           <- UuidUtils.bytesToUuidIO(request.accountId)
+      addresses           <- IO(request.addresses.map(AccountAddress.fromProto).toList)
+      balanceHistoryCount <- balanceService.getBalancesHistoryCount(accountId)
+      nbSavedOps          <- computeOps(accountId, addresses, coin, balanceHistoryCount > 0)
+    } yield protobuf.ResultCount(nbSavedOps)
 
-      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+  def computeOps(
+      accountId: UUID,
+      addresses: List[AccountAddress],
+      coin: Coin,
+      shouldNotify: Boolean
+  ) = {
 
-      addresses <- IO(request.addresses.map(AccountAddress.fromProto).toList)
-
+    for {
       _ <- log.info(s"Flagging inputs and outputs belong to account=$accountId")
       _ <- flaggingService.flagInputsAndOutputs(accountId, addresses)
 
       _ <- log.info("Computing operations")
-
-      balanceHistoryCount <- balanceService.getBalancesHistoryCount(accountId)
-
       nbSavedOps <- operationService
         .compute(accountId)
         .through(operationService.saveOperationSink)
         .parEvalMap(maxConcurrent) { op =>
-          if (balanceHistoryCount > 0) {
+          if (shouldNotify) {
             notificationService.notify(
               OperationNotification(
                 accountId = accountId,
@@ -182,7 +188,8 @@ class DbInterpreter(
         )
       )
 
-    } yield protobuf.ResultCount(nbSavedOps)
+    } yield nbSavedOps
+  }
 
   def getBalance(
       request: protobuf.GetBalanceRequest,
