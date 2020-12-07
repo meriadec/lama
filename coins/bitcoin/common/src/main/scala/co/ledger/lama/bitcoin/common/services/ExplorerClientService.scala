@@ -8,6 +8,7 @@ import co.ledger.lama.bitcoin.common.models.worker._
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.models.Coin.{Btc, BtcTestnet}
+import co.ledger.lama.common.utils.IOUtils
 import fs2.{Chunk, Pull, Stream}
 import io.circe.{Decoder, Json}
 import org.http4s.circe.CirceEntityEncoder._
@@ -107,9 +108,7 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
 
   }
 
-  def broadcastTransaction(tx: String): IO[String] = {
-    println(s"Broadcast tx: $tx")
-    println(s"$coinBasePath/transactions/send")
+  def broadcastTransaction(tx: String): IO[String] =
     httpClient
       .expect[SendTransactionResult](
         Request[IO](
@@ -118,7 +117,6 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
         ).withEntity(Json.obj("tx" -> Json.fromString(tx)))
       )
       .map(_.result)
-  }
 
   private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[String]) = {
     val baseUri =
@@ -150,11 +148,13 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
         log.info(
           s"Getting txs with block_hash=$blockHash for addresses: ${addresses.mkString(",")}"
         ) *>
-          httpClient
-            .expect[GetTransactionsResponse](
-              GetOperationsRequest(addresses, blockHash)
-            )
-            .timeout(conf.timeout)
+          IOUtils.retry(
+            httpClient
+              .expect[GetTransactionsResponse](
+                GetOperationsRequest(addresses, blockHash)
+              )
+              .timeout(conf.timeout)
+          )
       )
       .flatMap { res =>
         if (res.truncated) {
