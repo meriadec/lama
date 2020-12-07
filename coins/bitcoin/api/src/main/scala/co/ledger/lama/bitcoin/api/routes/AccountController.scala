@@ -36,7 +36,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
 
-  // TODO: use keychainService from bitcoin.common
+  // TODO: refacto keychainService and accountManagerService
   def routes(
       notificationService: NotificationService,
       keychainClient: KeychainServiceFs2Grpc[IO, Metadata],
@@ -86,6 +86,24 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           .parProduct(interpreterClient.getBalance(accountId))
           .flatMap { case (info, balance) =>
             Ok(fromAccountInfo(info, balance))
+          }
+
+      case GET -> Root / UUIDVar(accountId) / "events"
+          :? OptionalLimitQueryParamMatcher(limit)
+          +& OptionalOffsetQueryParamMatcher(offset)
+          +& OptionalSortQueryParamMatcher(sort) =>
+        accountManagerClient
+          .getSyncEvents(toGetSyncEventsRequest(accountId, limit, offset, sort), new Metadata)
+          .flatMap { res =>
+            Ok(
+              Json.obj(
+                "events" ->
+                  Json.fromValues(
+                    res.syncEvents.map(se => CommonProtobufUtils.fromSyncEvent(se).asJson)
+                  ),
+                "total" -> Json.fromInt(res.total)
+              )
+            )
           }
 
       case req @ POST -> Root =>

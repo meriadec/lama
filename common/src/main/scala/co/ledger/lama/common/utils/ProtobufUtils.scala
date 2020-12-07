@@ -2,7 +2,10 @@ package co.ledger.lama.common.utils
 
 import java.time.Instant
 
-import co.ledger.lama.common.models.{Coin, CoinFamily}
+import co.ledger.lama.common.models.{Coin, CoinFamily, Status, SyncEvent}
+import com.google.protobuf.ByteString
+import io.circe.parser.parse
+import io.circe.syntax.EncoderOps
 
 object ProtobufUtils {
 
@@ -36,5 +39,24 @@ object ProtobufUtils {
   val fromCoinFamily: PartialFunction[co.ledger.lama.manager.protobuf.CoinFamily, CoinFamily] = {
     case co.ledger.lama.manager.protobuf.CoinFamily.bitcoin => CoinFamily.Bitcoin
   }
+
+  def toSyncEvent(se: SyncEvent): co.ledger.lama.manager.protobuf.SyncEvent =
+    co.ledger.lama.manager.protobuf.SyncEvent(
+      accountId = UuidUtils.uuidToBytes(se.accountId),
+      syncId = UuidUtils.uuidToBytes(se.syncId),
+      status = se.status.name,
+      payload = ByteString.copyFrom(se.payload.asJson.noSpaces.getBytes()),
+      time = Some(fromInstant(se.time))
+    )
+
+  def fromSyncEvent(se: co.ledger.lama.manager.protobuf.SyncEvent): SyncEvent =
+    SyncEvent(
+      accountId = UuidUtils.bytesToUuid(se.accountId).get,
+      syncId = UuidUtils.bytesToUuid(se.syncId).get,
+      status = Status.fromKey(se.status).get,
+      payload =
+        parse(new String(se.payload.toByteArray)).flatMap(_.as[SyncEvent.Payload]).toOption.get,
+      time = toInstant(se.time.get)
+    )
 
 }

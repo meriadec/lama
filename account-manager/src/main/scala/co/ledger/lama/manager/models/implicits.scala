@@ -1,5 +1,7 @@
 package co.ledger.lama.manager.models
 
+import java.sql.Timestamp
+import java.time.Instant
 import java.util.UUID
 
 import cats.implicits._
@@ -7,6 +9,7 @@ import co.ledger.lama.common.models._
 import doobie.util.meta.Meta
 import doobie.postgres.implicits._
 import doobie.util.{Get, Put, Read}
+import doobie.implicits.javasql._
 import io.circe.{Decoder, Encoder, Json}
 import io.circe.parser._
 import io.circe.syntax._
@@ -16,6 +19,11 @@ object implicits {
 
   implicit val uuidEncoder: Encoder[UUID] = Encoder.encodeString.contramap(_.toString)
   implicit val uuidDecoder: Decoder[UUID] = Decoder.decodeString.map(UUID.fromString)
+
+  implicit val instantType: Meta[Instant] =
+    TimestampMeta.imap[Instant] { ts =>
+      Instant.ofEpochMilli(ts.getTime)
+    }(Timestamp.from)
 
   implicit val jsonMeta: Meta[Json] =
     Meta.Advanced
@@ -27,9 +35,9 @@ object implicits {
         o
       })
 
-  implicit lazy val read: Read[SyncEvent] = Read[(UUID, UUID, Status, Json)].map {
-    case (accountId, syncId, status, json) =>
-      SyncEvent(accountId, syncId, status, json.as[SyncEvent.Payload].toTry.get)
+  implicit lazy val read: Read[SyncEvent] = Read[(UUID, UUID, Status, Json, Instant)].map {
+    case (accountId, syncId, status, json, updated) =>
+      SyncEvent(accountId, syncId, status, json.as[SyncEvent.Payload].toTry.get, updated)
   }
 
   implicit val meta: Meta[Status] =

@@ -22,236 +22,251 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
 
   IOAssertion {
     setup() *>
-      appResources.use {
-        case (db, redisClient, rabbitClient) =>
-          val service = new Service(db, conf.orchestrator.coins)
+      appResources.use { case (db, redisClient, rabbitClient) =>
+        val service = new Service(db, conf.orchestrator.coins)
 
-          val coinOrchestrator =
-            new CoinOrchestrator(conf.orchestrator, db, rabbitClient, redisClient)
+        val coinOrchestrator =
+          new CoinOrchestrator(conf.orchestrator, db, rabbitClient, redisClient)
 
-          val worker = new SimpleWorker(
-            rabbitClient,
-            conf.orchestrator.workerEventsExchangeName,
-            conf.orchestrator.lamaEventsExchangeName,
-            conf.orchestrator.coins.head
-          )
+        val worker = new SimpleWorker(
+          rabbitClient,
+          conf.orchestrator.workerEventsExchangeName,
+          conf.orchestrator.lamaEventsExchangeName,
+          conf.orchestrator.coins.head
+        )
 
-          val nbEvents = 12
+        val nbEvents = 12
 
-          val registerAccountRequest = protobuf.RegisterAccountRequest(
-            accountTest.key,
-            protobuf.CoinFamily.bitcoin,
-            protobuf.Coin.btc
-          )
+        val registerAccountRequest = protobuf.RegisterAccountRequest(
+          accountTest.key,
+          protobuf.CoinFamily.bitcoin,
+          protobuf.Coin.btc
+        )
 
-          val unregisterAccountRequest = protobuf.UnregisterAccountRequest(
-            UuidUtils.uuidToBytes(accountTest.id)
-          )
+        val unregisterAccountRequest = protobuf.UnregisterAccountRequest(
+          UuidUtils.uuidToBytes(accountTest.id)
+        )
 
-          def runTests(): IO[Unit] =
-            for {
-              // Register an account.
-              registeredResult <- service.registerAccount(registerAccountRequest, new Metadata())
+        def runTests(): IO[Unit] =
+          for {
+            // Register an account.
+            registeredResult <- service.registerAccount(registerAccountRequest, new Metadata())
 
-              registeredAccountId = bytesToUuid(registeredResult.accountId).get
-              registeredSyncId    = bytesToUuid(registeredResult.syncId).get
+            registeredAccountId = bytesToUuid(registeredResult.accountId).get
+            registeredSyncId    = bytesToUuid(registeredResult.syncId).get
 
-              messageSent1 <- worker.consumeWorkableEvent()
+            messageSent1 <- worker.consumeWorkableEvent()
 
-              // Report a successful sync event with a new cursor.
-              syncedCursorJson = Json.obj("blockHeight" -> Json.fromLong(123456789))
-              _ <- worker.publishReportableEvent(
-                messageSent1.reportSuccess(syncedCursorJson)
+            // Report a successful sync event with a new cursor.
+            syncedCursorJson = Json.obj("blockHeight" -> Json.fromLong(123456789))
+            _ <- worker.publishReportableEvent(
+              messageSent1.reportSuccess(syncedCursorJson)
+            )
+
+            messageSent2 <- worker.consumeWorkableEvent()
+
+            // Report a failed sync event with an error message.
+            syncFailedErrorJson = Json.obj("errorMessage" -> Json.fromString("failed to sync"))
+            _ <- worker.publishReportableEvent(
+              messageSent2.reportFailure(syncedCursorJson.deepMerge(syncFailedErrorJson))
+            )
+
+            // Unregister an account.
+            unregisteredResult <-
+              service.unregisterAccount(unregisterAccountRequest, new Metadata())
+
+            unregisteredAccountId = bytesToUuid(unregisteredResult.accountId).get
+            unregisteredSyncId    = bytesToUuid(unregisteredResult.syncId).get
+
+            messageSent3 <- worker.consumeWorkableEvent()
+
+            // Report a failed delete event with an error message.
+            deleteFailedErrorJson =
+              Json.obj("errorMessage" -> Json.fromString("failed to delete data"))
+            _ <- worker.publishReportableEvent(
+              messageSent3.reportFailure(deleteFailedErrorJson)
+            )
+
+            messageSent4 <- worker.consumeWorkableEvent()
+
+            // Report a successful delete event.
+            _ <- worker.publishReportableEvent(
+              messageSent4.reportSuccess(Json.obj())
+            )
+
+            // Fetch all sync events.
+            syncEvents <-
+              Queries
+                .getSyncEvents(accountTest.id, Sort.Ascending)
+                .take(nbEvents)
+                .compile
+                .toList
+                .transact(db)
+          } yield {
+            it should "have consumed messages from worker" in {
+              messageSent1 shouldBe WorkableEvent(
+                accountTest.id,
+                registeredSyncId,
+                Status.Registered,
+                Payload(accountTest),
+                messageSent1.time
               )
 
-              messageSent2 <- worker.consumeWorkableEvent()
-
-              // Report a failed sync event with an error message.
-              syncFailedErrorJson = Json.obj("errorMessage" -> Json.fromString("failed to sync"))
-              _ <- worker.publishReportableEvent(
-                messageSent2.reportFailure(syncedCursorJson.deepMerge(syncFailedErrorJson))
+              messageSent2 shouldBe WorkableEvent(
+                accountTest.id,
+                messageSent2.syncId,
+                Status.Registered,
+                Payload(accountTest, syncedCursorJson),
+                messageSent2.time
               )
 
-              // Unregister an account.
-              unregisteredResult <-
-                service.unregisterAccount(unregisterAccountRequest, new Metadata())
-
-              unregisteredAccountId = bytesToUuid(unregisteredResult.accountId).get
-              unregisteredSyncId    = bytesToUuid(unregisteredResult.syncId).get
-
-              messageSent3 <- worker.consumeWorkableEvent()
-
-              // Report a failed delete event with an error message.
-              deleteFailedErrorJson =
-                Json.obj("errorMessage" -> Json.fromString("failed to delete data"))
-              _ <- worker.publishReportableEvent(
-                messageSent3.reportFailure(deleteFailedErrorJson)
+              messageSent3 shouldBe WorkableEvent(
+                accountTest.id,
+                unregisteredSyncId,
+                Status.Unregistered,
+                Payload(accountTest),
+                messageSent3.time
               )
 
-              messageSent4 <- worker.consumeWorkableEvent()
-
-              // Report a successful delete event.
-              _ <- worker.publishReportableEvent(
-                messageSent4.reportSuccess(Json.obj())
+              messageSent4 shouldBe WorkableEvent(
+                accountTest.id,
+                messageSent4.syncId,
+                Status.Unregistered,
+                Payload(accountTest, deleteFailedErrorJson),
+                messageSent4.time
               )
+            }
 
-              // Fetch all sync events.
-              syncEvents <-
-                Queries
-                  .getSyncEvents(accountTest.id)
-                  .take(nbEvents)
-                  .compile
-                  .toList
-                  .transact(db)
-            } yield {
-              it should "have consumed messages from worker" in {
-                messageSent1 shouldBe WorkableEvent(
+            it should s"have $nbEvents inserted events" in {
+              syncEvents should have size nbEvents
+            }
+
+            it should "succeed to register an account" in {
+              registeredAccountId shouldBe accountTest.id
+            }
+
+            it should "have (registered -> published -> synchronized) events for the first iteration" in {
+              val eventsBatch1 = syncEvents.slice(0, 3)
+              eventsBatch1 shouldBe List(
+                WorkableEvent(
                   accountTest.id,
                   registeredSyncId,
                   Status.Registered,
-                  Payload(accountTest)
+                  Payload(accountTest),
+                  eventsBatch1.head.time
+                ),
+                FlaggedEvent(
+                  accountTest.id,
+                  registeredSyncId,
+                  Status.Published,
+                  Payload(accountTest),
+                  eventsBatch1(1).time
+                ),
+                ReportableEvent(
+                  accountTest.id,
+                  registeredSyncId,
+                  Status.Synchronized,
+                  Payload(accountTest, syncedCursorJson),
+                  eventsBatch1(2).time
                 )
+              )
+            }
 
-                messageSent2 shouldBe WorkableEvent(
+            it should "have (registered -> published -> sync_failed) events for the next iteration" in {
+              val eventsBatch2 = syncEvents.slice(3, 6)
+              eventsBatch2 shouldBe List(
+                WorkableEvent(
                   accountTest.id,
                   messageSent2.syncId,
                   Status.Registered,
-                  Payload(accountTest, syncedCursorJson)
-                )
-
-                messageSent3 shouldBe WorkableEvent(
+                  Payload(accountTest, syncedCursorJson),
+                  eventsBatch2.head.time
+                ),
+                FlaggedEvent(
                   accountTest.id,
-                  unregisteredSyncId,
-                  Status.Unregistered,
-                  Payload(accountTest)
+                  messageSent2.syncId,
+                  Status.Published,
+                  Payload(accountTest, syncedCursorJson),
+                  eventsBatch2(1).time
+                ),
+                ReportableEvent(
+                  accountTest.id,
+                  messageSent2.syncId,
+                  Status.SyncFailed,
+                  Payload(
+                    accountTest,
+                    syncedCursorJson.deepMerge(syncFailedErrorJson)
+                  ),
+                  eventsBatch2(2).time
                 )
+              )
+            }
 
-                messageSent4 shouldBe WorkableEvent(
+            it should "succeed to unregister an account" in {
+              unregisteredAccountId shouldBe accountTest.id
+            }
+
+            it should "have (unregistered -> published -> delete_failed) events for the next iteration" in {
+              val eventsBatch3 = syncEvents.slice(6, 9)
+              eventsBatch3 shouldBe List(
+                WorkableEvent(
+                  accountTest.id,
+                  messageSent3.syncId,
+                  Status.Unregistered,
+                  Payload(accountTest),
+                  eventsBatch3.head.time
+                ),
+                FlaggedEvent(
+                  accountTest.id,
+                  messageSent3.syncId,
+                  Status.Published,
+                  Payload(accountTest),
+                  eventsBatch3(1).time
+                ),
+                ReportableEvent(
+                  accountTest.id,
+                  messageSent3.syncId,
+                  Status.DeleteFailed,
+                  Payload(accountTest, deleteFailedErrorJson),
+                  eventsBatch3(2).time
+                )
+              )
+            }
+
+            it should "have (unregistered -> published -> deleted) events at the end" in {
+              val eventsBatch4 = syncEvents.slice(9, 12)
+              eventsBatch4 shouldBe List(
+                WorkableEvent(
                   accountTest.id,
                   messageSent4.syncId,
                   Status.Unregistered,
-                  Payload(accountTest, deleteFailedErrorJson)
+                  Payload(accountTest, deleteFailedErrorJson),
+                  eventsBatch4.head.time
+                ),
+                FlaggedEvent(
+                  accountTest.id,
+                  messageSent4.syncId,
+                  Status.Published,
+                  Payload(accountTest, deleteFailedErrorJson),
+                  eventsBatch4(1).time
+                ),
+                ReportableEvent(
+                  accountTest.id,
+                  messageSent4.syncId,
+                  Status.Deleted,
+                  Payload(accountTest),
+                  eventsBatch4(2).time
                 )
-              }
-
-              it should s"have $nbEvents inserted events" in {
-                syncEvents should have size nbEvents
-              }
-
-              it should "succeed to register an account" in {
-                registeredAccountId shouldBe accountTest.id
-              }
-
-              it should "have (registered -> published -> synchronized) events for the first iteration" in {
-                val eventsBatch1 = syncEvents.slice(0, 3)
-                eventsBatch1 shouldBe List(
-                  WorkableEvent(
-                    accountTest.id,
-                    registeredSyncId,
-                    Status.Registered,
-                    Payload(accountTest)
-                  ),
-                  FlaggedEvent(
-                    accountTest.id,
-                    registeredSyncId,
-                    Status.Published,
-                    Payload(accountTest)
-                  ),
-                  ReportableEvent(
-                    accountTest.id,
-                    registeredSyncId,
-                    Status.Synchronized,
-                    Payload(accountTest, syncedCursorJson)
-                  )
-                )
-              }
-
-              it should "have (registered -> published -> sync_failed) events for the next iteration" in {
-                val eventsBatch2 = syncEvents.slice(3, 6)
-                eventsBatch2 shouldBe List(
-                  WorkableEvent(
-                    accountTest.id,
-                    messageSent2.syncId,
-                    Status.Registered,
-                    Payload(accountTest, syncedCursorJson)
-                  ),
-                  FlaggedEvent(
-                    accountTest.id,
-                    messageSent2.syncId,
-                    Status.Published,
-                    Payload(accountTest, syncedCursorJson)
-                  ),
-                  ReportableEvent(
-                    accountTest.id,
-                    messageSent2.syncId,
-                    Status.SyncFailed,
-                    Payload(
-                      accountTest,
-                      syncedCursorJson.deepMerge(syncFailedErrorJson)
-                    )
-                  )
-                )
-              }
-
-              it should "succeed to unregister an account" in {
-                unregisteredAccountId shouldBe accountTest.id
-              }
-
-              it should "have (unregistered -> published -> delete_failed) events for the next iteration" in {
-                val eventsBatch3 = syncEvents.slice(6, 9)
-                eventsBatch3 shouldBe List(
-                  WorkableEvent(
-                    accountTest.id,
-                    messageSent3.syncId,
-                    Status.Unregistered,
-                    Payload(accountTest)
-                  ),
-                  FlaggedEvent(
-                    accountTest.id,
-                    messageSent3.syncId,
-                    Status.Published,
-                    Payload(accountTest)
-                  ),
-                  ReportableEvent(
-                    accountTest.id,
-                    messageSent3.syncId,
-                    Status.DeleteFailed,
-                    Payload(accountTest, deleteFailedErrorJson)
-                  )
-                )
-              }
-
-              it should "have (unregistered -> published -> deleted) events at the end" in {
-                val eventsBatch4 = syncEvents.slice(9, 12)
-                eventsBatch4 shouldBe List(
-                  WorkableEvent(
-                    accountTest.id,
-                    messageSent4.syncId,
-                    Status.Unregistered,
-                    Payload(accountTest, deleteFailedErrorJson)
-                  ),
-                  FlaggedEvent(
-                    accountTest.id,
-                    messageSent4.syncId,
-                    Status.Published,
-                    Payload(accountTest, deleteFailedErrorJson)
-                  ),
-                  ReportableEvent(
-                    accountTest.id,
-                    messageSent4.syncId,
-                    Status.Deleted,
-                    Payload(accountTest)
-                  )
-                )
-              }
+              )
             }
+          }
 
-          coinOrchestrator
-            .run(stopAtNbTick = Some(nbEvents + 1)) // run the orchestrator
-            .concurrently(Stream.eval(runTests()))  // and run tests at the same time
-            .timeout(5.minutes)
-            .compile
-            .drain
+        coinOrchestrator
+          .run(stopAtNbTick = Some(nbEvents + 1)) // run the orchestrator
+          .concurrently(Stream.eval(runTests()))  // and run tests at the same time
+          .timeout(5.minutes)
+          .compile
+          .drain
       }
   }
 

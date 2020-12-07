@@ -95,14 +95,10 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
         syncFrequency shouldBe defaultBitcoinSyncFrequency
 
         // check event
-        event shouldBe Some(
-          WorkableEvent(
-            accountId,
-            syncId,
-            Status.Registered,
-            SyncEvent.Payload(accountIdentifier)
-          )
-        )
+        event.map(_.accountId) shouldBe Some(accountId)
+        event.map(_.syncId) shouldBe Some(syncId)
+        event.map(_.status) shouldBe Some(Status.Registered)
+        event.map(_.payload) shouldBe Some(SyncEvent.Payload(accountIdentifier))
       }
     }
   }
@@ -167,13 +163,10 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
 
         // check event
         unregisteredEvent = event.get
-        unregisteredEvent shouldBe
-          WorkableEvent(
-            accountId,
-            syncId,
-            Status.Unregistered,
-            SyncEvent.Payload(accountIdentifier)
-          )
+        unregisteredEvent.accountId shouldBe accountId
+        unregisteredEvent.syncId shouldBe syncId
+        unregisteredEvent.status shouldBe Status.Unregistered
+        unregisteredEvent.payload shouldBe SyncEvent.Payload(accountIdentifier)
       }
     }
   }

@@ -10,7 +10,6 @@ import co.ledger.lama.manager.models.implicits._
 
 import scala.concurrent.duration.FiniteDuration
 import doobie.postgres.implicits._
-import doobie.implicits.legacy.instant._
 import doobie.util.Read
 
 package object models {
@@ -56,11 +55,11 @@ package object models {
     implicit val doobieRead: Read[AccountSyncStatus] =
       Read[(AccountInfo, UUID, Status, Payload, Instant)].map {
         case (
-            accountInfo,
-            syncId,
-            status,
-            payload,
-            updated
+              accountInfo,
+              syncId,
+              status,
+              payload,
+              updated
             ) =>
           AccountSyncStatus(
             accountInfo.id,

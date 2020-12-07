@@ -1,5 +1,6 @@
 package co.ledger.lama.common.models
 
+import java.time.Instant
 import java.util.UUID
 
 import co.ledger.lama.common.models.implicits._
@@ -13,6 +14,7 @@ sealed trait SyncEvent extends WithKey[UUID] {
   def status: Status
   def payload: SyncEvent.Payload
   def key: UUID = accountId
+  def time: Instant
 }
 
 trait WithKey[K] { def key: K }
@@ -38,13 +40,14 @@ object SyncEvent {
       accountId: UUID,
       syncId: UUID,
       status: Status,
-      payload: SyncEvent.Payload
+      payload: SyncEvent.Payload,
+      time: Instant
   ): SyncEvent =
     status match {
-      case ws: WorkableStatus    => WorkableEvent(accountId, syncId, ws, payload)
-      case rs: ReportableStatus  => ReportableEvent(accountId, syncId, rs, payload)
-      case ts: TriggerableStatus => TriggerableEvent(accountId, syncId, ts, payload)
-      case ns: FlaggedStatus     => FlaggedEvent(accountId, syncId, ns, payload)
+      case ws: WorkableStatus    => WorkableEvent(accountId, syncId, ws, payload, time)
+      case rs: ReportableStatus  => ReportableEvent(accountId, syncId, rs, payload, time)
+      case ts: TriggerableStatus => TriggerableEvent(accountId, syncId, ts, payload, time)
+      case ns: FlaggedStatus     => FlaggedEvent(accountId, syncId, ns, payload, time)
     }
 
   case class Payload(
@@ -63,17 +66,30 @@ case class WorkableEvent(
     accountId: UUID,
     syncId: UUID,
     status: WorkableStatus,
-    payload: SyncEvent.Payload
+    payload: SyncEvent.Payload,
+    time: Instant
 ) extends SyncEvent {
   def asPublished: FlaggedEvent =
-    FlaggedEvent(accountId, syncId, Status.Published, payload)
+    FlaggedEvent(accountId, syncId, Status.Published, payload, Instant.now())
 
   def reportSuccess(data: Json): ReportableEvent =
-    ReportableEvent(accountId, syncId, status.success, payload.copy(data = data.deepDropNullValues))
+    ReportableEvent(
+      accountId,
+      syncId,
+      status.success,
+      payload.copy(data = data.deepDropNullValues),
+      Instant.now()
+    )
 
   def reportFailure(data: Json): ReportableEvent = {
     val updatedPayloadData = payload.data.deepMerge(data).deepDropNullValues
-    ReportableEvent(accountId, syncId, status.failure, payload.copy(data = updatedPayloadData))
+    ReportableEvent(
+      accountId,
+      syncId,
+      status.failure,
+      payload.copy(data = updatedPayloadData),
+      Instant.now()
+    )
   }
 }
 
@@ -86,7 +102,8 @@ case class ReportableEvent(
     accountId: UUID,
     syncId: UUID,
     status: ReportableStatus,
-    payload: SyncEvent.Payload
+    payload: SyncEvent.Payload,
+    time: Instant
 ) extends SyncEvent
 
 object ReportableEvent {
@@ -98,10 +115,11 @@ case class TriggerableEvent(
     accountId: UUID,
     syncId: UUID,
     status: TriggerableStatus,
-    payload: SyncEvent.Payload
+    payload: SyncEvent.Payload,
+    time: Instant
 ) extends SyncEvent {
   def nextWorkable: WorkableEvent =
-    WorkableEvent(accountId, UUID.randomUUID(), status.nextWorkable, payload)
+    WorkableEvent(accountId, UUID.randomUUID(), status.nextWorkable, payload, Instant.now())
 }
 
 object TriggerableEvent {
@@ -113,7 +131,8 @@ case class FlaggedEvent(
     accountId: UUID,
     syncId: UUID,
     status: FlaggedStatus,
-    payload: SyncEvent.Payload
+    payload: SyncEvent.Payload,
+    time: Instant
 ) extends SyncEvent
 
 object FlaggedEvent {

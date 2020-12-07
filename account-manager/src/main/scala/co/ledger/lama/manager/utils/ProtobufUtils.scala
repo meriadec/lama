@@ -1,5 +1,6 @@
 package co.ledger.lama.manager.utils
 
+import java.time.Instant
 import java.util.UUID
 
 import co.ledger.lama.common.models._
@@ -27,7 +28,8 @@ object ProtobufUtils {
         accountId,
         syncId,
         status,
-        payload
+        payload,
+        pb.time.map(CommonProtobufUtils.toInstant).getOrElse(Instant.now())
       )
     }
 }

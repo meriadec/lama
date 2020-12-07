@@ -7,6 +7,7 @@ import co.ledger.lama.common.models.{
   AccountIdentifier,
   Coin,
   CoinFamily,
+  Sort,
   SyncEvent,
   TriggerableEvent,
   TriggerableStatus,
@@ -15,7 +16,7 @@ import co.ledger.lama.common.models.{
 }
 import co.ledger.lama.manager.models._
 import co.ledger.lama.manager.models.implicits._
-import doobie.Fragments
+import doobie.{Fragment, Fragments}
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.postgres.implicits._
@@ -36,7 +37,7 @@ object Queries {
       coin: Coin
   ): Stream[ConnectionIO, WorkableEvent] =
     (
-      sql"""SELECT account_id, sync_id, status, payload
+      sql"""SELECT account_id, sync_id, status, payload, updated
           FROM account_sync_status
           WHERE coin_family = $coinFamily
           AND coin = $coin
@@ -49,7 +50,7 @@ object Queries {
       coin: Coin
   ): Stream[ConnectionIO, TriggerableEvent] =
     (
-      sql"""SELECT account_id, sync_id, status, payload
+      sql"""SELECT account_id, sync_id, status, payload, updated
           FROM account_sync_status
           WHERE updated + sync_frequency < CURRENT_TIMESTAMP
           AND coin_family = $coinFamily
@@ -104,7 +105,6 @@ object Queries {
     val syncFrequencyInterval = new PGInterval()
     syncFrequencyInterval.setSeconds(syncFrequency.toSeconds.toDouble)
 
-    // Yes, this is weird but DO NOTHING does not return anything unfortunately
     sql"""INSERT INTO account_info(account_id, key, coin_family, coin, sync_frequency, label)
           VALUES($accountId, $key, $coinFamily, $coin, $syncFrequencyInterval, $label)
           RETURNING account_id, key, coin_family, coin, extract(epoch FROM sync_frequency)/60*60, label
@@ -120,18 +120,35 @@ object Queries {
          """.update.run
 
   def getLastSyncEvent(accountId: UUID): ConnectionIO[Option[SyncEvent]] =
-    sql"""SELECT account_id, sync_id, status, payload
+    sql"""SELECT account_id, sync_id, status, payload, updated
           FROM account_sync_status
           WHERE account_id = $accountId
           """
       .query[SyncEvent]
       .option
 
-  def getSyncEvents(accountId: UUID): Stream[ConnectionIO, SyncEvent] =
-    sql"""SELECT account_id, sync_id, status, payload
+  def getSyncEvents(
+      accountId: UUID,
+      sort: Sort,
+      limit: Option[Int] = None,
+      offset: Option[Int] = None
+  ): Stream[ConnectionIO, SyncEvent] = {
+    val orderF  = Fragment.const(s"ORDER BY updated $sort")
+    val limitF  = limit.map(l => fr"LIMIT $l").getOrElse(Fragment.empty)
+    val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
+
+    val query = sql"""SELECT account_id, sync_id, status, payload, updated
           FROM account_sync_event
           WHERE account_id = $accountId
-          """
+          """ ++ orderF ++ limitF ++ offsetF
+
+    query
       .query[SyncEvent]
       .stream
+  }
+
+  def countSyncEvents(accountId: UUID): ConnectionIO[Int] =
+    sql"""SELECT COUNT(*) FROM account_sync_event WHERE account_id = $accountId"""
+      .query[Int]
+      .unique
 }

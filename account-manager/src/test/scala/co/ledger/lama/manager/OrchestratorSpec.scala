@@ -1,5 +1,6 @@
 package co.ledger.lama.manager
 
+import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Timer}
@@ -42,11 +43,13 @@ class FakeOrchestrator(nbEvents: Int, override val awakeEvery: FiniteDuration)
   val syncEvents: Seq[WorkableEvent] =
     (1 to nbEvents).map { i =>
       val accountIdentifier = AccountIdentifier(s"xpub-$i", CoinFamily.Bitcoin, Coin.Btc)
+      val now               = Instant.now()
       WorkableEvent(
         accountId = UUID.randomUUID(),
         syncId = UUID.randomUUID(),
         status = Status.Registered,
-        payload = SyncEvent.Payload(accountIdentifier)
+        payload = SyncEvent.Payload(accountIdentifier),
+        time = now
       )
     }
 
@@ -76,7 +79,9 @@ class FakeSyncEventTask(events: Seq[WorkableEvent]) extends SyncEventTask {
 
   def reportableEvents: Stream[IO, ReportableEvent] =
     Stream.emits(
-      events.map(sp => ReportableEvent(sp.accountId, sp.syncId, Status.Synchronized, sp.payload))
+      events.map(sp =>
+        ReportableEvent(sp.accountId, sp.syncId, Status.Synchronized, sp.payload, Instant.now())
+      )
     )
 
   def reportEventsPipe: Pipe[IO, ReportableEvent, Unit] =
@@ -86,7 +91,9 @@ class FakeSyncEventTask(events: Seq[WorkableEvent]) extends SyncEventTask {
 
   def triggerableEvents: Stream[IO, TriggerableEvent] =
     Stream.emits(
-      events.map(e => TriggerableEvent(e.accountId, e.syncId, Status.Synchronized, e.payload))
+      events.map(e =>
+        TriggerableEvent(e.accountId, e.syncId, Status.Synchronized, e.payload, Instant.now())
+      )
     )
 
   def triggerEventsPipe: Pipe[IO, TriggerableEvent, Unit] =

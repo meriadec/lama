@@ -1,5 +1,7 @@
 package co.ledger.lama.manager
 
+import java.time.Instant
+
 import cats.effect.{ConcurrentEffect, IO}
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
@@ -23,9 +25,11 @@ import doobie.util.transactor.Transactor
 import io.circe.Json
 import io.circe.syntax._
 import io.grpc.{Metadata, ServerServiceDefinition}
-
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+
+import co.ledger.lama.manager.protobuf.{GetSyncEventsRequest, GetSyncEventsResult}
+
 import scala.concurrent.duration.FiniteDuration
 
 class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
@@ -89,7 +93,8 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
           account.id,
           UUID.randomUUID(),
           Status.Registered,
-          Payload(account, cursor)
+          Payload(account, cursor),
+          Instant.now()
         )
         _ <- Queries.insertSyncEvent(syncEvent)
 
@@ -143,7 +148,8 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
               accountId,
               UUID.randomUUID(),
               Status.Unregistered,
-              Payload(AccountIdentifier(account.key, account.coinFamily, account.coin))
+              Payload(AccountIdentifier(account.key, account.coinFamily, account.coin)),
+              Instant.now()
             )
 
             result <- Queries
@@ -182,13 +188,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       accountInfo   <- getAccountInfo(accountId)
       lastSyncEvent <- Queries.getLastSyncEvent(accountInfo.id).transact(db)
     } yield {
-      val lastSyncEventProto = lastSyncEvent.map { se =>
-        protobuf.SyncEvent(
-          UuidUtils.uuidToBytes(se.syncId),
-          se.status.name,
-          ByteString.copyFrom(se.payload.asJson.noSpaces.getBytes())
-        )
-      }
+      val lastSyncEventProto = lastSyncEvent.map(CommonProtobufUtils.toSyncEvent)
 
       protobuf.AccountInfoResult(
         UuidUtils.uuidToBytes(accountInfo.id),
@@ -235,9 +235,11 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
             account.syncFrequency.toSeconds,
             Some(
               protobuf.SyncEvent(
+                UuidUtils.uuidToBytes(account.id),
                 UuidUtils.uuidToBytes(account.syncId),
                 account.status.name,
-                ByteString.copyFrom(account.payload.asJson.noSpaces.getBytes())
+                ByteString.copyFrom(account.payload.asJson.noSpaces.getBytes()),
+                time = Some(CommonProtobufUtils.fromInstant(account.updated))
               )
             ),
             CommonProtobufUtils.toCoinFamily(account.coinFamily),
@@ -249,4 +251,28 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       )
     }
   }
+
+  def getSyncEvents(request: GetSyncEventsRequest, ctx: Metadata): IO[GetSyncEventsResult] = {
+    for {
+      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+
+      limit  = Some(if (request.limit <= 0) 20 else request.limit)
+      offset = Some(if (request.offset < 0) 0 else request.offset)
+      sort   = Sort.fromIsAsc(request.sort.isAsc)
+
+      syncEvents <- Queries
+        .getSyncEvents(accountId, sort, limit, offset)
+        .transact(db)
+        .compile
+        .toList
+
+      total <- Queries.countSyncEvents(accountId).transact(db)
+    } yield {
+      GetSyncEventsResult(
+        syncEvents = syncEvents.map(CommonProtobufUtils.toSyncEvent),
+        total = total
+      )
+    }
+  }
+
 }

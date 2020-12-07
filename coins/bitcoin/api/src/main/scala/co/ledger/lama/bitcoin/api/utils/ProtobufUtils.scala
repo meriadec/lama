@@ -1,8 +1,9 @@
 package co.ledger.lama.bitcoin.api.utils
 
+import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.common.models.{Status, SyncEvent}
+import co.ledger.lama.common.models.{Sort, Status, SyncEvent}
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.common.utils.{ProtobufUtils => CommonProtobufUtils}
 import co.ledger.lama.manager.{protobuf => pbManager}
@@ -13,7 +14,23 @@ import io.circe.parser.parse
 
 object ProtobufUtils {
   def toAccountInfoRequest(accountId: UUID): pbManager.AccountInfoRequest =
-    new pbManager.AccountInfoRequest(UuidUtils.uuidToBytes(accountId))
+    pbManager.AccountInfoRequest(UuidUtils.uuidToBytes(accountId))
+
+  def toGetSyncEventsRequest(
+      accountId: UUID,
+      limit: Option[Int],
+      offset: Option[Int],
+      sort: Option[Sort]
+  ): pbManager.GetSyncEventsRequest =
+    pbManager.GetSyncEventsRequest(
+      accountId = UuidUtils.uuidToBytes(accountId),
+      limit = limit.getOrElse(20),
+      offset = offset.getOrElse(0),
+      sort = sort.getOrElse(Sort.Descending) match {
+        case Sort.Ascending  => pbManager.SortingOrder.ASC
+        case Sort.Descending => pbManager.SortingOrder.DESC
+      }
+    )
 
   def toCreateKeychainRequest(cr: CreationRequest): keychain.CreateKeychainRequest =
     new keychain.CreateKeychainRequest(
@@ -40,7 +57,8 @@ object ProtobufUtils {
         accountId,
         syncId,
         status,
-        payload
+        payload,
+        time = pb.time.map(CommonProtobufUtils.toInstant).getOrElse(Instant.now())
       )
     }
 
