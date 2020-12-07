@@ -18,6 +18,7 @@ service BitcoinInterpreterService {
   rpc GetUTXOs(GetUTXOsRequest) returns (GetUTXOsResult) {}
   rpc GetBalance(GetBalanceRequest) returns (BalanceHistory) {}
   rpc GetBalanceHistory(GetBalanceHistoryRequest) returns (GetBalanceHistoryResult) {}
+  rpc GetBalanceHistories(GetBalanceHistoriesRequest) returns (GetBalanceHistoryResult) {}
 }
 
 // We sort by date
@@ -78,6 +79,10 @@ message GetUTXOsResult {
 }
 
 message GetBalanceRequest {
+  bytes account_id = 1;
+}
+
+message GetBalanceHistoriesRequest {
   bytes account_id = 1;
 }
 

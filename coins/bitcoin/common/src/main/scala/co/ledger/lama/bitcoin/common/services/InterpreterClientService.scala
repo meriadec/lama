@@ -48,6 +48,10 @@ trait InterpreterClientService {
       start: Option[Instant],
       end: Option[Instant]
   ): IO[GetBalanceHistoryResult]
+
+  def getBalanceHistories(
+      accountId: UUID
+  ): IO[GetBalanceHistoryResult]
 }
 
 class InterpreterGrpcClientService(
@@ -164,4 +168,14 @@ class InterpreterGrpcClientService(
       )
       .map(GetBalanceHistoryResult.fromProto)
   }
+
+  def getBalanceHistories(accountId: UUID): IO[GetBalanceHistoryResult] =
+    grpcClient
+      .getBalanceHistories(
+        protobuf.GetBalanceHistoriesRequest(
+          accountId = UuidUtils.uuidToBytes(accountId)
+        ),
+        new Metadata
+      )
+      .map(GetBalanceHistoryResult.fromProto)
 }

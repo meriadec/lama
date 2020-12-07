@@ -2,19 +2,25 @@ package co.ledger.lama.bitcoin.interpreter.services
 
 import java.time.Instant
 import java.util.UUID
-
 import co.ledger.lama.bitcoin.common.models.worker.Block
-import co.ledger.lama.bitcoin.common.models.interpreter.BalanceHistory
-
+import co.ledger.lama.bitcoin.common.models.interpreter.{BalanceHistory, Operation}
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
-
 import doobie._
 import doobie.implicits._
 import doobie.postgres.implicits._
-
 import fs2.Stream
 
 object BalanceQueries {
+
+  def getOperationsForBalanceHistory(
+      accountId: UUID
+  ): Stream[ConnectionIO, Operation] =
+    sql"""SELECT * FROM operation
+          WHERE account_id = $accountId
+          GROUP BY block_height, hash, account_id, operation_type, block_hash
+          ORDER BY block_height"""
+      .query[Operation]
+      .stream
 
   def getCurrentBalance(
       accountId: UUID

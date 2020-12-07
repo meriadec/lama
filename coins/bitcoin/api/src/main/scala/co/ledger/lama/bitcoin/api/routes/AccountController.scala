@@ -239,6 +239,14 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             )
             .flatMap(Ok(_))
 
+      case GET -> Root / UUIDVar(
+            accountId
+          ) / "balances" / "demo" =>
+        log.info(s"Fetching balances history for account: $accountId") *>
+          interpreterClient
+            .getBalanceHistories(accountId)
+            .flatMap(Ok(_))
+
       case req @ POST -> Root / UUIDVar(
             accountId
           ) / "transactions" =>

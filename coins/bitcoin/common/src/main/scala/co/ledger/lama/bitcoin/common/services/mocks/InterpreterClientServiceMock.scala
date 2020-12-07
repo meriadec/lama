@@ -65,41 +65,41 @@ class InterpreterClientServiceMock extends InterpreterClientService {
 
   def compute(accountId: UUID, coin: Coin, addresses: List[interpreter.AccountAddress]): IO[Int] = {
 
-    val txViews = savedTransactions(accountId).map(
-      tx =>
-        TransactionView(
-          tx.id,
-          tx.hash,
-          tx.receivedAt,
-          tx.lockTime,
-          tx.fees,
-          tx.inputs.collect {
-            case i: DefaultInput =>
-              InputView(
-                i.outputHash,
-                i.outputIndex,
-                i.inputIndex,
-                i.value,
-                i.address,
-                i.scriptSignature,
-                i.txinwitness,
-                i.sequence,
-                addresses.find(_.accountAddress == i.address).map(_.derivation)
-              )
+    val txViews = savedTransactions(accountId).map(tx =>
+      TransactionView(
+        tx.id,
+        tx.hash,
+        tx.receivedAt,
+        tx.lockTime,
+        tx.fees,
+        tx.inputs.collect { case i: DefaultInput =>
+          InputView(
+            i.outputHash,
+            i.outputIndex,
+            i.inputIndex,
+            i.value,
+            i.address,
+            i.scriptSignature,
+            i.txinwitness,
+            i.sequence,
+            addresses.find(_.accountAddress == i.address).map(_.derivation)
+          )
 
-          },
-          tx.outputs.map(o =>
-            OutputView(
-              o.outputIndex,
-              o.value,
-              o.address,
-              o.scriptHex,
-              addresses.find(a => a.accountAddress == o.address).map(a => a.changeType),
-              addresses.find(_.accountAddress == o.address).map(_.derivation)
-          )),
-          BlockView(tx.block.hash, tx.block.height, tx.block.time),
-          tx.confirmations
-      ))
+        },
+        tx.outputs.map(o =>
+          OutputView(
+            o.outputIndex,
+            o.value,
+            o.address,
+            o.scriptHex,
+            addresses.find(a => a.accountAddress == o.address).map(a => a.changeType),
+            addresses.find(_.accountAddress == o.address).map(_.derivation)
+          )
+        ),
+        BlockView(tx.block.hash, tx.block.height, tx.block.time),
+        tx.confirmations
+      )
+    )
 
     transactions.update(accountId, txViews)
 
@@ -197,19 +197,20 @@ class InterpreterClientServiceMock extends InterpreterClientService {
       .flatMap(tx => tx.outputs.map(o => (tx, o)))
       .filter(o =>
         o._2.belongs && !inputs.exists(i =>
-          i.outputHash == o._1.hash && i.address == o._2.address && i.outputIndex == o._2.outputIndex))
-      .map {
-        case (tx, output) =>
-          Utxo(
-            tx.hash,
-            output.outputIndex,
-            output.value,
-            output.address,
-            output.scriptHex,
-            output.changeType,
-            output.derivation.get,
-            tx.block.time
-          )
+          i.outputHash == o._1.hash && i.address == o._2.address && i.outputIndex == o._2.outputIndex
+        )
+      )
+      .map { case (tx, output) =>
+        Utxo(
+          tx.hash,
+          output.outputIndex,
+          output.value,
+          output.address,
+          output.scriptHex,
+          output.changeType,
+          output.derivation.get,
+          tx.block.time
+        )
       }
 
     val total = transactions(accountId).size
@@ -232,6 +233,11 @@ class InterpreterClientServiceMock extends InterpreterClientService {
       accountId: UUID,
       start: Option[Instant],
       end: Option[Instant]
+  ): IO[grpc.GetBalanceHistoryResult] =
+    IO.raiseError(new Exception("Not implements Yet"))
+
+  def getBalanceHistories(
+      accountId: UUID
   ): IO[grpc.GetBalanceHistoryResult] =
     IO.raiseError(new Exception("Not implements Yet"))
 }

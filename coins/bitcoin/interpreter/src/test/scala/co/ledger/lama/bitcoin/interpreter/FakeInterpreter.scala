@@ -88,6 +88,11 @@ class FakeInterpreter extends Interpreter {
   ): IO[GetBalanceHistoryResult] =
     IO.pure(GetBalanceHistoryResult(balances = Seq(BalanceHistory(0, 0, 0, 0).toProto)))
 
+  def getBalanceHistories(
+      request: GetBalanceHistoriesRequest,
+      ctx: Metadata
+  ): IO[GetBalanceHistoryResult] = IO.pure(GetBalanceHistoryResult())
+
   def getLastBlocks(request: GetLastBlocksRequest, ctx: Metadata): IO[GetLastBlocksResult] =
     IO.pure(GetLastBlocksResult(List(Block("hash", 1L, None))))
 

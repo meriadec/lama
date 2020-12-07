@@ -223,4 +223,13 @@ class DbInterpreter(
       balances <- balanceService.getBalancesHistory(accountId, start, end)
       total    <- balanceService.getBalancesHistoryCount(accountId)
     } yield protobuf.GetBalanceHistoryResult(balances.map(_.toProto), total)
+
+  def getBalanceHistories(
+      request: protobuf.GetBalanceHistoriesRequest,
+      ctx: Metadata
+  ): IO[protobuf.GetBalanceHistoryResult] =
+    for {
+      accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+      balances  <- balanceService.getBalanceHistories(accountId)
+    } yield protobuf.GetBalanceHistoryResult(balances.map(_.toProto), balances.size)
 }
