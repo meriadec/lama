@@ -230,6 +230,10 @@ class DbInterpreter(
   ): IO[protobuf.GetBalanceHistoryResult] =
     for {
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
+      _         <- log.info(s"Getting balances histories for $accountId")
       balances  <- balanceService.getBalanceHistories(accountId)
-    } yield protobuf.GetBalanceHistoryResult(balances.map(_.toProto), balances.size)
+      total = balances.size
+      _             <- log.info(s"total=$total")
+      balancesProto <- IO.delay(balances.map(_.toProto))
+    } yield protobuf.GetBalanceHistoryResult(balancesProto, total)
 }

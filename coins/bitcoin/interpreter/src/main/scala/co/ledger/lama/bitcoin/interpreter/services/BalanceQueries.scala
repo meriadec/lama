@@ -12,22 +12,29 @@ import fs2.Stream
 
 object BalanceQueries {
 
-  case class OperationToBalanceHistory(time: Instant, value: BigInt, sent: BigInt, received: BigInt)
-
-  def getOperationsForBalanceHistory(
-      accountId: UUID
-  ): Stream[ConnectionIO, OperationToBalanceHistory] =
-    sql"""SELECT
-            time,
-            SUM( ( case when operation_type = 'sent' then -1 else 1 end ) * value) as value,
-            SUM( ( case when operation_type = 'sent' then 1 else 0 end ) * value) as sent,
-            SUM( ( case when operation_type = 'sent' then 0 else 1 end ) * value) as received
-          FROM operation
-          WHERE account_id = $accountId
-          GROUP BY time
-          ORDER BY time"""
-      .query[OperationToBalanceHistory]
+  def getBalanceHistoriesForDemo(accountId: UUID): Stream[ConnectionIO, BalanceHistory] =
+    sql"""
+          WITH ops as (
+            SELECT
+              account_id,
+              time,
+              SUM( ( case when operation_type = 'sent' then -1 else 1 end ) * value) as balance
+            FROM operation
+            WHERE account_id = $accountId
+            GROUP BY account_id, time
+            ORDER BY time
+          )
+          SELECT
+            SUM(balance) OVER (PARTITION BY account_id ORDER by time) as balance,
+            0,
+            0,
+            0,
+            time
+          FROM ops
+       """
+      .query[BalanceHistory]
       .stream
+      .filter(_.time.isAfter(Instant.parse("2020-12-01T00:00:00.00Z")))
 
   def getCurrentBalance(
       accountId: UUID
