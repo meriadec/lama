@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.transactor.services
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, interpreter, transactor}
+import co.ledger.lama.bitcoin.transactor.grpc.BitcoinLibGrpcService
 import co.ledger.lama.bitcoin.transactor.models.bitcoinLib
 import com.google.protobuf.ByteString
 

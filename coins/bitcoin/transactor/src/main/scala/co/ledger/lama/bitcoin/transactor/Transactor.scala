@@ -13,13 +13,14 @@ import co.ledger.lama.bitcoin.common.models.transactor.{
   PrepareTxOutput,
   RawTransactionAndUtxos
 }
-import co.ledger.lama.bitcoin.common.services.{
+import co.ledger.lama.bitcoin.common.grpc.{
   ExplorerClientService,
   InterpreterClientService,
   KeychainClientService
 }
+import co.ledger.lama.bitcoin.transactor.grpc.BitcoinLibGrpcService
 import co.ledger.lama.bitcoin.transactor.models.bitcoinLib.SignatureMetadata
-import co.ledger.lama.bitcoin.transactor.services.{BitcoinLibGrpcService, CoinSelectionService}
+import co.ledger.lama.bitcoin.transactor.services.CoinSelectionService
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.{Coin, Sort}
 import co.ledger.lama.common.utils.UuidUtils
@@ -94,7 +95,7 @@ class BitcoinLibTransactor(
         CoinSelectionStrategy.fromProto(request.coinSelection),
         utxos,
         outputs,
-        changeAddress.address,
+        changeAddress.accountAddress,
         estimatedFeeSatPerKb,
         outputs.map(_.value).sum
       )

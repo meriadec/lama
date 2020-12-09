@@ -1,9 +1,9 @@
-package co.ledger.lama.bitcoin.common.services.mocks
+package co.ledger.lama.bitcoin.common.grpc.mocks
 
 import cats.effect.{ContextShift, IO, Timer}
 import co.ledger.lama.bitcoin.common.models.transactor.FeeInfo
 import co.ledger.lama.bitcoin.common.models.worker
-import co.ledger.lama.bitcoin.common.services.ExplorerClientService
+import co.ledger.lama.bitcoin.common.grpc.ExplorerClientService
 
 class ExplorerClientServiceMock extends ExplorerClientService {
 

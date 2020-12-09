@@ -5,11 +5,11 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import co.ledger.lama.bitcoin.common.models.worker.Block
-import co.ledger.lama.bitcoin.common.services.mocks.{
+import co.ledger.lama.bitcoin.common.grpc.mocks.{
   InterpreterClientServiceMock,
   KeychainClientServiceMock
 }
-import co.ledger.lama.bitcoin.common.services.ExplorerV3ClientService
+import co.ledger.lama.bitcoin.common.grpc.ExplorerV3ClientService
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.PayloadData
 import co.ledger.lama.bitcoin.worker.services.{CursorStateService, SyncEventService}

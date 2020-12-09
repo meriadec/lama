@@ -6,6 +6,8 @@ import java.util.UUID
 import cats.effect.IO
 import com.google.protobuf.ByteString
 
+import scala.util.Try
+
 object UuidUtils {
 
   case object InvalidUUIDException extends Exception
@@ -18,6 +20,12 @@ object UuidUtils {
     ByteString.copyFrom(buffer)
   }
 
+  def unsafeBytesToUuid(bytes: ByteString): UUID = {
+    UuidUtils
+      .bytesToUuid(bytes)
+      .getOrElse(throw UuidUtils.InvalidUUIDException)
+  }
+
   def bytesToUuid(bytes: ByteString): Option[UUID] = {
     val buffer = bytes.asReadOnlyByteBuffer()
     if (buffer.capacity() != 16) None
@@ -25,8 +33,12 @@ object UuidUtils {
   }
 
   def bytesToUuidIO(bytes: ByteString): IO[UUID] =
-    IO.fromOption(bytesToUuid(bytes))(
-      InvalidUUIDException
-    )
+    IO.fromOption(bytesToUuid(bytes))(InvalidUUIDException)
+
+  def stringToUuidIO(s: String): IO[UUID] =
+    IO.fromOption(stringToUuid(s))(InvalidUUIDException)
+
+  def stringToUuid(s: String): Option[UUID] =
+    Try(UUID.fromString(s)).toOption
 
 }

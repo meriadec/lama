@@ -5,8 +5,8 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction}
-import co.ledger.lama.bitcoin.common.services.ExplorerV3ClientService
-import co.ledger.lama.bitcoin.common.services.mocks.InterpreterClientServiceMock
+import co.ledger.lama.bitcoin.common.grpc.ExplorerV3ClientService
+import co.ledger.lama.bitcoin.common.grpc.mocks.InterpreterClientServiceMock
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services.CursorStateService
 import co.ledger.lama.common.logging.IOLogging

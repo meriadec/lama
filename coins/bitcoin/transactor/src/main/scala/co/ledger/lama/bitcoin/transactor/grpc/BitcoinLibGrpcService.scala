@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.transactor.services
+package co.ledger.lama.bitcoin.transactor.grpc
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.BitcoinNetwork

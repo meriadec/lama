@@ -4,8 +4,9 @@ import co.ledger.lama.common.services.RabbitNotificationService
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.api.middlewares.LoggingMiddleware._
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
-import co.ledger.lama.bitcoin.common.services.{
+import co.ledger.lama.bitcoin.common.grpc.{
   InterpreterGrpcClientService,
+  KeychainGrpcClientService,
   TransactorGrpcClientService
 }
 import co.ledger.lama.common.utils.RabbitUtils
@@ -23,8 +24,8 @@ import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
 import org.http4s.server.Router
 import org.http4s.server.blaze.BlazeServerBuilder
 import pureconfig.ConfigSource
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
 object App extends IOApp {
@@ -98,7 +99,7 @@ object App extends IOApp {
           loggingMiddleWare(
             AccountController.routes(
               notificationService,
-              serviceResources.grpcKeychainClient,
+              new KeychainGrpcClientService(serviceResources.grpcKeychainClient),
               serviceResources.grpcAccountClient,
               new InterpreterGrpcClientService(serviceResources.grpcBitcoinInterpreterClient),
               new TransactorGrpcClientService(serviceResources.grpcBitcoinTransactorClient)

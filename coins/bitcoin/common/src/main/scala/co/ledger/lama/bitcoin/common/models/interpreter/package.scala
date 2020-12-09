@@ -128,6 +128,13 @@ package object interpreter {
       }
     }
 
+    def fromKeychainProto(proto: keychain.Change): ChangeType = {
+      proto match {
+        case keychain.Change.CHANGE_INTERNAL => Internal
+        case _                               => External
+      }
+    }
+
   }
 
   case class Utxo(
@@ -351,6 +358,13 @@ package object interpreter {
         NonEmptyList.fromListUnsafe(proto.derivation.toList)
       )
     }
+
+    def fromKeychainProto(proto: keychain.AddressInfo): AccountAddress =
+      AccountAddress(
+        proto.address,
+        ChangeType.fromKeychainProto(proto.change),
+        NonEmptyList.fromListUnsafe(proto.derivation.toList)
+      )
   }
 
   case class BalanceHistory(

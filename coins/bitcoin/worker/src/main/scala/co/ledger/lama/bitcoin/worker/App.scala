@@ -1,7 +1,7 @@
 package co.ledger.lama.bitcoin.worker
 
 import cats.effect.{ExitCode, IO, IOApp}
-import co.ledger.lama.bitcoin.common.services.{
+import co.ledger.lama.bitcoin.common.grpc.{
   ExplorerV3ClientService,
   InterpreterGrpcClientService,
   KeychainGrpcClientService

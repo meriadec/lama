@@ -1,12 +1,9 @@
 package co.ledger.lama.bitcoin.api.routes
 
-import java.util.UUID
-
 import cats.effect.{ContextShift, IO}
 import cats.implicits._
 import co.ledger.lama.bitcoin.api.models.accountManager._
 import co.ledger.lama.bitcoin.api.models.transactor._
-import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.UuidUtils
@@ -22,8 +19,12 @@ import co.ledger.lama.manager.protobuf.{
 }
 import co.ledger.lama.bitcoin.api.utils.ProtobufUtils._
 import co.ledger.lama.bitcoin.api.utils.RouterUtils._
-import co.ledger.lama.bitcoin.common.services.{InterpreterClientService, TransactorClientService}
-import co.ledger.protobuf.bitcoin.keychain._
+import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
+import co.ledger.lama.bitcoin.common.grpc.{
+  InterpreterClientService,
+  KeychainClientService,
+  TransactorClientService
+}
 import io.circe.Json
 import io.circe.generic.extras.auto._
 import io.grpc.Metadata
@@ -36,10 +37,10 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
 
-  // TODO: refacto keychainService and accountManagerService
+  // TODO: refacto with accountManagerService
   def routes(
       notificationService: NotificationService,
-      keychainClient: KeychainServiceFs2Grpc[IO, Metadata],
+      keychainClient: KeychainClientService,
       accountManagerClient: AccountManagerServiceFs2Grpc[IO, Metadata],
       interpreterClient: InterpreterClientService,
       transactorClient: TransactorClientService
@@ -110,18 +111,19 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
         val ra = for {
           creationRequest <- req.as[CreationRequest]
           _               <- log.info(s"Creating keychain with arguments: $creationRequest")
-          createdKeychain <- keychainClient.createKeychain(
-            toCreateKeychainRequest(creationRequest),
-            new Metadata
+
+          createdKeychain <- keychainClient.create(
+            creationRequest.extendedPublicKey,
+            creationRequest.scheme,
+            creationRequest.lookaheadSize,
+            creationRequest.network
           )
-          keychainId <- IO.fromOption(
-            UuidUtils.bytesToUuid(createdKeychain.keychainId)
-          )(MalformedProtobufUuidException)
-          _ <- log.info(s"Keychain created with id: $keychainId")
+          _ <- log.info(s"Keychain created with id: ${createdKeychain.keychainId}")
           _ <- log.info("Registering account")
+
           registeredAccount <- accountManagerClient.registerAccount(
             new RegisterAccountRequest(
-              key = keychainId.toString,
+              key = createdKeychain.keychainId.toString,
               coinFamily = CommonProtobufUtils.toCoinFamily(creationRequest.coinFamily),
               coin = CommonProtobufUtils.toCoin(creationRequest.coin),
               syncFrequency = creationRequest.syncFrequency.getOrElse(0L),
@@ -169,22 +171,19 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
         val r = for {
           _ <- log.info(s"Fetching account informations for id: $accountId")
 
-          ai <- accountManagerClient.getAccountInfo(
+          account <- accountManagerClient.getAccountInfo(
             new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
             new Metadata
           )
 
-          accountId <- UuidUtils.bytesToUuidIO(ai.accountId)
+          accountId <- UuidUtils.bytesToUuidIO(account.accountId)
 
           _ <- log.info("Deleting keychain")
 
+          keychainId <- UuidUtils.stringToUuidIO(account.key)
+
           _ <- keychainClient
-            .deleteKeychain(
-              new DeleteKeychainRequest(
-                keychainId = UuidUtils.uuidToBytes(UUID.fromString(ai.key))
-              ),
-              new Metadata
-            )
+            .deleteKeychain(keychainId)
             .map(_ => log.info("Keychain deleted"))
             .handleErrorWith(_ =>
               log.info("An error occurred while deleting the keychain, moving on")
@@ -203,8 +202,8 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
           _ <- notificationService.deleteQueue(
             accountId = accountId,
-            coinFamily = CommonProtobufUtils.fromCoinFamily(ai.coinFamily),
-            coin = CommonProtobufUtils.fromCoin(ai.coin)
+            coinFamily = CommonProtobufUtils.fromCoinFamily(account.coinFamily),
+            coin = CommonProtobufUtils.fromCoin(account.coin)
           )
           _ <- log.info("Queue deleted")
 
@@ -277,10 +276,12 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             new Metadata
           )
 
+          keychainId <- UuidUtils.stringToUuidIO(account.key)
+
           response <- transactorClient
             .createTransaction(
               accountId,
-              UUID.fromString(account.key),
+              keychainId,
               createTransactionRequest.coinSelection,
               createTransactionRequest.outputs,
               CommonProtobufUtils.fromCoin(account.coin)
@@ -301,10 +302,12 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             new Metadata
           )
 
+          keychainId <- UuidUtils.stringToUuidIO(account.key)
+
           rawTransaction <- transactorClient
             .createTransaction(
               accountId,
-              UUID.fromString(account.key),
+              keychainId,
               request.coinSelection,
               request.outputs,
               CommonProtobufUtils.fromCoin(account.coin)
@@ -313,7 +316,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           response <- transactorClient
             .broadcastTransaction(
               accountId,
-              UUID.fromString(account.key),
+              keychainId,
               account.coin.name,
               rawTransaction,
               request.privKey
@@ -326,40 +329,29 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             accountId
           ) / "addresses" :? OptionalFromIndexQueryParamMatcher(from)
           +& OptionalToIndexQueryParamMatcher(to)
-          +& OptionalKeychainChangeParamMatcher(change) =>
-        // TODO: refactor when moving keychainService into bitcoin.common
+          +& OptionalChangeTypeParamMatcher(change) =>
         for {
           account <- accountManagerClient.getAccountInfo(
             new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
             new Metadata
           )
 
-          response <- keychainClient
-            .getAllObservableAddresses(
-              GetAllObservableAddressesRequest(
-                keychainId = UuidUtils.uuidToBytes(UUID.fromString(account.key)),
-                change = change.getOrElse(Change.CHANGE_EXTERNAL),
-                fromIndex = from.getOrElse(0),
-                toIndex = to.getOrElse(0)
-              ),
-              new Metadata
-            )
-            .flatMap { res =>
-              val jsonResults = res.addresses.map { a =>
-                Json.obj(
-                  "address"    -> Json.fromString(a.address),
-                  "derivation" -> Json.fromString(a.derivation.mkString("/")),
-                  "change"     -> Json.fromString(a.change.name)
-                )
-              }
+          keychainId <- UuidUtils.stringToUuidIO(account.key)
 
-              Ok(jsonResults)
-            }
+          response <- keychainClient
+            .getAddresses(
+              keychainId,
+              from.getOrElse(0),
+              to.getOrElse(0),
+              change
+            )
+            .flatMap(Ok(_))
+
         } yield response
 
       case GET -> Root / UUIDVar(
             accountId
-          ) / "addresses" / "fresh" :? OptionalKeychainChangeParamMatcher(change) =>
+          ) / "addresses" / "fresh" :? OptionalChangeTypeParamMatcher(change) =>
         // TODO: refactor when moving keychainService into bitcoin.common
         for {
           account <- accountManagerClient.getAccountInfo(
@@ -367,34 +359,19 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             new Metadata
           )
 
-          keychainId = UuidUtils.uuidToBytes(UUID.fromString(account.key))
+          keychainId <- UuidUtils.stringToUuidIO(account.key)
 
           keychainInfo <- keychainClient
-            .getKeychainInfo(
-              GetKeychainInfoRequest(keychainId),
-              new Metadata
-            )
+            .getKeychainInfo(keychainId)
 
           response <- keychainClient
             .getFreshAddresses(
-              GetFreshAddressesRequest(
-                keychainId = keychainId,
-                change = change.getOrElse(Change.CHANGE_EXTERNAL),
-                batchSize = keychainInfo.lookaheadSize
-              ),
-              new Metadata
+              keychainId = keychainId,
+              change = change.getOrElse(ChangeType.External),
+              size = keychainInfo.lookaheadSize
             )
-            .flatMap { res =>
-              val jsonResults = res.addresses.map { a =>
-                Json.obj(
-                  "address"    -> Json.fromString(a.address),
-                  "derivation" -> Json.fromString(a.derivation.mkString("/")),
-                  "change"     -> Json.fromString(a.change.name)
-                )
-              }
+            .flatMap(Ok(_))
 
-              Ok(jsonResults)
-            }
         } yield response
     }
 

@@ -2,17 +2,14 @@ package co.ledger.lama.bitcoin.worker
 
 import java.util.UUID
 
-import cats.data.NonEmptyList
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.worker.DefaultInput
-import co.ledger.lama.bitcoin.common.services.{
+import co.ledger.lama.bitcoin.common.grpc.{
   ExplorerClientService,
   InterpreterClientService,
   KeychainClientService
 }
-import co.ledger.lama.bitcoin.common.models.interpreter.AccountAddress
-import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.{BatchResult, PayloadData}
 import co.ledger.lama.bitcoin.worker.services._
@@ -37,7 +34,6 @@ class Worker(
   def run(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, Unit] =
     syncEventService.consumeWorkableEvents
       .evalMap { workableEvent =>
-
         val reportableEvent =
           workableEvent.status match {
             case Registered   => synchronizeAccount(workableEvent)
@@ -71,7 +67,7 @@ class Worker(
       workableEvent: WorkableEvent
   )(implicit cs: ContextShift[IO], t: Timer[IO]): IO[ReportableEvent] = {
     val account = workableEvent.payload.account
-    val coin = workableEvent.payload.account.coin
+    val coin    = workableEvent.payload.account.coin
 
     val previousBlockState =
       workableEvent.payload.data
@@ -114,13 +110,7 @@ class Worker(
         keychainInfo.lookaheadSize
       ).stream.compile.toList
 
-      addresses = batchResults.flatMap(_.addresses).map { a =>
-        AccountAddress(
-          a.address,
-          if (a.change.isChangeExternal) ChangeType.External else ChangeType.Internal,
-          NonEmptyList.fromListUnsafe(a.derivation.toList)
-        )
-      }
+      addresses = batchResults.flatMap(_.addresses)
 
       opsCount <- interpreterClient.compute(
         account.id,
@@ -174,7 +164,7 @@ class Worker(
           _ <- log.info("Fetching transactions from explorer")
           transactions <-
             explorerClient(coin)
-              .getConfirmedTransactions(addressInfos.map(_.address), blockHashCursor)
+              .getConfirmedTransactions(addressInfos.map(_.accountAddress), blockHashCursor)
               .prefetch
               .chunkN(conf.maxTxsToSavePerBatch)
               .map(_.toList)
@@ -194,10 +184,10 @@ class Worker(
           usedAddressesInfos = addressInfos.filter { a =>
             transactions.exists { t =>
               val isInputAddress = t.inputs.collectFirst {
-                case i: DefaultInput if i.address == a.address => i
+                case i: DefaultInput if i.address == a.accountAddress => i
               }.isDefined
 
-              isInputAddress || t.outputs.exists(_.address == a.address)
+              isInputAddress || t.outputs.exists(_.address == a.accountAddress)
             }
           }
 
@@ -205,7 +195,10 @@ class Worker(
             if (transactions.nonEmpty) {
               // Mark addresses as used.
               log.info(s"Marking addresses as used") *>
-                keychainClient.markAddressesAsUsed(keychainId, usedAddressesInfos.map(_.address))
+                keychainClient.markAddressesAsUsed(
+                  keychainId,
+                  usedAddressesInfos.map(_.accountAddress)
+                )
             } else IO.unit
 
           // Flag to know if we continue or not to discover addresses

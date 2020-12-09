@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
 import co.ledger.lama.bitcoin.common.models.transactor.CoinSelectionStrategy
 import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction, Output}
-import co.ledger.lama.bitcoin.common.services.mocks.{
+import co.ledger.lama.bitcoin.common.grpc.mocks.{
   ExplorerClientServiceMock,
   InterpreterClientServiceMock,
   KeychainClientServiceMock
