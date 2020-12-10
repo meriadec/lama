@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.api.models
 
 import java.util.UUID
 
+import co.ledger.lama.bitcoin.common.models.worker.Block
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.common.models.implicits._
 import io.circe.{Decoder, Encoder}
@@ -15,7 +16,7 @@ object accountManager {
       coinFamily: CoinFamily,
       coin: Coin,
       syncFrequency: Long,
-      lastSyncEvent: Option[SyncEvent],
+      lastSyncEvent: Option[SyncEvent[Block]],
       balance: BigInt,
       utxos: Int,
       received: BigInt,

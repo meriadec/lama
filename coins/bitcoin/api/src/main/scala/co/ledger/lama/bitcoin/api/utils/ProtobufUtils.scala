@@ -1,16 +1,15 @@
 package co.ledger.lama.bitcoin.api.utils
 
-import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.common.models.{Sort, Status, SyncEvent}
+import co.ledger.lama.common.models.Sort
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.common.utils.{ProtobufUtils => CommonProtobufUtils}
 import co.ledger.lama.manager.{protobuf => pbManager}
 import co.ledger.lama.bitcoin.api.models.accountManager._
 import co.ledger.lama.bitcoin.common.models.interpreter.BalanceHistory
+import co.ledger.lama.bitcoin.common.models.worker.Block
 import co.ledger.protobuf.bitcoin.keychain
-import io.circe.parser.parse
 
 object ProtobufUtils {
   def toAccountInfoRequest(accountId: UUID): pbManager.AccountInfoRequest =
@@ -47,21 +46,6 @@ object ProtobufUtils {
       syncFrequency = ra.syncFrequency
     )
 
-  def fromSyncEvent(accountId: UUID, pb: pbManager.SyncEvent): Option[SyncEvent] =
-    for {
-      syncId  <- UuidUtils.bytesToUuid(pb.syncId)
-      status  <- Status.fromKey(pb.status)
-      payload <- parse(new String(pb.payload.toByteArray)).flatMap(_.as[SyncEvent.Payload]).toOption
-    } yield {
-      SyncEvent(
-        accountId,
-        syncId,
-        status,
-        payload,
-        time = pb.time.map(CommonProtobufUtils.toInstant).getOrElse(Instant.now())
-      )
-    }
-
   def fromAccountInfo(
       info: pbManager.AccountInfoResult,
       balance: BalanceHistory
@@ -72,7 +56,7 @@ object ProtobufUtils {
       CommonProtobufUtils.fromCoinFamily(info.coinFamily),
       CommonProtobufUtils.fromCoin(info.coin),
       info.syncFrequency,
-      info.lastSyncEvent.flatMap(fromSyncEvent(accountId, _)),
+      info.lastSyncEvent.map(CommonProtobufUtils.fromSyncEvent[Block]),
       balance.balance,
       balance.utxos,
       balance.received,

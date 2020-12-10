@@ -4,13 +4,13 @@ import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-import co.ledger.lama.common.models.SyncEvent.Payload
 import co.ledger.lama.common.models._
 import co.ledger.lama.manager.models.implicits._
 
 import scala.concurrent.duration.FiniteDuration
 import doobie.postgres.implicits._
 import doobie.util.Read
+import io.circe.JsonObject
 
 package object models {
 
@@ -47,18 +47,20 @@ package object models {
       label: Option[String],
       syncId: UUID,
       status: Status,
-      payload: Payload,
+      cursor: Option[JsonObject],
+      error: Option[ReportError],
       updated: Instant
   )
 
   object AccountSyncStatus {
     implicit val doobieRead: Read[AccountSyncStatus] =
-      Read[(AccountInfo, UUID, Status, Payload, Instant)].map {
+      Read[(AccountInfo, UUID, Status, Option[JsonObject], Option[ReportError], Instant)].map {
         case (
               accountInfo,
               syncId,
               status,
-              payload,
+              cursor,
+              error,
               updated
             ) =>
           AccountSyncStatus(
@@ -70,7 +72,8 @@ package object models {
             accountInfo.label,
             syncId,
             status,
-            payload,
+            cursor,
+            error,
             updated
           )
       }

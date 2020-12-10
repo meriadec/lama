@@ -25,6 +25,7 @@ import co.ledger.lama.bitcoin.common.grpc.{
   KeychainClientService,
   TransactorClientService
 }
+import co.ledger.lama.bitcoin.common.models.worker.Block
 import io.circe.Json
 import io.circe.generic.extras.auto._
 import io.grpc.Metadata
@@ -100,7 +101,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
               Json.obj(
                 "events" ->
                   Json.fromValues(
-                    res.syncEvents.map(se => CommonProtobufUtils.fromSyncEvent(se).asJson)
+                    res.syncEvents.map(se => CommonProtobufUtils.fromSyncEvent[Block](se).asJson)
                   ),
                 "total" -> Json.fromInt(res.total)
               )
