@@ -8,8 +8,7 @@ import io.circe.generic.extras.semiauto._
 import io.circe.syntax.EncoderOps
 import co.ledger.lama.manager.protobuf
 import co.ledger.lama.common.models.implicits._
-import co.ledger.lama.common.utils.ProtobufUtils.fromInstant
-import co.ledger.lama.common.utils.{ByteStringUtils, ProtobufUtils, UuidUtils}
+import co.ledger.lama.common.utils.{ByteStringUtils, TimestampProtoUtils, UuidUtils}
 
 sealed trait SyncEvent[T] {
   def accountId: UUID
@@ -26,7 +25,7 @@ sealed trait SyncEvent[T] {
       status = status.name,
       cursor = ByteStringUtils.serialize[T](cursor),
       error = ByteStringUtils.serialize[ReportError](error),
-      time = Some(fromInstant(time))
+      time = Some(TimestampProtoUtils.serialize(time))
     )
 }
 
@@ -74,7 +73,7 @@ object SyncEvent {
       Status.fromKey(proto.status).get,
       ByteStringUtils.deserialize[T](proto.cursor),
       ByteStringUtils.deserialize[ReportError](proto.error),
-      ProtobufUtils.toInstant(proto.time.get)
+      TimestampProtoUtils.deserialize(proto.time.get)
     )
 
 }

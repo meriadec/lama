@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.{Blocker, ContextShift, IO, Resource}
 import co.ledger.lama.common.models._
-import co.ledger.lama.common.utils.{DbUtils, IOAssertion, PostgresConfig, ProtobufUtils, UuidUtils}
+import co.ledger.lama.common.utils.{DbUtils, IOAssertion, PostgresConfig, UuidUtils}
 import co.ledger.lama.manager.Exceptions.AccountNotFoundException
 import co.ledger.lama.manager.config.CoinConfig
 import co.ledger.lama.manager.protobuf.{AccountInfoRequest, UpdateAccountRequest}
@@ -198,7 +198,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
           val key          = response.key
           val synFrequency = response.syncFrequency
           val lastSyncEvent =
-            response.lastSyncEvent.map(ProtobufUtils.fromSyncEvent[JsonObject])
+            response.lastSyncEvent.map(SyncEvent.fromProto[JsonObject])
 
           key shouldBe registerBitcoinAccount.key
           synFrequency shouldBe updatedSyncFrequency
@@ -225,7 +225,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
   ): IO[Option[SyncEvent[JsonObject]]] =
     service
       .getAccountInfo(req, new Metadata())
-      .map(_.lastSyncEvent.map(ProtobufUtils.fromSyncEvent[JsonObject]))
+      .map(_.lastSyncEvent.map(SyncEvent.fromProto[JsonObject]))
 
   private val migrateDB: IO[Unit] = DbUtils.flywayMigrate(PostgresConfig(dbUrl, dbUrl, dbPassword))
 

@@ -6,7 +6,7 @@ import cats.effect.{ConcurrentEffect, IO}
 import co.ledger.lama.common.Exceptions.MalformedProtobufUuidException
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models._
-import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
+import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.Exceptions.{AccountNotFoundException, CoinConfigurationException}
 import co.ledger.lama.manager.config.CoinConfig
 import co.ledger.lama.manager.protobuf
@@ -48,8 +48,8 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
   ): IO[protobuf.RegisterAccountResult] = {
     val account = AccountIdentifier(
       request.key,
-      ProtobufUtils.fromCoinFamily(request.coinFamily),
-      ProtobufUtils.fromCoin(request.coin)
+      CoinFamily.fromProto(request.coinFamily),
+      Coin.fromProto(request.coin)
     )
     val coinFamily = account.coinFamily
     val coin       = account.coin
@@ -172,7 +172,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       accountInfo   <- getAccountInfo(accountId)
       lastSyncEvent <- Queries.getLastSyncEvent(accountInfo.id).transact(db)
     } yield {
-      val lastSyncEventProto = lastSyncEvent.map(ProtobufUtils.toSyncEvent[JsonObject])
+      val lastSyncEventProto = lastSyncEvent.map(_.toProto)
 
       protobuf.AccountInfoResult(
         UuidUtils.uuidToBytes(accountInfo.id),
@@ -218,19 +218,17 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
             account.key,
             account.syncFrequency,
             Some(
-              ProtobufUtils.toSyncEvent[JsonObject](
-                SyncEvent(
-                  account.id,
-                  account.syncId,
-                  account.status,
-                  account.cursor,
-                  account.error,
-                  account.updated
-                )
-              )
+              SyncEvent(
+                account.id,
+                account.syncId,
+                account.status,
+                account.cursor,
+                account.error,
+                account.updated
+              ).toProto
             ),
-            ProtobufUtils.toCoinFamily(account.coinFamily),
-            ProtobufUtils.toCoin(account.coin),
+            account.coinFamily.toProto,
+            account.coin.toProto,
             account.label.map(protobuf.AccountLabel(_))
           )
         ),
@@ -256,7 +254,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       total <- Queries.countSyncEvents(accountId).transact(db)
     } yield {
       GetSyncEventsResult(
-        syncEvents = syncEvents.map(ProtobufUtils.toSyncEvent[JsonObject]),
+        syncEvents = syncEvents.map(_.toProto),
         total = total
       )
     }
