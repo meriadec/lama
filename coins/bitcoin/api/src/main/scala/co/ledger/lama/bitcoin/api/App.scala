@@ -15,6 +15,7 @@ import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import Config.Config
 import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController, VersionController}
 import co.ledger.lama.bitcoin.transactor.protobuf.BitcoinTransactorServiceFs2Grpc
+import co.ledger.lama.common.grpc.AccountManagerGrpcClientService
 import co.ledger.protobuf.bitcoin.keychain.KeychainServiceFs2Grpc
 import co.ledger.protobuf.lama.common.HealthFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
@@ -105,7 +106,7 @@ object App extends IOApp {
             AccountController.routes(
               notificationService,
               new KeychainGrpcClientService(serviceResources.grpcKeychainClient),
-              serviceResources.grpcAccountClient,
+              new AccountManagerGrpcClientService(serviceResources.grpcAccountClient),
               new InterpreterGrpcClientService(serviceResources.grpcBitcoinInterpreterClient),
               new TransactorGrpcClientService(serviceResources.grpcBitcoinTransactorClient)
             )

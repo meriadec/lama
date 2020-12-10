@@ -117,4 +117,18 @@ object implicits {
         )
       )
     }
+
+  implicit val accountInfoRead: Read[AccountInfo] =
+    Read[(UUID, String, CoinFamily, Coin, Long, Option[String])].map {
+      case (accountId, key, coinFamily, coin, syncFrequency, label) =>
+        AccountInfo(
+          accountId,
+          key,
+          coinFamily,
+          coin,
+          syncFrequency,
+          None,
+          label
+        )
+    }
 }

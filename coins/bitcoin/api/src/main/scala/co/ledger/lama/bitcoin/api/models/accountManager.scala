@@ -2,21 +2,20 @@ package co.ledger.lama.bitcoin.api.models
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.worker.Block
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.common.models.implicits._
-import io.circe.{Decoder, Encoder}
+import io.circe.{Decoder, Encoder, JsonObject}
 import io.circe.generic.extras.semiauto._
 import co.ledger.lama.common.models.{Coin, CoinFamily, SyncEvent}
 
 object accountManager {
 
-  case class AccountInfo(
+  case class AccountWithBalance(
       accountId: UUID,
       coinFamily: CoinFamily,
       coin: Coin,
       syncFrequency: Long,
-      lastSyncEvent: Option[SyncEvent[Block]],
+      lastSyncEvent: Option[SyncEvent[JsonObject]],
       balance: BigInt,
       utxos: Int,
       received: BigInt,
@@ -24,20 +23,11 @@ object accountManager {
       label: Option[String]
   )
 
-  object AccountInfo {
-    implicit val decoder: Decoder[AccountInfo] =
-      deriveConfiguredDecoder[AccountInfo]
-    implicit val encoder: Encoder[AccountInfo] =
-      deriveConfiguredEncoder[AccountInfo]
-  }
-
-  case class AccountRegistered(accountId: UUID, syncId: UUID, syncFrequency: Long)
-
-  object AccountRegistered {
-    implicit val decoder: Decoder[AccountRegistered] =
-      deriveConfiguredDecoder[AccountRegistered]
-    implicit val encoder: Encoder[AccountRegistered] =
-      deriveConfiguredEncoder[AccountRegistered]
+  object AccountWithBalance {
+    implicit val decoder: Decoder[AccountWithBalance] =
+      deriveConfiguredDecoder[AccountWithBalance]
+    implicit val encoder: Encoder[AccountWithBalance] =
+      deriveConfiguredEncoder[AccountWithBalance]
   }
 
   case class UpdateRequest(syncFrequency: Long)

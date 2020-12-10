@@ -6,6 +6,7 @@ import cats.data.NonEmptyList
 import co.ledger.lama.common.models.messages.WorkerMessage
 import co.ledger.lama.common.models.{
   AccountIdentifier,
+  AccountInfo,
   Coin,
   CoinFamily,
   Sort,

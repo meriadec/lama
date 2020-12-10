@@ -6,8 +6,10 @@ import java.util.UUID
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto._
 import io.circe.syntax.EncoderOps
-
+import co.ledger.lama.manager.protobuf
 import co.ledger.lama.common.models.implicits._
+import co.ledger.lama.common.utils.ProtobufUtils.fromInstant
+import co.ledger.lama.common.utils.{ByteStringUtils, ProtobufUtils, UuidUtils}
 
 sealed trait SyncEvent[T] {
   def accountId: UUID
@@ -16,6 +18,16 @@ sealed trait SyncEvent[T] {
   def cursor: Option[T]
   def error: Option[ReportError]
   def time: Instant
+
+  def toProto(implicit enc: Encoder[T]): protobuf.SyncEvent =
+    protobuf.SyncEvent(
+      accountId = UuidUtils.uuidToBytes(accountId),
+      syncId = UuidUtils.uuidToBytes(syncId),
+      status = status.name,
+      cursor = ByteStringUtils.serialize[T](cursor),
+      error = ByteStringUtils.serialize[ReportError](error),
+      time = Some(fromInstant(time))
+    )
 }
 
 object SyncEvent {
@@ -54,6 +66,17 @@ object SyncEvent {
       case ns: FlaggedStatus =>
         FlaggedEvent(accountId, syncId, ns, cursor, error, time)
     }
+
+  def fromProto[T](proto: protobuf.SyncEvent)(implicit dec: Decoder[T]): SyncEvent[T] =
+    SyncEvent[T](
+      UuidUtils.bytesToUuid(proto.accountId).get,
+      UuidUtils.bytesToUuid(proto.syncId).get,
+      Status.fromKey(proto.status).get,
+      ByteStringUtils.deserialize[T](proto.cursor),
+      ByteStringUtils.deserialize[ReportError](proto.error),
+      ProtobufUtils.toInstant(proto.time.get)
+    )
+
 }
 
 case class WorkableEvent[T](

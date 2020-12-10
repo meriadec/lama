@@ -9,7 +9,6 @@ import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.{ProtobufUtils, UuidUtils}
 import co.ledger.lama.manager.Exceptions.{AccountNotFoundException, CoinConfigurationException}
 import co.ledger.lama.manager.config.CoinConfig
-import co.ledger.lama.manager.models._
 import co.ledger.lama.manager.protobuf
 import com.google.protobuf.empty.Empty
 import doobie.implicits._
@@ -104,7 +103,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
             protobuf.RegisterAccountResult(
               UuidUtils.uuidToBytes(accountId),
               UuidUtils.uuidToBytes(syncId),
-              syncFrequency.toSeconds
+              syncFrequency
             )
           }
     } yield response
@@ -178,10 +177,10 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       protobuf.AccountInfoResult(
         UuidUtils.uuidToBytes(accountInfo.id),
         accountInfo.key,
-        accountInfo.syncFrequency.toSeconds,
+        accountInfo.syncFrequency,
         lastSyncEventProto,
-        ProtobufUtils.toCoinFamily(accountInfo.coinFamily),
-        ProtobufUtils.toCoin(accountInfo.coin),
+        accountInfo.coinFamily.toProto,
+        accountInfo.coin.toProto,
         accountInfo.label.map(protobuf.AccountLabel(_))
       )
     }
@@ -217,7 +216,7 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
           protobuf.AccountInfoResult(
             UuidUtils.uuidToBytes(account.id),
             account.key,
-            account.syncFrequency.toSeconds,
+            account.syncFrequency,
             Some(
               ProtobufUtils.toSyncEvent[JsonObject](
                 SyncEvent(
