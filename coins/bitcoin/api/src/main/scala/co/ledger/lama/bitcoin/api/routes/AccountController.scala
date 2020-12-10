@@ -290,12 +290,26 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
         } yield response
 
+      case req @ POST -> Root / "_internal" / "sign" =>
+        for {
+          _       <- log.info(s"Signing Transaction")
+          request <- req.as[GenerateSignaturesRequest]
+
+          response <- transactorClient
+            .generateSignature(
+              request.rawTransaction,
+              request.privKey
+            )
+            .flatMap(Ok(_))
+
+        } yield response
+
       case req @ POST -> Root / UUIDVar(
             accountId
-          ) / "transactions" / "demo" =>
+          ) / "transactions" / "send" =>
         for {
           _       <- log.info(s"Preparing transaction creation for account: $accountId")
-          request <- req.as[CreateTransactionDemoRequest]
+          request <- req.as[BroadcastTransactionRequest]
 
           account <- accountManagerClient.getAccountInfo(
             new AccountInfoRequest(UuidUtils.uuidToBytes(accountId)),
@@ -304,22 +318,12 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
           keychainId <- UuidUtils.stringToUuidIO(account.key)
 
-          rawTransaction <- transactorClient
-            .createTransaction(
-              accountId,
-              keychainId,
-              request.coinSelection,
-              request.outputs,
-              CommonProtobufUtils.fromCoin(account.coin)
-            )
-
           response <- transactorClient
             .broadcastTransaction(
-              accountId,
               keychainId,
               account.coin.name,
-              rawTransaction,
-              request.privKey
+              request.rawTransaction,
+              request.signatures
             )
             .flatMap(Ok(_))
 
