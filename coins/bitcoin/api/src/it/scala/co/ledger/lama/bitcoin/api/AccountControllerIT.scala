@@ -7,11 +7,11 @@ import cats.effect.{ContextShift, IO, Resource, Timer}
 import cats.implicits._
 import co.ledger.lama.bitcoin.api.ConfigSpec.ConfigSpec
 import co.ledger.lama.bitcoin.api.models.accountManager.{AccountWithBalance, UpdateRequest}
-import co.ledger.lama.bitcoin.common.models.interpreter
-import co.ledger.lama.bitcoin.common.models.interpreter.grpc.{
+import co.ledger.lama.bitcoin.common.models.interpreter.{
+  BalanceHistory,
   GetBalanceHistoryResult,
   GetOperationsResult,
-  GetUTXOsResult
+  GetUtxosResult
 }
 import co.ledger.lama.common.models.Notification.BalanceUpdated
 import co.ledger.lama.common.models.Status.{Deleted, Published, Registered, Synchronized}
@@ -150,9 +150,9 @@ trait AccountControllerIT extends AnyFlatSpecLike with Matchers {
               .map(_.flatMap(_.operations))
 
             utxos <- IOUtils
-              .fetchPaginatedItems[GetUTXOsResult](
+              .fetchPaginatedItems[GetUtxosResult](
                 (offset, limit) =>
-                  client.expect[GetUTXOsResult](
+                  client.expect[GetUtxosResult](
                     getUTXOsRequest(accountRegistered.accountId, offset, limit, Sort.Ascending)
                   ),
                 _.truncated,
@@ -208,7 +208,7 @@ trait AccountControllerIT extends AnyFlatSpecLike with Matchers {
             it should "emit a balance notification" in {
               balanceNotification.accountId shouldBe accountRegistered.accountId
               val Right(notificationBalance) =
-                balanceNotification.balanceHistory.as[interpreter.BalanceHistory]
+                balanceNotification.balanceHistory.as[BalanceHistory]
               notificationBalance shouldBe balances.head
             }
 

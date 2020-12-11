@@ -4,7 +4,6 @@ import cats.effect.{ContextShift, IO, Timer}
 import co.ledger.lama.bitcoin.common.config.ExplorerConfig
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.transactor.FeeInfo
-import co.ledger.lama.bitcoin.common.models.worker._
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.models.Coin.{Btc, BtcTestnet}

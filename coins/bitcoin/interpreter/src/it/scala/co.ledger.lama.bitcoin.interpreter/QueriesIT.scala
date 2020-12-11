@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter
 import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.worker._
+import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
 import co.ledger.lama.common.utils.IOAssertion

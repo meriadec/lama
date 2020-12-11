@@ -4,10 +4,8 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.interpreter.grpc.GetOperationsResult
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, DefaultInput}
 import co.ledger.lama.bitcoin.common.models.interpreter._
-import co.ledger.lama.bitcoin.common.models.worker.{ConfirmedTransaction, DefaultInput}
-import co.ledger.lama.bitcoin.common.models.{interpreter, worker}
 import co.ledger.lama.bitcoin.common.grpc.InterpreterClientService
 import co.ledger.lama.common.models.{Coin, Sort}
 
@@ -21,7 +19,7 @@ class InterpreterClientServiceMock extends InterpreterClientService {
 
   def saveTransactions(
       accountId: UUID,
-      txs: List[worker.ConfirmedTransaction]
+      txs: List[ConfirmedTransaction]
   ): IO[Int] = {
     savedTransactions.update(
       accountId,
@@ -53,17 +51,17 @@ class InterpreterClientServiceMock extends InterpreterClientService {
     IO.pure(0)
   }
 
-  def getLastBlocks(accountId: UUID): IO[grpc.GetLastBlocksResult] = {
-    val lastBlocks: List[worker.Block] = savedTransactions(accountId)
+  def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult] = {
+    val lastBlocks: List[Block] = savedTransactions(accountId)
       .map(_.block)
       .distinct
       .sortBy(_.height)
       .reverse
 
-    IO(grpc.GetLastBlocksResult(lastBlocks))
+    IO(GetLastBlocksResult(lastBlocks))
   }
 
-  def compute(accountId: UUID, coin: Coin, addresses: List[interpreter.AccountAddress]): IO[Int] = {
+  def compute(accountId: UUID, coin: Coin, addresses: List[AccountAddress]): IO[Int] = {
 
     val txViews = savedTransactions(accountId).map(tx =>
       TransactionView(
@@ -163,7 +161,7 @@ class InterpreterClientServiceMock extends InterpreterClientService {
       limit: Int,
       offset: Int,
       sort: Option[Sort]
-  ): IO[grpc.GetOperationsResult] = {
+  ): IO[GetOperationsResult] = {
 
     val ops: List[Operation] = operations(accountId)
       .filter(_.transaction.get.block.height > blockHeight)
@@ -187,7 +185,7 @@ class InterpreterClientServiceMock extends InterpreterClientService {
       limit: Int,
       offset: Int,
       sort: Option[Sort]
-  ): IO[grpc.GetUTXOsResult] = {
+  ): IO[GetUtxosResult] = {
 
     val inputs = transactions(accountId)
       .flatMap(_.inputs)
@@ -216,7 +214,7 @@ class InterpreterClientServiceMock extends InterpreterClientService {
     val total = transactions(accountId).size
 
     IO(
-      new grpc.GetUTXOsResult(
+      new GetUtxosResult(
         false,
         utxos,
         utxos.size,
@@ -226,18 +224,18 @@ class InterpreterClientServiceMock extends InterpreterClientService {
 
   }
 
-  def getBalance(accountId: UUID): IO[interpreter.BalanceHistory] =
+  def getBalance(accountId: UUID): IO[BalanceHistory] =
     IO.raiseError(new Exception("Not implements Yet"))
 
   def getBalanceHistory(
       accountId: UUID,
       start: Option[Instant],
       end: Option[Instant]
-  ): IO[grpc.GetBalanceHistoryResult] =
+  ): IO[GetBalanceHistoryResult] =
     IO.raiseError(new Exception("Not implements Yet"))
 
   def getBalanceHistories(
       accountId: UUID
-  ): IO[grpc.GetBalanceHistoryResult] =
+  ): IO[GetBalanceHistoryResult] =
     IO.raiseError(new Exception("Not implements Yet"))
 }

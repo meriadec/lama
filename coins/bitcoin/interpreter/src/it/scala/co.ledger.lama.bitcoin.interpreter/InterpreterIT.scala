@@ -5,7 +5,7 @@ import java.util.UUID
 
 import cats.data.NonEmptyList
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.worker._
+import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.interpreter.services.{
   BalanceService,

@@ -2,7 +2,7 @@ package co.ledger.lama.bitcoin.interpreter.services
 
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.worker.{
+import co.ledger.lama.bitcoin.common.models.explorer.{
   Block,
   ConfirmedTransaction,
   DefaultInput,

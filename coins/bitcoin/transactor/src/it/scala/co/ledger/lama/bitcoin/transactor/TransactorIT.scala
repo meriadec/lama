@@ -6,7 +6,7 @@ import java.util.UUID
 import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
 import co.ledger.lama.bitcoin.common.models.transactor.{CoinSelectionStrategy, PrepareTxOutput}
-import co.ledger.lama.bitcoin.common.models.worker.{Block, ConfirmedTransaction, Output}
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, Output}
 import co.ledger.lama.bitcoin.common.grpc.mocks.{
   ExplorerClientServiceMock,
   InterpreterClientServiceMock,

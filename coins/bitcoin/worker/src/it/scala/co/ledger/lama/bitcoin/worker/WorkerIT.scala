@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
-import co.ledger.lama.bitcoin.common.models.worker.Block
+import co.ledger.lama.bitcoin.common.models.explorer.Block
 import co.ledger.lama.bitcoin.common.grpc.mocks.{
   InterpreterClientServiceMock,
   KeychainClientServiceMock

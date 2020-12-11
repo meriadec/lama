@@ -4,9 +4,8 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.worker.ConfirmedTransaction
+import co.ledger.lama.bitcoin.common.models.explorer.ConfirmedTransaction
 import co.ledger.lama.bitcoin.common.models.interpreter._
-import co.ledger.lama.bitcoin.common.models.interpreter.grpc._
 import co.ledger.lama.bitcoin.common.utils.BtcProtoUtils._
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.models.{Coin, Sort}
@@ -39,7 +38,7 @@ trait InterpreterClientService {
       limit: Int,
       offset: Int,
       sort: Option[Sort]
-  ): IO[GetUTXOsResult]
+  ): IO[GetUtxosResult]
 
   def getBalance(accountId: UUID): IO[BalanceHistory]
 
@@ -127,7 +126,7 @@ class InterpreterGrpcClientService(
       limit: Int,
       offset: Int,
       sort: Option[Sort]
-  ): IO[GetUTXOsResult] = {
+  ): IO[GetUtxosResult] = {
     grpcClient
       .getUTXOs(
         protobuf.GetUTXOsRequest(
@@ -138,7 +137,7 @@ class InterpreterGrpcClientService(
         ),
         new Metadata
       )
-      .map(GetUTXOsResult.fromProto)
+      .map(GetUtxosResult.fromProto)
   }
 
   def getBalance(accountId: UUID): IO[BalanceHistory] = {

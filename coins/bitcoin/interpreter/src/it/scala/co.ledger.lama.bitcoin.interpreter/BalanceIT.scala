@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.data.NonEmptyList
-import co.ledger.lama.bitcoin.common.models.worker._
+import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike

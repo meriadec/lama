@@ -1,7 +1,7 @@
 package co.ledger.lama.bitcoin.worker.services
 
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.worker.Block
+import co.ledger.lama.bitcoin.common.models.explorer.Block
 import io.circe.syntax._
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.messages.{ReportMessage, WorkerMessage}

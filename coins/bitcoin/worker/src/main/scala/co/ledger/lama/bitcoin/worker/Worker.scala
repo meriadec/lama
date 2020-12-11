@@ -4,7 +4,7 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.worker.{Block, DefaultInput}
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, DefaultInput}
 import co.ledger.lama.bitcoin.common.grpc.{
   ExplorerClientService,
   InterpreterClientService,
