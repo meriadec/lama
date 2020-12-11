@@ -1,12 +1,12 @@
 package co.ledger.lama.manager
 
 import java.util.UUID
-
 import cats.effect.{Blocker, ContextShift, IO, Resource}
 import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.{DbUtils, IOAssertion, PostgresConfig, UuidUtils}
 import co.ledger.lama.manager.Exceptions.AccountNotFoundException
 import co.ledger.lama.manager.config.CoinConfig
+import co.ledger.lama.manager.protobuf.UpdateAccountRequest.Field
 import co.ledger.lama.manager.protobuf.{AccountInfoRequest, UpdateAccountRequest}
 import co.ledger.lama.manager.{protobuf => pb}
 import com.opentable.db.postgres.embedded.EmbeddedPostgres
@@ -39,13 +39,13 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
   val transactor: Resource[IO, HikariTransactor[IO]] =
     for {
       ce <- ExecutionContexts.fixedThreadPool[IO](32) // our connect EC
-      te <- ExecutionContexts.cachedThreadPool[IO] // our transaction EC
+      te <- ExecutionContexts.cachedThreadPool[IO]    // our transaction EC
       xa <- HikariTransactor.newHikariTransactor[IO](
-        "org.postgresql.Driver",         // driver classname
-        dbUrl,                           // connect URL
-        dbUser,                          // username
-        dbPassword,                      // password
-        ce,                              // await connection here
+        "org.postgresql.Driver", // driver classname
+        dbUrl, // connect URL
+        dbUser, // username
+        dbPassword, // password
+        ce, // await connection here
         Blocker.liftExecutionContext(te) // execute JDBC operations here
       )
     } yield xa
@@ -110,7 +110,7 @@ class ServiceSpec extends AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
       val fAccountId = UuidUtils.uuidToBytes(registeredAccountId)
       for {
         _ <- service.updateAccount(
-          UpdateAccountRequest(fAccountId, updatedSyncFrequency),
+          UpdateAccountRequest(fAccountId, Field.SyncFrequency(updatedSyncFrequency)),
           new Metadata()
         )
 

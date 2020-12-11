@@ -144,15 +144,17 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           updateRequest <- req.as[UpdateRequest]
 
           _ <- log.info(
-            s"Updating account $accountId sync frequency with value ${updateRequest.syncFrequency}"
+            s"Updating account $accountId with $updateRequest"
           )
 
-          _ <- accountManagerClient.updateAccount(
-            accountId,
-            updateRequest.syncFrequency
-          )
-
-        } yield updateRequest.syncFrequency
+          _ <- updateRequest match {
+            case UpdateLabel(label) => accountManagerClient.updateLabel(accountId, label)
+            case UpdateSyncFrequency(syncFrequency) =>
+              accountManagerClient.updateSyncFrequency(accountId, syncFrequency)
+            case UpdateSyncFrequencyAndLabel(syncFrequency, label) =>
+              accountManagerClient.updateAccount(accountId, syncFrequency, label)
+          }
+        } yield ()
         r.flatMap(_ => Ok())
 
       case DELETE -> Root / UUIDVar(accountId) =>

@@ -9,8 +9,12 @@ import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.manager.Exceptions.{AccountNotFoundException, CoinConfigurationException}
 import co.ledger.lama.manager.config.CoinConfig
+
+import co.ledger.lama.manager.protobuf.UpdateAccountRequest.Field.{Info, Label, SyncFrequency}
 import co.ledger.lama.manager.protobuf
+import co.ledger.lama.manager.protobuf.UpdateAccountRequest
 import com.google.protobuf.empty.Empty
+import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.transactor.Transactor
 import io.circe.JsonObject
@@ -33,11 +37,35 @@ class Service(val db: Transactor[IO], val coinConfigs: List[CoinConfig])
       request: protobuf.UpdateAccountRequest,
       ctx: Metadata
   ): IO[Empty] = {
-    val accountIdIo   = UuidUtils.bytesToUuidIO(request.accountId)
-    val syncFrequency = FiniteDuration(request.syncFrequency, TimeUnit.SECONDS)
+    val accountIdIo = UuidUtils.bytesToUuidIO(request.accountId)
+
+    val updateQuery: UUID => ConnectionIO[Int] = request.field match {
+      case SyncFrequency(frequency) =>
+        Queries
+          .updateAccountSyncFrequency(_, FiniteDuration(frequency, TimeUnit.SECONDS))
+
+      case Label(label) =>
+        Queries
+          .updateAccountLabel(_, label)
+
+      case Info(UpdateAccountRequest.Info(frequency, label, _)) =>
+        accountId =>
+          for {
+            r1 <- Queries.updateAccountLabel(accountId, label)
+            r2 <- Queries.updateAccountSyncFrequency(
+              accountId,
+              FiniteDuration(frequency, TimeUnit.SECONDS)
+            )
+          } yield r1 + r2
+
+      case co.ledger.lama.manager.protobuf.UpdateAccountRequest.Field.Empty =>
+        _ => AsyncConnectionIO.pure(1)
+
+    }
+
     for {
       accountId <- accountIdIo
-      _         <- Queries.updateAccountSyncFrequency(accountId, syncFrequency).transact(db)
+      _         <- updateQuery(accountId).transact(db)
     } yield Empty()
 
   }

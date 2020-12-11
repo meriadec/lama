@@ -42,7 +42,17 @@ message AccountLabel {
 
 message UpdateAccountRequest {
     bytes account_id = 1;
-    uint64 sync_frequency = 2;
+
+    message Info {
+        uint64 sync_frequency = 1;
+        string label = 2;
+    }
+
+    oneof field {
+        uint64 sync_frequency = 2;
+        string label = 3;
+        Info info = 4;
+    }
 }
 
 message UnregisterAccountRequest {

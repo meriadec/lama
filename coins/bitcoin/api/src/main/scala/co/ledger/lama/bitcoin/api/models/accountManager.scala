@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.api.models
 
 import java.util.UUID
 
+import cats.syntax.functor._
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.common.models.implicits._
 import io.circe.{Decoder, Encoder, JsonObject}
@@ -30,11 +31,22 @@ object accountManager {
       deriveConfiguredEncoder[AccountWithBalance]
   }
 
-  case class UpdateRequest(syncFrequency: Long)
+  sealed trait UpdateRequest
+  case class UpdateSyncFrequencyAndLabel(syncFrequency: Long, label: String) extends UpdateRequest
+  case class UpdateSyncFrequency(syncFrequency: Long)                        extends UpdateRequest
+  case class UpdateLabel(label: String)                                      extends UpdateRequest
 
   object UpdateRequest {
-    implicit val encoder: Encoder[UpdateRequest] = deriveConfiguredEncoder[UpdateRequest]
-    implicit val decoder: Decoder[UpdateRequest] = deriveConfiguredDecoder[UpdateRequest]
+    implicit val decoder: Decoder[UpdateRequest] =
+      List[Decoder[UpdateRequest]](
+        deriveConfiguredDecoder[UpdateSyncFrequencyAndLabel].widen,
+        deriveConfiguredDecoder[UpdateSyncFrequency].widen,
+        deriveConfiguredDecoder[UpdateLabel].widen
+      ).reduceLeft(_ or _)
+
+    implicit val updateSyncFrequencyEncoder: Encoder[UpdateSyncFrequency] =
+      deriveConfiguredEncoder[UpdateSyncFrequency]
+    implicit val updateLabelEncoder: Encoder[UpdateLabel] = deriveConfiguredEncoder[UpdateLabel]
   }
 
   case class CreationRequest(

@@ -1,12 +1,12 @@
 package co.ledger.lama.common.clients.grpc
 
 import java.util.UUID
-
 import cats.effect.IO
 import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.UuidUtils
 import io.grpc.Metadata
 import co.ledger.lama.manager.protobuf
+import co.ledger.lama.manager.protobuf.UpdateAccountRequest
 import io.circe.JsonObject
 
 trait AccountManagerClientService {
@@ -18,7 +18,10 @@ trait AccountManagerClientService {
       label: Option[String]
   ): IO[AccountRegistered]
 
-  def updateAccount(accountId: UUID, syncFrequency: Long): IO[Unit]
+  def updateSyncFrequency(accountId: UUID, frequency: Long): IO[Unit]
+  def updateLabel(accountId: UUID, label: String): IO[Unit]
+  def updateAccount(accountId: UUID, frequency: Long, label: String): IO[Unit]
+
   def unregisterAccount(accountId: UUID): IO[AccountUnregistered]
   def getAccountInfo(accountId: UUID): IO[AccountInfo]
   def getAccounts(limit: Option[Int], offset: Option[Int]): IO[AccountsResult]
@@ -54,16 +57,25 @@ class AccountManagerGrpcClientService(
       )
       .map(AccountRegistered.fromProto)
 
-  def updateAccount(accountId: UUID, syncFrequency: Long): IO[Unit] =
+  private def update(accountId: UUID, field: UpdateAccountRequest.Field) =
     grpcClient
       .updateAccount(
         protobuf.UpdateAccountRequest(
           UuidUtils.uuidToBytes(accountId),
-          syncFrequency
+          field
         ),
         new Metadata
       )
       .void
+
+  def updateSyncFrequency(accountId: UUID, frequency: Long): IO[Unit] =
+    update(accountId, UpdateAccountRequest.Field.SyncFrequency(frequency))
+
+  def updateLabel(accountId: UUID, label: String): IO[Unit] =
+    update(accountId, UpdateAccountRequest.Field.Label(label))
+
+  def updateAccount(accountId: UUID, frequency: Long, label: String): IO[Unit] =
+    update(accountId, UpdateAccountRequest.Field.Info(UpdateAccountRequest.Info(frequency, label)))
 
   def unregisterAccount(accountId: UUID): IO[AccountUnregistered] =
     grpcClient

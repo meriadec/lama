@@ -94,6 +94,15 @@ object Queries {
     sql"""UPDATE account_info SET sync_frequency=$syncFrequencyInterval WHERE account_id = $accountId""".update.run
   }
 
+  def updateAccountLabel(
+      accountId: UUID,
+      label: String
+  ): ConnectionIO[Int] = {
+
+    sql"""UPDATE account_info SET label=$label WHERE account_id = $accountId
+          """.update.run
+  }
+
   def insertAccountInfo(
       accountIdentifier: AccountIdentifier,
       label: Option[String],
