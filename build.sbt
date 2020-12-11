@@ -28,7 +28,7 @@ lazy val buildInfoSettings = Seq(
 lazy val dockerSettings = Seq(
   dockerBaseImage := "openjdk:14.0.2",
   dockerRepository := Some("docker.pkg.github.com/ledgerhq/lama"),
-  dockerUpdateLatest := isSnapshot.value, //should always update latest except on tags
+  dockerUpdateLatest := true, //should always update latest
   javaAgents += "com.datadoghq" % "dd-java-agent" % "0.69.0"
 )
 
