@@ -38,7 +38,7 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 #### Build and publish image in local
 
-`sbt accountManager/assembly && sbt accountManager/docker`
+`sbt accountManager/docker:publishLocal`
 
 ### Run manually
 
@@ -56,7 +56,7 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 ##### Build and publish image in local
 
-`sbt bitcoinWorker/assembly && sbt bitcoinWorker/docker`
+`sbt bitcoinWorker/docker:publishLocal`
 
 #### Run manually
 
@@ -72,7 +72,7 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 ##### Build and publish image in local
 
-`sbt bitcoinInterpreter/assembly && sbt bitcoinInterpreter/docker`
+`sbt bitcoinInterpreter/docker:publishLocal`
 
 #### Run manually
 
@@ -88,7 +88,7 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 ##### Build and publish image in local
 
-`sbt bitcoinApi/assembly && sbt bitcoinApi/docker`
+`sbt bitcoinApi/docker:publishLocal`
 
 #### Run manually
 

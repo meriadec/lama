@@ -130,9 +130,7 @@ jobs:
             lama-docker-cache-${{github.ref}}
             lama-docker-cache-
       - name: Build and publish lama images locally
-        run: |
-          sbt assembly
-          sbt docker
+        run: sbt docker:publishLocal
       - name: Run dockerized lama components
         run: docker-compose up -d
       - name: Waiting for GRPC servers to be up

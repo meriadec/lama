@@ -3,25 +3,7 @@ ThisBuild / organization := "co.ledger"
 ThisBuild / scalaVersion := "2.13.3"
 ThisBuild / resolvers += Resolver.sonatypeRepo("releases")
 ThisBuild / scalacOptions ++= CompilerFlags.all
-
-// Dynver custom version formatting
-def versionFmt(out: sbtdynver.GitDescribeOutput): String = {
-  if (out.isCleanAfterTag) out.ref.dropPrefix
-  else s"${out.ref.dropPrefix}-${out.commitSuffix.sha}"
-}
-
-def fallbackVersion(d: java.util.Date): String =
-  s"HEAD-${sbtdynver.DynVer timestamp d}"
-
-ThisBuild / dynverVTagPrefix := false
-ThisBuild / version := dynverGitDescribeOutput.value.mkVersion(
-  versionFmt,
-  fallbackVersion(dynverCurrentDate.value)
-)
-ThisBuild / dynver := {
-  val d = new java.util.Date
-  sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
-}
+ThisBuild / dynverSeparator := "-"
 
 // Shared Plugins
 enablePlugins(BuildInfoPlugin)
@@ -40,47 +22,15 @@ lazy val buildInfoSettings = Seq(
   buildInfoPackage := "buildinfo"
 )
 
-lazy val assemblySettings = Seq(
-  test in assembly := {},
-  assemblyOutputPath in assembly := file(
-    target.value.getAbsolutePath
-  ) / "assembly" / (name.value + ".jar"),
-  cleanFiles += file(target.value.getAbsolutePath) / "assembly",
-  // Remove resources files from the JAR (they will be copied to an external folder)
-  assemblyMergeStrategy in assembly := {
-    case PathList("META-INF", _) => MergeStrategy.discard
-    case PathList("BUILD")       => MergeStrategy.discard
-    case path =>
-      if (ignoreFiles.contains(path))
-        MergeStrategy.discard
-      else
-        (assemblyMergeStrategy in assembly).value(path)
-  }
-)
-
 lazy val dockerSettings = Seq(
-  imageNames in docker := {
-    // Tagging latest + dynamic version
-    Seq(
-      ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:latest"),
-      ImageName(s"docker.pkg.github.com/ledgerhq/lama/${name.value}:${version.value}")
-    )
-  },
-  // User `docker` to build docker image
-  dockerfile in docker := {
-    // The assembly task generates a fat JAR file
-    val artifact: File     = (assemblyOutputPath in assembly).value
-    val artifactTargetPath = s"/app/${(assemblyOutputPath in assembly).value.name}"
-    new Dockerfile {
-      from("openjdk:14.0.2")
-      copy(artifact, artifactTargetPath)
-      entryPoint("java", "-jar", artifactTargetPath)
-    }
-  }
+  dockerBaseImage := "openjdk:14.0.2",
+  dockerRepository := Some("docker.pkg.github.com/ledgerhq/lama"),
+  dockerUpdateLatest := isSnapshot.value, //should always update latest except on tags
+  javaAgents += "com.datadoghq" % "dd-java-agent" % "0.69.0"
 )
 
 lazy val sharedSettings =
-  assemblySettings ++ dockerSettings ++ Defaults.itSettings
+  dockerSettings ++ Defaults.itSettings
 
 lazy val lamaProtobuf = (project in file("protobuf"))
   .enablePlugins(Fs2Grpc)
@@ -95,20 +45,19 @@ lazy val common = (project in file("common"))
   .configs(IntegrationTest)
   .settings(
     name := "lama-common",
-    libraryDependencies ++= (Dependencies.lamaCommon ++ Dependencies.test),
-    test in assembly := {},
-  ).dependsOn(lamaProtobuf)
+    libraryDependencies ++= (Dependencies.lamaCommon ++ Dependencies.test)
+  )
+  .dependsOn(lamaProtobuf)
 
 lazy val accountManager = (project in file("account-manager"))
-  .enablePlugins(sbtdocker.DockerPlugin)
+  .enablePlugins(JavaAgent, JavaServerAppPackaging, DockerPlugin)
   .configs(IntegrationTest)
   .settings(
     name := "lama-account-manager",
     sharedSettings,
-    libraryDependencies ++= (Dependencies.accountManager ++ Dependencies.test),
+    libraryDependencies ++= (Dependencies.accountManager ++ Dependencies.test)
   )
   .dependsOn(common)
-
 
 lazy val bitcoinProtobuf = (project in file("coins/bitcoin/protobuf"))
   .enablePlugins(Fs2Grpc)
@@ -122,7 +71,7 @@ lazy val bitcoinProtobuf = (project in file("coins/bitcoin/protobuf"))
   )
 
 lazy val bitcoinApi = (project in file("coins/bitcoin/api"))
-  .enablePlugins(BuildInfoPlugin, sbtdocker.DockerPlugin)
+  .enablePlugins(BuildInfoPlugin, JavaAgent, JavaServerAppPackaging, DockerPlugin)
   .configs(IntegrationTest)
   .settings(
     name := "lama-bitcoin-api",
@@ -141,7 +90,7 @@ lazy val bitcoinCommon = (project in file("coins/bitcoin/common"))
   .dependsOn(common, bitcoinProtobuf)
 
 lazy val bitcoinWorker = (project in file("coins/bitcoin/worker"))
-  .enablePlugins(sbtdocker.DockerPlugin)
+  .enablePlugins(JavaAgent, JavaServerAppPackaging, DockerPlugin)
   .configs(IntegrationTest)
   .settings(
     name := "lama-bitcoin-worker",
@@ -151,7 +100,7 @@ lazy val bitcoinWorker = (project in file("coins/bitcoin/worker"))
   .dependsOn(common, bitcoinCommon)
 
 lazy val bitcoinInterpreter = (project in file("coins/bitcoin/interpreter"))
-  .enablePlugins(sbtdocker.DockerPlugin)
+  .enablePlugins(JavaAgent, JavaServerAppPackaging, DockerPlugin)
   .configs(IntegrationTest)
   .settings(
     name := "lama-bitcoin-interpreter",
@@ -162,7 +111,7 @@ lazy val bitcoinInterpreter = (project in file("coins/bitcoin/interpreter"))
   .dependsOn(common, bitcoinCommon)
 
 lazy val bitcoinTransactor = (project in file("coins/bitcoin/transactor"))
-  .enablePlugins(Fs2Grpc, sbtdocker.DockerPlugin)
+  .enablePlugins(Fs2Grpc, JavaAgent, JavaServerAppPackaging, DockerPlugin)
   .configs(IntegrationTest)
   .settings(
     name := "lama-bitcoin-transactor",
