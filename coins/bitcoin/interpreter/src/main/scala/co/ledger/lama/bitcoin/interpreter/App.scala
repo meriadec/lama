@@ -1,8 +1,8 @@
 package co.ledger.lama.bitcoin.interpreter
 
 import cats.effect.{ExitCode, IO, IOApp}
-import co.ledger.lama.common.grpc.HealthService
 import co.ledger.lama.common.services.RabbitNotificationService
+import co.ledger.lama.common.services.grpc.HealthService
 import co.ledger.lama.common.utils.{DbUtils, RabbitUtils}
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import pureconfig.ConfigSource

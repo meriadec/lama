@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.common.grpc
+package co.ledger.lama.bitcoin.common.clients
 
 import cats.effect.{ContextShift, IO, Timer}
 import co.ledger.lama.bitcoin.common.config.ExplorerConfig
@@ -10,8 +10,8 @@ import co.ledger.lama.common.models.Coin.{Btc, BtcTestnet}
 import co.ledger.lama.common.utils.IOUtils
 import fs2.{Chunk, Pull, Stream}
 import io.circe.{Decoder, Json}
-import org.http4s.circe.CirceEntityEncoder._
 import org.http4s.circe.CirceEntityDecoder._
+import org.http4s.circe.CirceEntityEncoder._
 import org.http4s.client.Client
 import org.http4s.{Method, Request}
 

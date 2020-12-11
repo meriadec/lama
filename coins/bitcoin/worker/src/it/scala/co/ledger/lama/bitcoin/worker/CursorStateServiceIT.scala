@@ -4,9 +4,9 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
+import co.ledger.lama.bitcoin.common.clients.ExplorerV3ClientService
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction}
-import co.ledger.lama.bitcoin.common.grpc.ExplorerV3ClientService
-import co.ledger.lama.bitcoin.common.grpc.mocks.InterpreterClientServiceMock
+import co.ledger.lama.bitcoin.common.clients.grpc.mocks.InterpreterClientServiceMock
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services.CursorStateService
 import co.ledger.lama.common.logging.IOLogging

@@ -1,7 +1,7 @@
 package co.ledger.lama.manager
 
 import cats.effect.{ExitCode, IO, IOApp}
-import co.ledger.lama.common.grpc.HealthService
+import co.ledger.lama.common.services.grpc.HealthService
 import co.ledger.lama.common.utils.{DbUtils, RabbitUtils}
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
 import co.ledger.lama.manager.config.{Config, OrchestratorConfig}

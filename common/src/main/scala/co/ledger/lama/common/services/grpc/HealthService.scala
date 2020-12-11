@@ -1,10 +1,9 @@
-package co.ledger.lama.common.grpc
+package co.ledger.lama.common.services.grpc
 
 import cats.effect.{ConcurrentEffect, IO}
-import io.grpc.{Metadata, ServerServiceDefinition}
-
-import co.ledger.protobuf.lama.common._
 import co.ledger.protobuf.lama.common.HealthCheckResponse._
+import co.ledger.protobuf.lama.common._
+import io.grpc.{Metadata, ServerServiceDefinition}
 
 class HealthService extends HealthFs2Grpc[IO, Metadata] {
   def definition(implicit ce: ConcurrentEffect[IO]): ServerServiceDefinition =

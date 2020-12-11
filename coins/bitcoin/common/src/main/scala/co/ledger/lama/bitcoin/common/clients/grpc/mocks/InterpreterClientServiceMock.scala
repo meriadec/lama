@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.common.grpc.mocks
+package co.ledger.lama.bitcoin.common.clients.grpc.mocks
 
 import java.time.Instant
 import java.util.UUID
@@ -6,7 +6,7 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, DefaultInput}
 import co.ledger.lama.bitcoin.common.models.interpreter._
-import co.ledger.lama.bitcoin.common.grpc.InterpreterClientService
+import co.ledger.lama.bitcoin.common.clients.grpc.InterpreterClientService
 import co.ledger.lama.common.models.{Coin, Sort}
 
 import scala.collection.mutable

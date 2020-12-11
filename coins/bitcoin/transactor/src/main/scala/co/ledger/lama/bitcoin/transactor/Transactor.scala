@@ -3,6 +3,7 @@ package co.ledger.lama.bitcoin.transactor
 import java.util.UUID
 
 import cats.effect.IO
+import co.ledger.lama.bitcoin.common.clients.ExplorerClientService
 import co.ledger.lama.bitcoin.common.utils.CoinImplicits._
 import co.ledger.lama.bitcoin.common.models.interpreter.{ChangeType, Utxo}
 import co.ledger.lama.bitcoin.common.models.transactor.{
@@ -12,12 +13,8 @@ import co.ledger.lama.bitcoin.common.models.transactor.{
   RawTransaction,
   RawTransactionAndUtxos
 }
-import co.ledger.lama.bitcoin.common.grpc.{
-  ExplorerClientService,
-  InterpreterClientService,
-  KeychainClientService
-}
-import co.ledger.lama.bitcoin.transactor.grpc.BitcoinLibGrpcService
+import co.ledger.lama.bitcoin.common.clients.grpc.{InterpreterClientService, KeychainClientService}
+import co.ledger.lama.bitcoin.transactor.clients.grpc.BitcoinLibGrpcService
 import co.ledger.lama.bitcoin.transactor.models.bitcoinLib.SignatureMetadata
 import co.ledger.lama.bitcoin.transactor.services.CoinSelectionService
 import co.ledger.lama.common.logging.IOLogging

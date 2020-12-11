@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.common.grpc
+package co.ledger.lama.bitcoin.common.clients.grpc
 
 import java.time.Instant
 import java.util.UUID

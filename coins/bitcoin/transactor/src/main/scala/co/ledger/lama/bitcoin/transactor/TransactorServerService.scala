@@ -1,4 +1,4 @@
-package co.ledger.lama.bitcoin.transactor.grpc
+package co.ledger.lama.bitcoin.transactor
 
 import cats.data.NonEmptyList
 import cats.effect.{ConcurrentEffect, IO}
@@ -7,8 +7,6 @@ import co.ledger.lama.bitcoin.common.models.transactor.{
   PrepareTxOutput,
   RawTransaction
 }
-import co.ledger.lama.bitcoin.transactor.BitcoinLibTransactor
-import co.ledger.lama.bitcoin.transactor.protobuf
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.utils.UuidUtils

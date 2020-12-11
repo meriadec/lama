@@ -1,19 +1,16 @@
 package co.ledger.lama.bitcoin.transactor
 
 import cats.effect.{ExitCode, IO, IOApp}
-import co.ledger.lama.bitcoin.common.grpc.{
-  ExplorerV3ClientService,
+import co.ledger.lama.bitcoin.common.clients.ExplorerV3ClientService
+import co.ledger.lama.bitcoin.common.clients.grpc.{
   InterpreterGrpcClientService,
   KeychainGrpcClientService
 }
 import co.ledger.lama.bitcoin.interpreter.protobuf
-import co.ledger.lama.bitcoin.transactor.grpc.{
-  BitcoinLibGrpcClientService,
-  BitcoinLibGrpcTransactor
-}
-import co.ledger.lama.common.grpc.HealthService
+import co.ledger.lama.bitcoin.transactor.clients.grpc.BitcoinLibGrpcClientService
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.services.Clients
+import co.ledger.lama.common.services.grpc.HealthService
 import co.ledger.lama.common.utils.ResourceUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import co.ledger.protobuf.bitcoin.{keychain, libgrpc}

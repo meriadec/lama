@@ -4,7 +4,7 @@ import co.ledger.lama.common.services.RabbitNotificationService
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.api.middlewares.LoggingMiddleware._
 import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
-import co.ledger.lama.bitcoin.common.grpc.{
+import co.ledger.lama.bitcoin.common.clients.grpc.{
   InterpreterGrpcClientService,
   KeychainGrpcClientService,
   TransactorGrpcClientService
@@ -15,7 +15,7 @@ import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import Config.Config
 import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController, VersionController}
 import co.ledger.lama.bitcoin.transactor.protobuf.BitcoinTransactorServiceFs2Grpc
-import co.ledger.lama.common.grpc.AccountManagerGrpcClientService
+import co.ledger.lama.common.clients.grpc.AccountManagerGrpcClientService
 import co.ledger.protobuf.bitcoin.keychain.KeychainServiceFs2Grpc
 import co.ledger.protobuf.lama.common.HealthFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient

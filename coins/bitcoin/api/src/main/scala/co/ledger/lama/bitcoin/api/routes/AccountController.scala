@@ -9,12 +9,12 @@ import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.bitcoin.api.utils.RouterUtils._
 import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
-import co.ledger.lama.bitcoin.common.grpc.{
+import co.ledger.lama.bitcoin.common.clients.grpc.{
   InterpreterClientService,
   KeychainClientService,
   TransactorClientService
 }
-import co.ledger.lama.common.grpc.AccountManagerClientService
+import co.ledger.lama.common.clients.grpc.AccountManagerClientService
 import io.circe.Json
 import io.circe.generic.extras.auto._
 import org.http4s.HttpRoutes

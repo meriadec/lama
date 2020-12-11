@@ -1,4 +1,4 @@
-package co.ledger.lama.common.grpc
+package co.ledger.lama.common.clients.grpc
 
 import java.util.UUID
 

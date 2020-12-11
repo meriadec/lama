@@ -4,12 +4,9 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
+import co.ledger.lama.bitcoin.common.clients.ExplorerClientService
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, DefaultInput}
-import co.ledger.lama.bitcoin.common.grpc.{
-  ExplorerClientService,
-  InterpreterClientService,
-  KeychainClientService
-}
+import co.ledger.lama.bitcoin.common.clients.grpc.{InterpreterClientService, KeychainClientService}
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.BatchResult
 import co.ledger.lama.bitcoin.worker.services._

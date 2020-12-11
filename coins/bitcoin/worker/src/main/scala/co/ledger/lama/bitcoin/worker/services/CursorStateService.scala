@@ -3,8 +3,9 @@ package co.ledger.lama.bitcoin.worker.services
 import java.util.UUID
 
 import cats.effect.IO
+import co.ledger.lama.bitcoin.common.clients.ExplorerClientService
 import co.ledger.lama.bitcoin.common.models.explorer.Block
-import co.ledger.lama.bitcoin.common.grpc.{ExplorerClientService, InterpreterClientService}
+import co.ledger.lama.bitcoin.common.clients.grpc.InterpreterClientService
 import co.ledger.lama.common.logging.IOLogging
 import org.http4s.client.UnexpectedStatus
 
