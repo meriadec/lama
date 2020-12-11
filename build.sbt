@@ -3,6 +3,9 @@ ThisBuild / organization := "co.ledger"
 ThisBuild / scalaVersion := "2.13.3"
 ThisBuild / resolvers += Resolver.sonatypeRepo("releases")
 ThisBuild / scalacOptions ++= CompilerFlags.all
+
+// Dynver settings
+ThisBuild / dynverVTagPrefix := false
 ThisBuild / dynverSeparator := "-"
 
 // Shared Plugins
