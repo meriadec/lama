@@ -5,7 +5,13 @@ import co.ledger.lama.common.models.implicits._
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto.{deriveConfiguredDecoder, deriveConfiguredEncoder}
 
-case class SyncEventsResult[T](syncEvents: List[SyncEvent[T]], total: Int)
+case class SyncEventsResult[T](syncEvents: List[SyncEvent[T]], total: Int) {
+  def toProto(implicit enc: Encoder[T]): protobuf.GetSyncEventsResult =
+    protobuf.GetSyncEventsResult(
+      syncEvents.map(_.toProto),
+      total
+    )
+}
 
 object SyncEventsResult {
 

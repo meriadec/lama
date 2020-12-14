@@ -44,8 +44,8 @@ object App extends IOApp with IOLogging {
       bitcoinLib         = new BitcoinLibGrpcClientService(grpcBitcoinLibClient)
 
       serviceDefinitions = List(
-        new BitcoinLibGrpcTransactor(
-          new BitcoinLibTransactor(
+        new TransactorGrpcService(
+          new Transactor(
             bitcoinLib,
             explorerService,
             keychainService,

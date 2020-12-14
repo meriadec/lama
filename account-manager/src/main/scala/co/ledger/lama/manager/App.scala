@@ -26,9 +26,13 @@ object App extends IOApp {
       // redis client
       redisClient <- RedisUtils.createClient(conf.redis)
 
+      accountManager = new AccountManager(db, conf.orchestrator.coins)
+
       // define rpc service definitions
       serviceDefinitions = List(
-        new Service(db, conf.orchestrator.coins).definition,
+        new AccountManagerGrpcService(
+          accountManager
+        ).definition,
         new HealthService().definition
       )
 

@@ -22,7 +22,7 @@ import co.ledger.lama.common.models.{Coin, Sort}
 import fs2.{Chunk, Stream}
 import io.circe.syntax._
 
-class BitcoinLibTransactor(
+class Transactor(
     bitcoinLibClient: BitcoinLibGrpcService,
     explorerClient: Coin => ExplorerClientService,
     keychainClient: KeychainClientService,

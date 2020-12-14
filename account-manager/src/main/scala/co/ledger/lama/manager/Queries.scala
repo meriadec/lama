@@ -26,8 +26,6 @@ import io.circe.JsonObject
 import io.circe.syntax.EncoderOps
 import org.postgresql.util.PGInterval
 
-import scala.concurrent.duration.FiniteDuration
-
 object Queries {
 
   def countAccounts(): ConnectionIO[Int] =
@@ -86,10 +84,10 @@ object Queries {
 
   def updateAccountSyncFrequency(
       accountId: UUID,
-      syncFrequency: FiniteDuration
+      syncFrequency: Long
   ): ConnectionIO[Int] = {
     val syncFrequencyInterval = new PGInterval()
-    syncFrequencyInterval.setSeconds(syncFrequency.toSeconds.toDouble)
+    syncFrequencyInterval.setSeconds(syncFrequency.toDouble)
 
     sql"""UPDATE account_info SET sync_frequency=$syncFrequencyInterval WHERE account_id = $accountId""".update.run
   }
@@ -106,7 +104,7 @@ object Queries {
   def insertAccountInfo(
       accountIdentifier: AccountIdentifier,
       label: Option[String],
-      syncFrequency: FiniteDuration
+      syncFrequency: Long
   ): ConnectionIO[AccountInfo] = {
     val accountId  = accountIdentifier.id
     val key        = accountIdentifier.key
@@ -114,7 +112,7 @@ object Queries {
     val coin       = accountIdentifier.coin
 
     val syncFrequencyInterval = new PGInterval()
-    syncFrequencyInterval.setSeconds(syncFrequency.toSeconds.toDouble)
+    syncFrequencyInterval.setSeconds(syncFrequency.toDouble)
 
     sql"""INSERT INTO account_info(account_id, "key", coin_family, coin, sync_frequency, label)
           VALUES($accountId, $key, $coinFamily, $coin, $syncFrequencyInterval, $label)
