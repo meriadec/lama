@@ -5,7 +5,13 @@ import io.circe.generic.extras.semiauto.{deriveConfiguredDecoder, deriveConfigur
 import co.ledger.lama.manager.protobuf
 import co.ledger.lama.common.models.implicits._
 
-case class AccountsResult(accounts: List[AccountInfo], total: Int)
+case class AccountsResult(accounts: List[AccountInfo], total: Int) {
+  def toProto: protobuf.AccountsResult =
+    protobuf.AccountsResult(
+      accounts.map(_.toProto),
+      total
+    )
+}
 
 object AccountsResult {
 

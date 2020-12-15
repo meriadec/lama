@@ -8,7 +8,13 @@ import co.ledger.lama.common.models.implicits._
 import io.circe.generic.extras.semiauto.{deriveConfiguredDecoder, deriveConfiguredEncoder}
 import io.circe.{Decoder, Encoder}
 
-case class AccountUnregistered(accountId: UUID, syncId: UUID)
+case class AccountUnregistered(accountId: UUID, syncId: UUID) {
+  def toProto: protobuf.UnregisterAccountResult =
+    protobuf.UnregisterAccountResult(
+      UuidUtils.uuidToBytes(accountId),
+      UuidUtils.uuidToBytes(syncId)
+    )
+}
 
 object AccountUnregistered {
   implicit val decoder: Decoder[AccountUnregistered] =

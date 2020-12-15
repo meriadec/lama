@@ -6,7 +6,6 @@ import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.UuidUtils
 import io.grpc.Metadata
 import co.ledger.lama.manager.protobuf
-import co.ledger.lama.manager.protobuf.UpdateAccountRequest
 import io.circe.JsonObject
 
 trait AccountManagerClientService {
@@ -57,7 +56,7 @@ class AccountManagerGrpcClientService(
       )
       .map(AccountRegistered.fromProto)
 
-  private def update(accountId: UUID, field: UpdateAccountRequest.Field) =
+  private def update(accountId: UUID, field: protobuf.UpdateAccountRequest.Field) =
     grpcClient
       .updateAccount(
         protobuf.UpdateAccountRequest(
@@ -69,13 +68,16 @@ class AccountManagerGrpcClientService(
       .void
 
   def updateSyncFrequency(accountId: UUID, frequency: Long): IO[Unit] =
-    update(accountId, UpdateAccountRequest.Field.SyncFrequency(frequency))
+    update(accountId, protobuf.UpdateAccountRequest.Field.SyncFrequency(frequency))
 
   def updateLabel(accountId: UUID, label: String): IO[Unit] =
-    update(accountId, UpdateAccountRequest.Field.Label(label))
+    update(accountId, protobuf.UpdateAccountRequest.Field.Label(label))
 
   def updateAccount(accountId: UUID, frequency: Long, label: String): IO[Unit] =
-    update(accountId, UpdateAccountRequest.Field.Info(UpdateAccountRequest.Info(frequency, label)))
+    update(
+      accountId,
+      protobuf.UpdateAccountRequest.Field.Info(protobuf.UpdateAccountRequest.Info(frequency, label))
+    )
 
   def unregisterAccount(accountId: UUID): IO[AccountUnregistered] =
     grpcClient

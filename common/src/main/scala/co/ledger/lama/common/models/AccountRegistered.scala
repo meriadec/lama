@@ -8,7 +8,14 @@ import co.ledger.lama.manager.protobuf
 import io.circe.generic.extras.semiauto.{deriveConfiguredDecoder, deriveConfiguredEncoder}
 import io.circe.{Decoder, Encoder}
 
-case class AccountRegistered(accountId: UUID, syncId: UUID, syncFrequency: Long)
+case class AccountRegistered(accountId: UUID, syncId: UUID, syncFrequency: Long) {
+  def toProto: protobuf.RegisterAccountResult =
+    protobuf.RegisterAccountResult(
+      UuidUtils.uuidToBytes(accountId),
+      UuidUtils.uuidToBytes(syncId),
+      syncFrequency
+    )
+}
 
 object AccountRegistered {
   implicit val decoder: Decoder[AccountRegistered] =

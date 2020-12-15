@@ -28,7 +28,7 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
     val keychainService    = new KeychainClientServiceMock
     val explorerService    = new ExplorerClientServiceMock
     val transactor =
-      new BitcoinLibTransactor(
+      new Transactor(
         bitcoinLibService,
         _ => explorerService,
         keychainService,

@@ -13,12 +13,12 @@ import co.ledger.lama.common.utils.UuidUtils
 import com.google.protobuf.ByteString
 import io.grpc.{Metadata, ServerServiceDefinition}
 
-trait Transactor extends protobuf.BitcoinTransactorServiceFs2Grpc[IO, Metadata] {
+trait TransactorService extends protobuf.BitcoinTransactorServiceFs2Grpc[IO, Metadata] {
   def definition(implicit ce: ConcurrentEffect[IO]): ServerServiceDefinition =
     protobuf.BitcoinTransactorServiceFs2Grpc.bindService(this)
 }
 
-class BitcoinLibGrpcTransactor(transactor: BitcoinLibTransactor) extends Transactor with IOLogging {
+class TransactorGrpcService(transactor: Transactor) extends TransactorService with IOLogging {
 
   def createTransaction(
       request: protobuf.CreateTransactionRequest,

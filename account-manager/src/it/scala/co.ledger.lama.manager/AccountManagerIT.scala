@@ -2,17 +2,14 @@ package co.ledger.lama.manager
 
 import cats.effect.IO
 import co.ledger.lama.common.models._
-import co.ledger.lama.common.utils.{IOAssertion, RabbitUtils, UuidUtils}
+import co.ledger.lama.common.utils.{IOAssertion, RabbitUtils}
 import co.ledger.lama.manager.config.CoinConfig
-import co.ledger.lama.manager.protobuf
-import UuidUtils.bytesToUuid
 import co.ledger.lama.common.models.messages.{ReportMessage, WorkerMessage}
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.ExchangeName
 import doobie.implicits._
 import fs2.Stream
 import io.circe.{Json, JsonObject}
-import io.grpc.Metadata
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -23,7 +20,7 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
   IOAssertion {
     setup() *>
       appResources.use { case (db, redisClient, rabbitClient) =>
-        val service = new Service(db, conf.orchestrator.coins)
+        val service = new AccountManager(db, conf.orchestrator.coins)
 
         val coinOrchestrator =
           new CoinOrchestrator(conf.orchestrator, db, rabbitClient, redisClient)
@@ -37,23 +34,19 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
 
         val nbEvents = 12
 
-        val registerAccountRequest = protobuf.RegisterAccountRequest(
-          accountTest.key,
-          protobuf.CoinFamily.bitcoin,
-          protobuf.Coin.btc
-        )
-
-        val unregisterAccountRequest = protobuf.UnregisterAccountRequest(
-          UuidUtils.uuidToBytes(accountTest.id)
-        )
-
         def runTests(): IO[Unit] =
           for {
             // Register an account.
-            registeredResult <- service.registerAccount(registerAccountRequest, new Metadata())
+            registeredResult <- service.registerAccount(
+              accountTest.key,
+              CoinFamily.Bitcoin,
+              Coin.Btc,
+              None,
+              None
+            )
 
-            registeredAccountId = bytesToUuid(registeredResult.accountId).get
-            registeredSyncId    = bytesToUuid(registeredResult.syncId).get
+            registeredAccountId = registeredResult.accountId
+            registeredSyncId    = registeredResult.syncId
 
             messageSent1 <- worker.consumeWorkerMessage()
 
@@ -79,10 +72,10 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
 
             // Unregister an account.
             unregisteredResult <-
-              service.unregisterAccount(unregisterAccountRequest, new Metadata())
+              service.unregisterAccount(accountTest.id)
 
-            unregisteredAccountId = bytesToUuid(unregisteredResult.accountId).get
-            unregisteredSyncId    = bytesToUuid(unregisteredResult.syncId).get
+            unregisteredAccountId = unregisteredResult.accountId
+            unregisteredSyncId    = unregisteredResult.syncId
 
             messageSent3 <- worker.consumeWorkerMessage()
 
