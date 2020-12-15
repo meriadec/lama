@@ -133,7 +133,7 @@ class DbInterpreter(
       request: protobuf.ComputeRequest,
       ctx: Metadata
   ): IO[protobuf.ResultCount] =
-    for {
+    (for {
       coin <- IO.fromOption(Coin.fromKey(request.coinId))(
         new IllegalArgumentException(s"Unknown coin type ${request.coinId}) in compute request")
       )
@@ -141,7 +141,7 @@ class DbInterpreter(
       addresses           <- IO(request.addresses.map(AccountAddress.fromProto).toList)
       balanceHistoryCount <- balanceService.getBalancesHistoryCount(accountId)
       nbSavedOps          <- computeOps(accountId, addresses, coin, balanceHistoryCount > 0)
-    } yield protobuf.ResultCount(nbSavedOps)
+    } yield protobuf.ResultCount(nbSavedOps)).handleErrorWith(_ => IO.pure(protobuf.ResultCount()))
 
   def computeOps(
       accountId: UUID,
@@ -179,6 +179,7 @@ class DbInterpreter(
       _              <- log.info("Computing balance history")
       balanceHistory <- balanceService.compute(accountId)
 
+      _ <- log.info("Notifying of balance update")
       _ <- notificationService.notify(
         BalanceUpdatedNotification(
           accountId = accountId,
