@@ -4,12 +4,9 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
-import co.ledger.lama.bitcoin.common.clients.ExplorerV3ClientService
 import co.ledger.lama.bitcoin.common.models.explorer.Block
-import co.ledger.lama.bitcoin.common.clients.grpc.mocks.{
-  InterpreterClientServiceMock,
-  KeychainClientServiceMock
-}
+import co.ledger.lama.bitcoin.common.clients.grpc.mocks.{InterpreterClientMock, KeychainClientMock}
+import co.ledger.lama.bitcoin.common.clients.http.ExplorerHttpClient
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services.{CursorStateService, SyncEventService}
 import co.ledger.lama.common.models.messages.{ReportMessage, WorkerMessage}
@@ -50,11 +47,11 @@ class WorkerIT extends AnyFlatSpecLike with Matchers {
             conf.routingKey
           )
 
-          val keychainClient = new KeychainClientServiceMock
+          val keychainClient = new KeychainClientMock
 
-          val explorerClient = new ExplorerV3ClientService(httpClient, conf.explorer, _)
+          val explorerClient = new ExplorerHttpClient(httpClient, conf.explorer, _)
 
-          val interpreterClient = new InterpreterClientServiceMock
+          val interpreterClient = new InterpreterClientMock
 
           val cursorStateService: Coin => CursorStateService =
             c => new CursorStateService(explorerClient(c), interpreterClient)

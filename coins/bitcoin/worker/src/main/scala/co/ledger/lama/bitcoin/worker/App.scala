@@ -1,19 +1,14 @@
 package co.ledger.lama.bitcoin.worker
 
 import cats.effect.{ExitCode, IO, IOApp}
-import co.ledger.lama.bitcoin.common.clients.ExplorerV3ClientService
-import co.ledger.lama.bitcoin.common.clients.grpc.{
-  InterpreterGrpcClientService,
-  KeychainGrpcClientService
-}
-import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
+import co.ledger.lama.bitcoin.common.clients.grpc.{InterpreterGrpcClient, KeychainGrpcClient}
+import co.ledger.lama.bitcoin.common.clients.http.ExplorerHttpClient
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.services._
 import co.ledger.lama.common.services.Clients
 import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
-import co.ledger.protobuf.bitcoin.keychain.KeychainServiceFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.ExchangeType
 import io.grpc.ManagedChannel
@@ -25,19 +20,19 @@ object App extends IOApp {
   case class WorkerResources(
       rabbitClient: RabbitClient[IO],
       httpClient: Client[IO],
-      keychainChannel: ManagedChannel,
-      interpreterChannel: ManagedChannel
+      keychainGrpcChannel: ManagedChannel,
+      interpreterGrpcChannel: ManagedChannel
   )
 
   def run(args: List[String]): IO[ExitCode] = {
     val conf = ConfigSource.default.loadOrThrow[Config]
 
     val resources = for {
-      httpClient         <- Clients.htt4s
-      keychainChannel    <- grpcManagedChannel(conf.keychain)
-      interpreterChannel <- grpcManagedChannel(conf.interpreter)
-      rabbitClient       <- Clients.rabbit(conf.rabbit)
-    } yield WorkerResources(rabbitClient, httpClient, keychainChannel, interpreterChannel)
+      httpClient             <- Clients.htt4s
+      keychainGrpcChannel    <- grpcManagedChannel(conf.keychain)
+      interpreterGrpcChannel <- grpcManagedChannel(conf.interpreter)
+      rabbitClient           <- Clients.rabbit(conf.rabbit)
+    } yield WorkerResources(rabbitClient, httpClient, keychainGrpcChannel, interpreterGrpcChannel)
 
     resources.use { res =>
       val syncEventService = new SyncEventService(
@@ -47,16 +42,11 @@ object App extends IOApp {
         conf.routingKey
       )
 
-      val keychainGrpcClient = KeychainServiceFs2Grpc.stub[IO](res.keychainChannel)
+      val keychainClient = new KeychainGrpcClient(res.keychainGrpcChannel)
 
-      val keychainClient = new KeychainGrpcClientService(keychainGrpcClient)
+      val interpreterClient = new InterpreterGrpcClient(res.interpreterGrpcChannel)
 
-      val interpreterGrpcClient =
-        BitcoinInterpreterServiceFs2Grpc.stub[IO](res.interpreterChannel)
-
-      val interpreterClient = new InterpreterGrpcClientService(interpreterGrpcClient)
-
-      val explorerClient = new ExplorerV3ClientService(res.httpClient, conf.explorer, _)
+      val explorerClient = new ExplorerHttpClient(res.httpClient, conf.explorer, _)
 
       val cursorStateService: Coin => CursorStateService =
         c => new CursorStateService(explorerClient(c), interpreterClient)

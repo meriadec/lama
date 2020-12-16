@@ -4,9 +4,9 @@ import java.util.UUID
 
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.clients.ExplorerClientService
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, DefaultInput}
-import co.ledger.lama.bitcoin.common.clients.grpc.{InterpreterClientService, KeychainClientService}
+import co.ledger.lama.bitcoin.common.clients.grpc.{InterpreterClient, KeychainClient}
+import co.ledger.lama.bitcoin.common.clients.http.ExplorerClient
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.BatchResult
 import co.ledger.lama.bitcoin.worker.services._
@@ -21,9 +21,9 @@ import scala.util.Try
 
 class Worker(
     syncEventService: SyncEventService,
-    keychainClient: KeychainClientService,
-    explorerClient: Coin => ExplorerClientService,
-    interpreterClient: InterpreterClientService,
+    keychainClient: KeychainClient,
+    explorerClient: Coin => ExplorerClient,
+    interpreterClient: InterpreterClient,
     cursorStateService: Coin => CursorStateService,
     conf: Config
 ) extends IOLogging {
@@ -42,7 +42,7 @@ class Worker(
           reportableEvent
             .handleErrorWith { error =>
               val failedEvent = message.event.asReportableFailureEvent(
-                ReportError(code = "Unknown", message = error.getMessage)
+                ReportError.fromThrowable(error)
               )
 
               log.error(s"Failed event: $failedEvent", error) *>

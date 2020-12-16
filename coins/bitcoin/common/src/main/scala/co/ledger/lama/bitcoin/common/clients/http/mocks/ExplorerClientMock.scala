@@ -1,11 +1,11 @@
-package co.ledger.lama.bitcoin.common.clients.grpc.mocks
+package co.ledger.lama.bitcoin.common.clients.http.mocks
 
 import cats.effect.{ContextShift, IO, Timer}
-import co.ledger.lama.bitcoin.common.clients.ExplorerClientService
-import co.ledger.lama.bitcoin.common.models.transactor.FeeInfo
+import co.ledger.lama.bitcoin.common.clients.http.ExplorerClient
 import co.ledger.lama.bitcoin.common.models.explorer._
+import co.ledger.lama.bitcoin.common.models.transactor.FeeInfo
 
-class ExplorerClientServiceMock extends ExplorerClientService {
+class ExplorerClientMock extends ExplorerClient {
 
   def getCurrentBlock: IO[Block] = ???
 

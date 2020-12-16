@@ -2,7 +2,7 @@ package co.ledger.lama.bitcoin.common.clients.grpc
 
 import java.util.UUID
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.transactor.{
   BroadcastTransaction,
   CoinSelectionStrategy,
@@ -10,12 +10,13 @@ import co.ledger.lama.bitcoin.common.models.transactor.{
   RawTransaction
 }
 import co.ledger.lama.bitcoin.transactor.protobuf
+import co.ledger.lama.common.clients.grpc.GrpcClient
 import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.utils.UuidUtils
 import com.google.protobuf.ByteString
-import io.grpc.Metadata
+import io.grpc.{ManagedChannel, Metadata}
 
-trait TransactorClientService {
+trait TransactorClient {
 
   def createTransaction(
       accountId: UUID,
@@ -38,9 +39,13 @@ trait TransactorClientService {
   ): IO[BroadcastTransaction]
 }
 
-class TransactorGrpcClientService(
-    grpcClient: protobuf.BitcoinTransactorServiceFs2Grpc[IO, Metadata]
-) extends TransactorClientService {
+class TransactorGrpcClient(
+    val managedChannel: ManagedChannel
+)(implicit val cs: ContextShift[IO])
+    extends TransactorClient {
+
+  val client: protobuf.BitcoinTransactorServiceFs2Grpc[IO, Metadata] =
+    GrpcClient.resolveClient(protobuf.BitcoinTransactorServiceFs2Grpc.stub[IO], managedChannel)
 
   def createTransaction(
       accountId: UUID,
@@ -49,7 +54,7 @@ class TransactorGrpcClientService(
       outputs: List[PrepareTxOutput],
       coin: Coin
   ): IO[RawTransaction] =
-    grpcClient
+    client
       .createTransaction(
         new protobuf.CreateTransactionRequest(
           UuidUtils.uuidToBytes(accountId),
@@ -63,7 +68,7 @@ class TransactorGrpcClientService(
       .map(RawTransaction.fromProto)
 
   def generateSignature(rawTransaction: RawTransaction, privKey: String): IO[List[Array[Byte]]] =
-    grpcClient
+    client
       .generateSignatures(
         protobuf.GenerateSignaturesRequest(
           Some(rawTransaction.toProto),
@@ -81,7 +86,7 @@ class TransactorGrpcClientService(
       rawTransaction: RawTransaction,
       signatures: List[Array[Byte]]
   ): IO[BroadcastTransaction] = {
-    grpcClient
+    client
       .broadcastTransaction(
         protobuf.BroadcastTransactionRequest(
           UuidUtils.uuidToBytes(keychainId),

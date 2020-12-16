@@ -1,16 +1,17 @@
 package co.ledger.lama.bitcoin.transactor.clients.grpc
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.BitcoinNetwork
 import co.ledger.lama.bitcoin.common.models.interpreter.Utxo
-import co.ledger.lama.bitcoin.common.models.transactor.{RawTransaction, PrepareTxOutput}
+import co.ledger.lama.bitcoin.common.models.transactor.{PrepareTxOutput, RawTransaction}
 import co.ledger.lama.bitcoin.transactor.models.bitcoinLib._
 import co.ledger.lama.bitcoin.transactor.models.implicits._
+import co.ledger.lama.common.clients.grpc.GrpcClient
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.protobuf.bitcoin.libgrpc
-import io.grpc.Metadata
+import io.grpc.{ManagedChannel, Metadata}
 
-trait BitcoinLibGrpcService {
+trait BitcoinLibClient {
   def createTransaction(
       selectedUtxos: List[Utxo],
       outputs: List[PrepareTxOutput],
@@ -31,9 +32,12 @@ trait BitcoinLibGrpcService {
   ): IO[RawTransactionResponse]
 }
 
-class BitcoinLibGrpcClientService(grpcClient: libgrpc.CoinServiceFs2Grpc[IO, Metadata])
-    extends BitcoinLibGrpcService
+class BitcoinLibGrpcClient(val managedChannel: ManagedChannel)(implicit val cs: ContextShift[IO])
+    extends BitcoinLibClient
     with IOLogging {
+
+  val client: libgrpc.CoinServiceFs2Grpc[IO, Metadata] =
+    GrpcClient.resolveClient(libgrpc.CoinServiceFs2Grpc.stub[IO], managedChannel)
 
   def createTransaction(
       selectedUtxos: List[Utxo],
@@ -42,7 +46,7 @@ class BitcoinLibGrpcClientService(grpcClient: libgrpc.CoinServiceFs2Grpc[IO, Met
       feeSatPerKb: Long,
       lockTime: Long = 0L
   ): IO[RawTransactionResponse] =
-    grpcClient
+    client
       .createTransaction(
         CreateTransactionRequest(
           lockTime.toInt,
@@ -65,7 +69,7 @@ class BitcoinLibGrpcClientService(grpcClient: libgrpc.CoinServiceFs2Grpc[IO, Met
       rawTransaction: RawTransaction,
       privkey: String
   ): IO[List[Array[Byte]]] =
-    grpcClient
+    client
       .generateDerSignatures(
         libgrpc.GenerateDerSignaturesRequest(
           Some(
@@ -96,7 +100,7 @@ class BitcoinLibGrpcClientService(grpcClient: libgrpc.CoinServiceFs2Grpc[IO, Met
       network: BitcoinNetwork,
       signatures: List[SignatureMetadata]
   ): IO[RawTransactionResponse] =
-    grpcClient
+    client
       .signTransaction(
         libgrpc.SignTransactionRequest(
           Some(

@@ -3,23 +3,19 @@ package co.ledger.lama.bitcoin.api
 import co.ledger.lama.common.services.RabbitNotificationService
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.api.middlewares.LoggingMiddleware._
-import co.ledger.lama.bitcoin.interpreter.protobuf.BitcoinInterpreterServiceFs2Grpc
 import co.ledger.lama.bitcoin.common.clients.grpc.{
-  InterpreterGrpcClientService,
-  KeychainGrpcClientService,
-  TransactorGrpcClientService
+  InterpreterGrpcClient,
+  KeychainGrpcClient,
+  TransactorGrpcClient
 }
 import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
-import co.ledger.lama.manager.protobuf.AccountManagerServiceFs2Grpc
 import Config.Config
 import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController, VersionController}
-import co.ledger.lama.bitcoin.transactor.protobuf.BitcoinTransactorServiceFs2Grpc
-import co.ledger.lama.common.clients.grpc.AccountManagerGrpcClientService
-import co.ledger.protobuf.bitcoin.keychain.KeychainServiceFs2Grpc
+import co.ledger.lama.common.clients.grpc.AccountManagerGrpcClient
 import co.ledger.protobuf.lama.common.HealthFs2Grpc
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
-import io.grpc.Metadata
+import io.grpc.ManagedChannel
 import org.http4s.server.middleware._
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
 import org.http4s.server.Router
@@ -33,14 +29,10 @@ object App extends IOApp {
 
   case class ServiceResources(
       rabbitClient: RabbitClient[IO],
-      grpcAccountManagerHealthClient: HealthFs2Grpc[IO, Metadata],
-      grpcBitcoinInterpreterHealthClient: HealthFs2Grpc[IO, Metadata],
-      grpcBitcoinTransactorHealthClient: HealthFs2Grpc[IO, Metadata],
-      grpcAccountClient: AccountManagerServiceFs2Grpc[IO, Metadata],
-      grpcKeychainClient: KeychainServiceFs2Grpc[IO, Metadata],
-      grpcKeychainHealthClient: HealthFs2Grpc[IO, Metadata],
-      grpcBitcoinInterpreterClient: BitcoinInterpreterServiceFs2Grpc[IO, Metadata],
-      grpcBitcoinTransactorClient: BitcoinTransactorServiceFs2Grpc[IO, Metadata]
+      accountManagerGrpcChannel: ManagedChannel,
+      interpreterGrpcChannel: ManagedChannel,
+      transactorGrpcChannel: ManagedChannel,
+      keychainGrpcChannel: ManagedChannel
   )
 
   def run(args: List[String]): IO[ExitCode] = {
@@ -50,45 +42,24 @@ object App extends IOApp {
 
       rabbitClient <- RabbitUtils.createClient(conf.rabbit)
 
-      grpcAccountManagerClient <-
-        grpcManagedChannel(conf.accountManager).map(AccountManagerServiceFs2Grpc.stub[IO](_))
+      accountManagerGrpcChannel <- grpcManagedChannel(conf.accountManager)
 
-      grpcAccountManagerHealthClient <-
-        grpcManagedChannel(conf.accountManager).map(HealthFs2Grpc.stub[IO](_))
+      interpreterGrpcChannel <- grpcManagedChannel(conf.bitcoin.interpreter)
 
-      grpcKeychainClient <-
-        grpcManagedChannel(conf.bitcoin.keychain).map(KeychainServiceFs2Grpc.stub[IO](_))
+      transactorGrpcChannel <- grpcManagedChannel(conf.bitcoin.transactor)
 
-      grpcKeychainHealthClient <- grpcManagedChannel(conf.bitcoin.keychain)
-        .map(HealthFs2Grpc.stub[IO](_))
-
-      grpcBitcoinInterpreterClient <- grpcManagedChannel(conf.bitcoin.interpreter)
-        .map(BitcoinInterpreterServiceFs2Grpc.stub[IO](_))
-
-      grpcBitcoinInterpreterHealthClient <- grpcManagedChannel(conf.bitcoin.interpreter)
-        .map(HealthFs2Grpc.stub[IO](_))
-
-      grpcBitcoinTransactorClient <- grpcManagedChannel(conf.bitcoin.transactor)
-        .map(BitcoinTransactorServiceFs2Grpc.stub[IO](_))
-
-      grpcBitcoinTransactorHealthClient <- grpcManagedChannel(conf.bitcoin.transactor)
-        .map(HealthFs2Grpc.stub[IO](_))
-
+      keychainGrpcChannel <- grpcManagedChannel(conf.bitcoin.keychain)
     } yield ServiceResources(
       rabbitClient = rabbitClient,
-      grpcAccountManagerHealthClient = grpcAccountManagerHealthClient,
-      grpcBitcoinInterpreterHealthClient = grpcBitcoinInterpreterHealthClient,
-      grpcBitcoinTransactorHealthClient = grpcBitcoinTransactorHealthClient,
-      grpcAccountClient = grpcAccountManagerClient,
-      grpcKeychainClient = grpcKeychainClient,
-      grpcKeychainHealthClient = grpcKeychainHealthClient,
-      grpcBitcoinInterpreterClient = grpcBitcoinInterpreterClient,
-      grpcBitcoinTransactorClient = grpcBitcoinTransactorClient
+      accountManagerGrpcChannel = accountManagerGrpcChannel,
+      interpreterGrpcChannel = interpreterGrpcChannel,
+      transactorGrpcChannel = transactorGrpcChannel,
+      keychainGrpcChannel = keychainGrpcChannel
     )
 
-    resources.use { serviceResources =>
+    resources.use { res =>
       val notificationService = new RabbitNotificationService(
-        serviceResources.rabbitClient,
+        res.rabbitClient,
         conf.lamaNotificationsExchangeName,
         conf.maxConcurrent
       )
@@ -105,20 +76,20 @@ object App extends IOApp {
           loggingMiddleWare(
             AccountController.routes(
               notificationService,
-              new KeychainGrpcClientService(serviceResources.grpcKeychainClient),
-              new AccountManagerGrpcClientService(serviceResources.grpcAccountClient),
-              new InterpreterGrpcClientService(serviceResources.grpcBitcoinInterpreterClient),
-              new TransactorGrpcClientService(serviceResources.grpcBitcoinTransactorClient)
+              new KeychainGrpcClient(res.keychainGrpcChannel),
+              new AccountManagerGrpcClient(res.accountManagerGrpcChannel),
+              new InterpreterGrpcClient(res.interpreterGrpcChannel),
+              new TransactorGrpcClient(res.transactorGrpcChannel)
             )
           ),
           methodConfig
         ),
         "_health" -> CORS(
           HealthController.routes(
-            serviceResources.grpcAccountManagerHealthClient,
-            serviceResources.grpcBitcoinInterpreterHealthClient,
-            serviceResources.grpcBitcoinTransactorHealthClient,
-            serviceResources.grpcKeychainHealthClient
+            HealthFs2Grpc.stub[IO](res.accountManagerGrpcChannel),
+            HealthFs2Grpc.stub[IO](res.interpreterGrpcChannel),
+            HealthFs2Grpc.stub[IO](res.transactorGrpcChannel),
+            HealthFs2Grpc.stub[IO](res.keychainGrpcChannel)
           ),
           methodConfig
         ),

@@ -2,10 +2,10 @@ package co.ledger.lama.bitcoin.transactor.services
 
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, interpreter, transactor}
-import co.ledger.lama.bitcoin.transactor.clients.grpc.BitcoinLibGrpcService
+import co.ledger.lama.bitcoin.transactor.clients.grpc.BitcoinLibClient
 import co.ledger.lama.bitcoin.transactor.models.bitcoinLib
 
-class BitcoinLibClientServiceMock extends BitcoinLibGrpcService {
+class BitcoinLibClientServiceMock extends BitcoinLibClient {
 
   def createTransaction(
       selectedUtxos: List[interpreter.Utxo],

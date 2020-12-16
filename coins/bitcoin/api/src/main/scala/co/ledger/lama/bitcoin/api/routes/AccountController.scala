@@ -10,11 +10,11 @@ import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.bitcoin.api.utils.RouterUtils._
 import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
 import co.ledger.lama.bitcoin.common.clients.grpc.{
-  InterpreterClientService,
-  KeychainClientService,
-  TransactorClientService
+  InterpreterClient,
+  KeychainClient,
+  TransactorClient
 }
-import co.ledger.lama.common.clients.grpc.AccountManagerClientService
+import co.ledger.lama.common.clients.grpc.AccountManagerClient
 import io.circe.Json
 import io.circe.generic.extras.auto._
 import org.http4s.HttpRoutes
@@ -28,10 +28,10 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
 
   def routes(
       notificationService: NotificationService,
-      keychainClient: KeychainClientService,
-      accountManagerClient: AccountManagerClientService,
-      interpreterClient: InterpreterClientService,
-      transactorClient: TransactorClientService
+      keychainClient: KeychainClient,
+      accountManagerClient: AccountManagerClient,
+      interpreterClient: InterpreterClient,
+      transactorClient: TransactorClient
   ): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
 

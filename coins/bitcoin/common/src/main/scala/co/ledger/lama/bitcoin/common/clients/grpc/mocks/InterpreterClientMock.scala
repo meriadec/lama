@@ -6,12 +6,12 @@ import java.util.UUID
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, DefaultInput}
 import co.ledger.lama.bitcoin.common.models.interpreter._
-import co.ledger.lama.bitcoin.common.clients.grpc.InterpreterClientService
+import co.ledger.lama.bitcoin.common.clients.grpc.InterpreterClient
 import co.ledger.lama.common.models.{Coin, Sort}
 
 import scala.collection.mutable
 
-class InterpreterClientServiceMock extends InterpreterClientService {
+class InterpreterClientMock extends InterpreterClient {
 
   var savedTransactions: mutable.Map[UUID, List[ConfirmedTransaction]] = mutable.Map.empty
   var transactions: mutable.Map[UUID, List[TransactionView]]           = mutable.Map.empty

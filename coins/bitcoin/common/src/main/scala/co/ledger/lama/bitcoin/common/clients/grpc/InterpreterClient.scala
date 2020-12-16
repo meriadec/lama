@@ -3,16 +3,17 @@ package co.ledger.lama.bitcoin.common.clients.grpc
 import java.time.Instant
 import java.util.UUID
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.explorer.ConfirmedTransaction
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.common.utils.BtcProtoUtils._
 import co.ledger.lama.bitcoin.interpreter.protobuf
+import co.ledger.lama.common.clients.grpc.GrpcClient
 import co.ledger.lama.common.models.{Coin, Sort}
 import co.ledger.lama.common.utils.{TimestampProtoUtils, UuidUtils}
-import io.grpc.Metadata
+import io.grpc.{ManagedChannel, Metadata}
 
-trait InterpreterClientService {
+trait InterpreterClient {
   def saveTransactions(accountId: UUID, txs: List[ConfirmedTransaction]): IO[Int]
 
   def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int]
@@ -53,12 +54,16 @@ trait InterpreterClientService {
   ): IO[GetBalanceHistoryResult]
 }
 
-class InterpreterGrpcClientService(
-    grpcClient: protobuf.BitcoinInterpreterServiceFs2Grpc[IO, Metadata]
-) extends InterpreterClientService {
+class InterpreterGrpcClient(
+    val managedChannel: ManagedChannel
+)(implicit val cs: ContextShift[IO])
+    extends InterpreterClient {
+
+  val client: protobuf.BitcoinInterpreterServiceFs2Grpc[IO, Metadata] =
+    GrpcClient.resolveClient(protobuf.BitcoinInterpreterServiceFs2Grpc.stub[IO], managedChannel)
 
   def saveTransactions(accountId: UUID, txs: List[ConfirmedTransaction]): IO[Int] =
-    grpcClient
+    client
       .saveTransactions(
         protobuf.SaveTransactionsRequest(
           accountId = UuidUtils uuidToBytes accountId,
@@ -69,7 +74,7 @@ class InterpreterGrpcClientService(
       .map(_.count)
 
   def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] =
-    grpcClient
+    client
       .removeDataFromCursor(
         protobuf.DeleteTransactionsRequest(
           UuidUtils uuidToBytes accountId,
@@ -80,7 +85,7 @@ class InterpreterGrpcClientService(
       .map(_.count)
 
   def getLastBlocks(accountId: UUID): IO[GetLastBlocksResult] =
-    grpcClient
+    client
       .getLastBlocks(
         protobuf.GetLastBlocksRequest(
           UuidUtils uuidToBytes accountId
@@ -90,7 +95,7 @@ class InterpreterGrpcClientService(
       .map(GetLastBlocksResult.fromProto)
 
   def compute(accountId: UUID, coin: Coin, addresses: List[AccountAddress]): IO[Int] =
-    grpcClient
+    client
       .compute(
         protobuf.ComputeRequest(
           UuidUtils.uuidToBytes(accountId),
@@ -108,7 +113,7 @@ class InterpreterGrpcClientService(
       offset: Int,
       sort: Option[Sort]
   ): IO[GetOperationsResult] =
-    grpcClient
+    client
       .getOperations(
         protobuf.GetOperationsRequest(
           accountId = UuidUtils.uuidToBytes(accountId),
@@ -127,7 +132,7 @@ class InterpreterGrpcClientService(
       offset: Int,
       sort: Option[Sort]
   ): IO[GetUtxosResult] = {
-    grpcClient
+    client
       .getUTXOs(
         protobuf.GetUTXOsRequest(
           accountId = UuidUtils.uuidToBytes(accountId),
@@ -141,7 +146,7 @@ class InterpreterGrpcClientService(
   }
 
   def getBalance(accountId: UUID): IO[BalanceHistory] = {
-    grpcClient
+    client
       .getBalance(
         protobuf.GetBalanceRequest(
           accountId = UuidUtils.uuidToBytes(accountId)
@@ -156,7 +161,7 @@ class InterpreterGrpcClientService(
       start: Option[Instant],
       end: Option[Instant]
   ): IO[GetBalanceHistoryResult] = {
-    grpcClient
+    client
       .getBalanceHistory(
         protobuf.GetBalanceHistoryRequest(
           accountId = UuidUtils.uuidToBytes(accountId),
@@ -169,7 +174,7 @@ class InterpreterGrpcClientService(
   }
 
   def getBalanceHistories(accountId: UUID): IO[GetBalanceHistoryResult] =
-    grpcClient
+    client
       .getBalanceHistories(
         protobuf.GetBalanceHistoriesRequest(
           accountId = UuidUtils.uuidToBytes(accountId)

@@ -1,6 +1,7 @@
-package co.ledger.lama.bitcoin.common.clients
+package co.ledger.lama.bitcoin.common.clients.http
 
 import cats.effect.{ContextShift, IO, Timer}
+import co.ledger.lama.bitcoin.common.Exceptions.ExplorerClientException
 import co.ledger.lama.bitcoin.common.config.ExplorerConfig
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.transactor.FeeInfo
@@ -13,9 +14,9 @@ import io.circe.{Decoder, Json}
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe.CirceEntityEncoder._
 import org.http4s.client.Client
-import org.http4s.{Method, Request}
+import org.http4s.{EntityDecoder, Method, Request, Uri}
 
-trait ExplorerClientService {
+trait ExplorerClient {
 
   def getCurrentBlock: IO[Block]
 
@@ -34,8 +35,8 @@ trait ExplorerClientService {
 
 }
 
-class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin: Coin)
-    extends ExplorerClientService
+class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coin)
+    extends ExplorerClient
     with IOLogging {
 
   private val coinBasePath = coin match {
@@ -43,16 +44,25 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
     case BtcTestnet => "/blockchain/v3/btc_testnet"
   }
 
+  private def callExpect[A](uri: Uri)(implicit d: EntityDecoder[IO, A]): IO[A] =
+    httpClient
+      .expect[A](uri)
+      .handleErrorWith(e => IO.raiseError(ExplorerClientException(uri, e)))
+
+  private def callExpect[A](req: Request[IO])(implicit c: EntityDecoder[IO, A]): IO[A] =
+    httpClient
+      .expect[A](req)
+      .handleErrorWith(e => IO.raiseError(ExplorerClientException(req.uri, e)))
+
   def getCurrentBlock: IO[Block] =
-    httpClient.expect[Block](conf.uri.withPath(s"$coinBasePath/blocks/current"))
+    callExpect[Block](conf.uri.withPath(s"$coinBasePath/blocks/current"))
 
   def getBlock(hash: String): IO[Option[Block]] =
-    httpClient
-      .expect[List[Block]](conf.uri.withPath(s"$coinBasePath/blocks/$hash"))
+    callExpect[List[Block]](conf.uri.withPath(s"$coinBasePath/blocks/$hash"))
       .map(_.headOption)
 
   def getBlock(height: Long): IO[Block] =
-    httpClient.expect[Block](conf.uri.withPath(s"$coinBasePath/blocks/$height"))
+    callExpect[Block](conf.uri.withPath(s"$coinBasePath/blocks/$height"))
 
   def getConfirmedTransactions(
       addresses: Seq[String],
@@ -74,12 +84,11 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
       .parJoinUnbounded
 
   def getSmartFees: IO[FeeInfo] = {
+    val feeUri = conf.uri.withPath(s"$coinBasePath/fees")
 
     for {
 
-      json <- httpClient.expect[Json](
-        conf.uri.withPath(s"$coinBasePath/fees")
-      )
+      json <- callExpect[Json](feeUri)
 
       feeInfo <- IO.fromOption {
         json.asObject
@@ -98,8 +107,11 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
             }
           }
       }(
-        new Exception(
-          s"Explorer.fees did not conform to expected format. payload :\n${json.spaces2SortKeys}"
+        ExplorerClientException(
+          feeUri,
+          new Exception(
+            s"Explorer.fees did not conform to expected format. payload :\n${json.spaces2SortKeys}"
+          )
         )
       )
 
@@ -108,14 +120,12 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
   }
 
   def broadcastTransaction(tx: String): IO[String] =
-    httpClient
-      .expect[SendTransactionResult](
-        Request[IO](
-          Method.POST,
-          conf.uri.withPath(s"$coinBasePath/transactions/send")
-        ).withEntity(Json.obj("tx" -> Json.fromString(tx)))
-      )
-      .map(_.result)
+    callExpect[SendTransactionResult](
+      Request[IO](
+        Method.POST,
+        conf.uri.withPath(s"$coinBasePath/transactions/send")
+      ).withEntity(Json.obj("tx" -> Json.fromString(tx)))
+    ).map(_.result)
 
   private def GetOperationsRequest(addresses: Seq[String], blockHash: Option[String]) = {
     val baseUri =
@@ -148,10 +158,7 @@ class ExplorerV3ClientService(httpClient: Client[IO], conf: ExplorerConfig, coin
           s"Getting txs with block_hash=$blockHash for addresses: ${addresses.mkString(",")}"
         ) *>
           IOUtils.retry(
-            httpClient
-              .expect[GetTransactionsResponse](
-                GetOperationsRequest(addresses, blockHash)
-              )
+            callExpect[GetTransactionsResponse](GetOperationsRequest(addresses, blockHash))
               .timeout(conf.timeout)
           )
       )

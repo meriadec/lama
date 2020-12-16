@@ -1,19 +1,14 @@
 package co.ledger.lama.bitcoin.transactor
 
 import cats.effect.{ExitCode, IO, IOApp}
-import co.ledger.lama.bitcoin.common.clients.ExplorerV3ClientService
-import co.ledger.lama.bitcoin.common.clients.grpc.{
-  InterpreterGrpcClientService,
-  KeychainGrpcClientService
-}
-import co.ledger.lama.bitcoin.interpreter.protobuf
-import co.ledger.lama.bitcoin.transactor.clients.grpc.BitcoinLibGrpcClientService
+import co.ledger.lama.bitcoin.common.clients.grpc.{InterpreterGrpcClient, KeychainGrpcClient}
+import co.ledger.lama.bitcoin.common.clients.http.ExplorerHttpClient
+import co.ledger.lama.bitcoin.transactor.clients.grpc.BitcoinLibGrpcClient
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.services.Clients
 import co.ledger.lama.common.services.grpc.HealthService
 import co.ledger.lama.common.utils.ResourceUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
-import co.ledger.protobuf.bitcoin.{keychain, libgrpc}
 import fs2._
 import pureconfig.ConfigSource
 
@@ -24,24 +19,18 @@ object App extends IOApp with IOLogging {
 
     val resources = for {
 
-      grpcBitcoinInterpreterClient <- grpcManagedChannel(conf.interpreter).map(
-        protobuf.BitcoinInterpreterServiceFs2Grpc.stub[IO](_)
-      )
+      interpreterGrpcChannel <- grpcManagedChannel(conf.interpreter)
 
-      grpcBitcoinLibClient <- grpcManagedChannel(conf.bitcoinLib).map(
-        libgrpc.CoinServiceFs2Grpc.stub[IO](_)
-      )
+      keychainGrpcChannel <- grpcManagedChannel(conf.keychain)
 
-      grpcKeychainClient <- grpcManagedChannel(conf.keychain).map(
-        keychain.KeychainServiceFs2Grpc.stub[IO](_)
-      )
+      bitcoinLibGrpcChannel <- grpcManagedChannel(conf.bitcoinLib)
 
       httpClient <- Clients.htt4s
 
-      keychainService    = new KeychainGrpcClientService(grpcKeychainClient)
-      interpreterService = new InterpreterGrpcClientService(grpcBitcoinInterpreterClient)
-      explorerService    = new ExplorerV3ClientService(httpClient, conf.explorer, _)
-      bitcoinLib         = new BitcoinLibGrpcClientService(grpcBitcoinLibClient)
+      interpreterService = new InterpreterGrpcClient(interpreterGrpcChannel)
+      keychainService    = new KeychainGrpcClient(keychainGrpcChannel)
+      explorerService    = new ExplorerHttpClient(httpClient, conf.explorer, _)
+      bitcoinLib         = new BitcoinLibGrpcClient(bitcoinLibGrpcChannel)
 
       serviceDefinitions = List(
         new TransactorGrpcService(

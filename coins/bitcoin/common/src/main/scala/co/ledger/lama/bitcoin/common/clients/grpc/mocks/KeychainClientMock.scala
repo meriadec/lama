@@ -7,12 +7,12 @@ import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
 import co.ledger.lama.bitcoin.common.models.keychain.KeychainInfo
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
-import co.ledger.lama.bitcoin.common.clients.grpc.KeychainClientService
+import co.ledger.lama.bitcoin.common.clients.grpc.KeychainClient
 import co.ledger.lama.common.logging.IOLogging
 
 import scala.collection.mutable
 
-class KeychainClientServiceMock extends KeychainClientService with IOLogging {
+class KeychainClientMock extends KeychainClient with IOLogging {
 
   var usedAddresses: mutable.Seq[String] = mutable.Seq.empty
 

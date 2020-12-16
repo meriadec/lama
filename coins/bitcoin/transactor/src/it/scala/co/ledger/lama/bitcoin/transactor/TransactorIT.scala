@@ -7,11 +7,8 @@ import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
 import co.ledger.lama.bitcoin.common.models.transactor.{CoinSelectionStrategy, PrepareTxOutput}
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, Output}
-import co.ledger.lama.bitcoin.common.clients.grpc.mocks.{
-  ExplorerClientServiceMock,
-  InterpreterClientServiceMock,
-  KeychainClientServiceMock
-}
+import co.ledger.lama.bitcoin.common.clients.grpc.mocks.{InterpreterClientMock, KeychainClientMock}
+import co.ledger.lama.bitcoin.common.clients.http.mocks.ExplorerClientMock
 import co.ledger.lama.bitcoin.transactor.services.BitcoinLibClientServiceMock
 import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.models.Coin.Btc
@@ -23,10 +20,10 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
 
   "Transactor" should "create hex transaction" in IOAssertion {
 
-    val interpreterService = new InterpreterClientServiceMock
+    val interpreterService = new InterpreterClientMock
     val bitcoinLibService  = new BitcoinLibClientServiceMock
-    val keychainService    = new KeychainClientServiceMock
-    val explorerService    = new ExplorerClientServiceMock
+    val keychainService    = new KeychainClientMock
+    val explorerService    = new ExplorerClientMock
     val transactor =
       new Transactor(
         bitcoinLibService,

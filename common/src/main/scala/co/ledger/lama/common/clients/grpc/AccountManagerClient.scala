@@ -1,14 +1,15 @@
 package co.ledger.lama.common.clients.grpc
 
 import java.util.UUID
-import cats.effect.IO
+
+import cats.effect.{ContextShift, IO}
 import co.ledger.lama.common.models._
 import co.ledger.lama.common.utils.UuidUtils
-import io.grpc.Metadata
 import co.ledger.lama.manager.protobuf
 import io.circe.JsonObject
+import io.grpc.{ManagedChannel, Metadata}
 
-trait AccountManagerClientService {
+trait AccountManagerClient {
   def registerAccount(
       keychainId: UUID,
       coinFamily: CoinFamily,
@@ -32,9 +33,13 @@ trait AccountManagerClientService {
   ): IO[SyncEventsResult[JsonObject]]
 }
 
-class AccountManagerGrpcClientService(
-    grpcClient: protobuf.AccountManagerServiceFs2Grpc[IO, Metadata]
-) extends AccountManagerClientService {
+class AccountManagerGrpcClient(
+    val managedChannel: ManagedChannel
+)(implicit val cs: ContextShift[IO])
+    extends AccountManagerClient {
+
+  val client: protobuf.AccountManagerServiceFs2Grpc[IO, Metadata] =
+    GrpcClient.resolveClient(protobuf.AccountManagerServiceFs2Grpc.stub[IO], managedChannel)
 
   def registerAccount(
       keychainId: UUID,
@@ -43,7 +48,7 @@ class AccountManagerGrpcClientService(
       syncFrequency: Option[Long],
       label: Option[String]
   ): IO[AccountRegistered] =
-    grpcClient
+    client
       .registerAccount(
         protobuf.RegisterAccountRequest(
           keychainId.toString,
@@ -57,7 +62,7 @@ class AccountManagerGrpcClientService(
       .map(AccountRegistered.fromProto)
 
   private def update(accountId: UUID, field: protobuf.UpdateAccountRequest.Field) =
-    grpcClient
+    client
       .updateAccount(
         protobuf.UpdateAccountRequest(
           UuidUtils.uuidToBytes(accountId),
@@ -80,7 +85,7 @@ class AccountManagerGrpcClientService(
     )
 
   def unregisterAccount(accountId: UUID): IO[AccountUnregistered] =
-    grpcClient
+    client
       .unregisterAccount(
         protobuf.UnregisterAccountRequest(
           UuidUtils.uuidToBytes(accountId)
@@ -90,7 +95,7 @@ class AccountManagerGrpcClientService(
       .map(AccountUnregistered.fromProto)
 
   def getAccountInfo(accountId: UUID): IO[AccountInfo] =
-    grpcClient
+    client
       .getAccountInfo(
         protobuf.AccountInfoRequest(
           UuidUtils.uuidToBytes(accountId)
@@ -103,7 +108,7 @@ class AccountManagerGrpcClientService(
       limit: Option[Int] = None,
       offset: Option[Int] = None
   ): IO[AccountsResult] =
-    grpcClient
+    client
       .getAccounts(
         protobuf.GetAccountsRequest(
           limit.getOrElse(0), // if 0, accountManager will default on correct value
@@ -119,7 +124,7 @@ class AccountManagerGrpcClientService(
       offset: Option[Int],
       sort: Option[Sort]
   ): IO[SyncEventsResult[JsonObject]] =
-    grpcClient
+    client
       .getSyncEvents(
         protobuf.GetSyncEventsRequest(
           accountId = UuidUtils.uuidToBytes(accountId),
@@ -133,5 +138,4 @@ class AccountManagerGrpcClientService(
         new Metadata
       )
       .map(SyncEventsResult.fromProto[JsonObject])
-
 }
