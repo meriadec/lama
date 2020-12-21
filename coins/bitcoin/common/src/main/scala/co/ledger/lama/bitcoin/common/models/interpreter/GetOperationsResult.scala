@@ -6,11 +6,17 @@ import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto.{deriveConfiguredDecoder, deriveConfiguredEncoder}
 
 case class GetOperationsResult(
-    truncated: Boolean,
     operations: List[Operation],
-    size: Int,
-    total: Int
-)
+    total: Int,
+    truncated: Boolean
+) {
+  def toProto: protobuf.GetOperationsResult =
+    protobuf.GetOperationsResult(
+      operations.map(_.toProto),
+      total,
+      truncated
+    )
+}
 
 object GetOperationsResult {
   implicit val decoder: Decoder[GetOperationsResult] =
@@ -20,9 +26,8 @@ object GetOperationsResult {
 
   def fromProto(proto: protobuf.GetOperationsResult): GetOperationsResult =
     GetOperationsResult(
-      proto.truncated,
       proto.operations.map(Operation.fromProto).toList,
-      proto.operations.size,
-      proto.total
+      proto.total,
+      proto.truncated
     )
 }

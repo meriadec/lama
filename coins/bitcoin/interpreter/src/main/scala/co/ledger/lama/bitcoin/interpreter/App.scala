@@ -28,7 +28,9 @@ object App extends IOApp {
 
       // define rpc service definitions
       serviceDefinitions = List(
-        new DbInterpreter(notificationService, db, conf.maxConcurrent).definition,
+        new InterpreterGrpcService(
+          new Interpreter(notificationService, db, conf.maxConcurrent)
+        ).definition,
         new HealthService().definition
       )
 

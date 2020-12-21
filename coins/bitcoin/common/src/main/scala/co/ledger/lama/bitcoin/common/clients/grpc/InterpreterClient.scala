@@ -41,17 +41,15 @@ trait InterpreterClient {
       sort: Option[Sort]
   ): IO[GetUtxosResult]
 
-  def getBalance(accountId: UUID): IO[BalanceHistory]
+  def getBalance(accountId: UUID): IO[CurrentBalance]
 
   def getBalanceHistory(
       accountId: UUID,
       start: Option[Instant],
-      end: Option[Instant]
+      end: Option[Instant],
+      interval: Option[Int]
   ): IO[GetBalanceHistoryResult]
 
-  def getBalanceHistories(
-      accountId: UUID
-  ): IO[GetBalanceHistoryResult]
 }
 
 class InterpreterGrpcClient(
@@ -145,7 +143,7 @@ class InterpreterGrpcClient(
       .map(GetUtxosResult.fromProto)
   }
 
-  def getBalance(accountId: UUID): IO[BalanceHistory] = {
+  def getBalance(accountId: UUID): IO[CurrentBalance] = {
     client
       .getBalance(
         protobuf.GetBalanceRequest(
@@ -153,33 +151,26 @@ class InterpreterGrpcClient(
         ),
         new Metadata
       )
-      .map(BalanceHistory.fromProto)
+      .map(CurrentBalance.fromProto)
   }
 
   def getBalanceHistory(
       accountId: UUID,
       start: Option[Instant],
-      end: Option[Instant]
+      end: Option[Instant],
+      interval: Option[Int]
   ): IO[GetBalanceHistoryResult] = {
     client
       .getBalanceHistory(
         protobuf.GetBalanceHistoryRequest(
           accountId = UuidUtils.uuidToBytes(accountId),
           start.map(TimestampProtoUtils.serialize),
-          end.map(TimestampProtoUtils.serialize)
+          end.map(TimestampProtoUtils.serialize),
+          interval.getOrElse(0)
         ),
         new Metadata
       )
       .map(GetBalanceHistoryResult.fromProto)
   }
 
-  def getBalanceHistories(accountId: UUID): IO[GetBalanceHistoryResult] =
-    client
-      .getBalanceHistories(
-        protobuf.GetBalanceHistoriesRequest(
-          accountId = UuidUtils.uuidToBytes(accountId)
-        ),
-        new Metadata
-      )
-      .map(GetBalanceHistoryResult.fromProto)
 }

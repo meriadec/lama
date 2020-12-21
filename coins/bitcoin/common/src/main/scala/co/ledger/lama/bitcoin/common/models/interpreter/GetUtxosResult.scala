@@ -6,11 +6,17 @@ import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto.{deriveConfiguredDecoder, deriveConfiguredEncoder}
 
 case class GetUtxosResult(
-    truncated: Boolean,
     utxos: List[Utxo],
-    size: Int,
-    total: Int
-)
+    total: Int,
+    truncated: Boolean
+) {
+  def toProto: protobuf.GetUTXOsResult =
+    protobuf.GetUTXOsResult(
+      utxos.map(_.toProto),
+      total,
+      truncated
+    )
+}
 
 object GetUtxosResult {
   implicit val getUTXOsResultDecoder: Decoder[GetUtxosResult] =
@@ -20,9 +26,8 @@ object GetUtxosResult {
 
   def fromProto(proto: protobuf.GetUTXOsResult): GetUtxosResult =
     GetUtxosResult(
-      proto.truncated,
       proto.utxos.map(Utxo.fromProto).toList,
-      proto.utxos.size,
-      proto.total
+      proto.total,
+      proto.truncated
     )
 }

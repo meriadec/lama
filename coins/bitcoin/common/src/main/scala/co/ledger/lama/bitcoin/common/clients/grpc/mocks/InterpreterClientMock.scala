@@ -172,10 +172,9 @@ class InterpreterClientMock extends InterpreterClient {
 
     IO(
       new GetOperationsResult(
-        ops.size < operations(accountId).size,
         ops,
-        ops.size,
-        total
+        total,
+        ops.size < operations(accountId).size
       )
     )
   }
@@ -215,27 +214,23 @@ class InterpreterClientMock extends InterpreterClient {
 
     IO(
       new GetUtxosResult(
-        false,
         utxos,
-        utxos.size,
-        total
+        total,
+        false
       )
     )
 
   }
 
-  def getBalance(accountId: UUID): IO[BalanceHistory] =
+  def getBalance(accountId: UUID): IO[CurrentBalance] =
     IO.raiseError(new Exception("Not implements Yet"))
 
   def getBalanceHistory(
       accountId: UUID,
       start: Option[Instant],
-      end: Option[Instant]
+      end: Option[Instant],
+      interval: Option[Int] = None
   ): IO[GetBalanceHistoryResult] =
     IO.raiseError(new Exception("Not implements Yet"))
 
-  def getBalanceHistories(
-      accountId: UUID
-  ): IO[GetBalanceHistoryResult] =
-    IO.raiseError(new Exception("Not implements Yet"))
 }

@@ -53,10 +53,10 @@ case class BalanceUpdatedNotification(
     accountId: UUID,
     coinFamily: CoinFamily,
     coin: Coin,
-    balanceHistory: Json
+    currentBalance: Json
 ) extends Notification {
   val status: Notification.Status = Notification.BalanceUpdated
-  val payload: Json               = balanceHistory
+  val payload: Json               = currentBalance
 }
 
 object BalanceUpdatedNotification {

@@ -28,6 +28,8 @@ object RouterUtils {
   object OptionalEndInstantQueryParamMatcher
       extends OptionalQueryParamDecoderMatcher[Instant]("end")
 
+  object OptionalIntervalQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("interval")
+
   object OptionalFromIndexQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("from")
 
   object OptionalToIndexQueryParamMatcher extends OptionalQueryParamDecoderMatcher[Int]("to")

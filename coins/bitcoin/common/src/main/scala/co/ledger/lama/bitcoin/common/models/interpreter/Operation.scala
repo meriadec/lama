@@ -37,9 +37,7 @@ object Operation {
 
   def fromProto(proto: protobuf.Operation): Operation = {
     Operation(
-      UuidUtils
-        .bytesToUuid(proto.accountId)
-        .getOrElse(throw UuidUtils.InvalidUUIDException),
+      UuidUtils.unsafeBytesToUuid(proto.accountId),
       proto.hash,
       proto.transaction.map(TransactionView.fromProto),
       OperationType.fromProto(proto.operationType),

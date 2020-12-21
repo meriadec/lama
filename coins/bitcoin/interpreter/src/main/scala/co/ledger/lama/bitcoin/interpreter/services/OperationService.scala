@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter.services
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
-import co.ledger.lama.bitcoin.common.models.interpreter.{Operation, Utxo}
+import co.ledger.lama.bitcoin.common.models.interpreter.{GetOperationsResult, GetUtxosResult}
 import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Sort
@@ -22,7 +22,7 @@ class OperationService(
       limit: Int,
       offset: Int,
       sort: Sort
-  )(implicit cs: ContextShift[IO]): IO[(List[Operation], Int, Boolean)] =
+  )(implicit cs: ContextShift[IO]): IO[GetOperationsResult] =
     for {
       opsWithTx <-
         OperationQueries
@@ -43,7 +43,7 @@ class OperationService(
       truncated = opsWithTx.size > limit
     } yield {
       val operations = opsWithTx.slice(0, limit)
-      (operations, total, truncated)
+      GetOperationsResult(operations, total, truncated)
     }
 
   def getUTXOs(
@@ -51,7 +51,7 @@ class OperationService(
       sort: Sort,
       limit: Int,
       offset: Int
-  ): IO[(List[Utxo], Int, Boolean)] =
+  ): IO[GetUtxosResult] =
     for {
       utxos <-
         OperationQueries
@@ -64,7 +64,7 @@ class OperationService(
 
       // we get 1 more than necessary to know if there's more, then we return the correct number
       truncated = utxos.size > limit
-    } yield (utxos.slice(0, limit), total, truncated)
+    } yield GetUtxosResult(utxos.slice(0, limit), total, truncated)
 
   def compute(accountId: UUID): Stream[IO, OperationToSave] =
     operationSource(accountId)

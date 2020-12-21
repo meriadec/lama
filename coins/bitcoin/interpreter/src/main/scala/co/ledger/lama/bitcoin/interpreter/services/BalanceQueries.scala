@@ -2,8 +2,8 @@ package co.ledger.lama.bitcoin.interpreter.services
 
 import java.time.Instant
 import java.util.UUID
-import co.ledger.lama.bitcoin.common.models.explorer.Block
-import co.ledger.lama.bitcoin.common.models.interpreter.BalanceHistory
+
+import co.ledger.lama.bitcoin.common.models.interpreter.{BalanceHistory, CurrentBalance}
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import doobie._
 import doobie.implicits._
@@ -12,33 +12,37 @@ import fs2.Stream
 
 object BalanceQueries {
 
-  def getBalanceHistoriesForDemo(accountId: UUID): Stream[ConnectionIO, BalanceHistory] =
+  def getUncomputedBalanceHistories(
+      accountId: UUID,
+      blockHeight: Long
+  ): Stream[ConnectionIO, BalanceHistory] =
     sql"""
           WITH ops as (
             SELECT
               account_id,
+              block_height,
               time,
               SUM( ( case when operation_type = 'sent' then -1 else 1 end ) * value) as balance
             FROM operation
             WHERE account_id = $accountId
-            GROUP BY account_id, time
+              AND block_height > $blockHeight
+            GROUP BY account_id, time, block_height
             ORDER BY time
           )
+          
           SELECT
-            SUM(balance) OVER (PARTITION BY account_id ORDER by time) as balance,
-            0,
-            0,
-            0,
+            account_id,
+            SUM(balance) OVER (PARTITION BY account_id ORDER by block_height) as balance,
+            block_height,
             time
           FROM ops
        """
       .query[BalanceHistory]
       .stream
-      .filter(_.time.isAfter(Instant.parse("2020-12-01T00:00:00.00Z")))
 
   def getCurrentBalance(
       accountId: UUID
-  ): ConnectionIO[BalanceHistory] = {
+  ): ConnectionIO[CurrentBalance] = {
     val balanceAndUtxosQuery =
       sql"""SELECT COALESCE(SUM(o.value), 0), COALESCE(COUNT(o.value), 0)
           FROM output o
@@ -70,34 +74,42 @@ object BalanceQueries {
     } yield {
       val (balance, utxos) = result1
       val (received, sent) = result2
-      BalanceHistory(balance, utxos, received, sent)
+      CurrentBalance(balance, utxos, received, sent)
     }
   }
 
   def saveBalanceHistory(
-      accountId: UUID,
-      b: BalanceHistory,
-      blockHeight: Long
-  ): ConnectionIO[BalanceHistory] =
-    sql"""INSERT INTO balance_history(account_id, balance, utxos, received, sent, block_height)
-          VALUES($accountId, ${b.balance}, ${b.utxos}, ${b.received}, ${b.sent}, $blockHeight)
-          RETURNING balance, utxos, received, sent, time ;
-       """.query[BalanceHistory].unique
+      balances: List[BalanceHistory]
+  ): ConnectionIO[Int] = {
+    val query = """INSERT INTO balance_history(
+            account_id, balance, block_height, time
+          ) VALUES(?, ?, ?, ?)
+       """
+    Update[BalanceHistory](query).updateMany(balances)
+  }
 
-  def getBalancesHistory(
+  def getBalanceHistory(
       accountId: UUID,
-      start: Instant,
-      end: Instant
-  ): Stream[ConnectionIO, BalanceHistory] =
-    sql"""SELECT balance, utxos, received, sent, time
+      start: Option[Instant],
+      end: Option[Instant]
+  ): Stream[ConnectionIO, BalanceHistory] = {
+    val from = start.map(s => fr"AND time >= $s").getOrElse(Fragment.empty)
+    val to   = end.map(e => fr"AND time <= $e").getOrElse(Fragment.empty)
+
+    (
+      sql"""SELECT account_id, balance, block_height, time
           FROM balance_history
           WHERE account_id = $accountId
-          AND time >= $start
-          AND time <= $end
-          ORDER BY time
-       """.query[BalanceHistory].stream
+          """ ++
+        from ++
+        to ++
+        sql"""ORDER BY time ASC"""
+    )
+      .query[BalanceHistory]
+      .stream
+  }
 
-  def getBalancesHistoryCount(
+  def getBalanceHistoryCount(
       accountId: UUID
   ): ConnectionIO[Int] =
     sql"""SELECT COUNT(balance)
@@ -111,11 +123,20 @@ object BalanceQueries {
           AND block_height >= $blockHeight
        """.update.run
 
-  def getLastBlock(accountId: UUID): ConnectionIO[Block] =
-    sql"""SELECT DISTINCT block_hash, block_height, block_time
-          FROM transaction
+  def getLastBalance(accountId: UUID): ConnectionIO[Option[BalanceHistory]] =
+    sql"""SELECT account_id, balance, block_height, time
+          FROM balance_history
           WHERE account_id = $accountId
           ORDER BY block_height DESC
           LIMIT 1
-       """.query[Block].unique
+       """.query[BalanceHistory].option
+
+  def getLastBalanceBefore(accountId: UUID, time: Instant): ConnectionIO[Option[BalanceHistory]] =
+    sql"""SELECT account_id, balance, block_height, time
+          FROM balance_history
+          WHERE account_id = $accountId
+          AND time < $time
+          ORDER BY block_height DESC
+          LIMIT 1
+       """.query[BalanceHistory].option
 }

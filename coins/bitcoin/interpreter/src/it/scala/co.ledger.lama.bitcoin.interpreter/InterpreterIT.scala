@@ -29,10 +29,12 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
   private val inputAddress =
     AccountAddress("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ", ChangeType.External, NonEmptyList.of(1, 1))
 
+  private val time: Instant = Instant.parse("2019-04-04T10:03:22Z")
+
   val block: Block = Block(
     "00000000000000000008c76a28e115319fb747eb29a7e0794526d0fe47608379",
     570153,
-    Instant.parse("2019-04-04T10:03:22Z")
+    time
   )
 
   val outputs = List(
@@ -55,7 +57,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
     ConfirmedTransaction(
       "txId",
       "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1f",
-      Instant.parse("2019-04-04T10:03:22Z"),
+      time,
       0,
       20566,
       inputs,
@@ -75,12 +77,12 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
         val block2 = Block(
           "0000000000000000000cc9cc204cf3b314d106e69afbea68f2ae7f9e5047ba74",
           block.height + 1,
-          Instant.parse("2019-04-04T10:03:22Z")
+          time
         )
         val block3 = Block(
           "0000000000000000000bf68b57eacbff287ceafecb54a30dc3fd19630c9a3883",
           block.height + 2,
-          Instant.parse("2019-04-04T10:03:22Z")
+          time
         )
 
         // intentionally disordered
@@ -100,9 +102,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
             .compile
             .toList
 
-          // Compute twice to have 2 balances history
-          _ <- balanceService.compute(accountId)
-          _ <- balanceService.compute(accountId)
+          _ <- balanceService.computeNewBalanceHistory(accountId)
 
           resOpsBeforeDeletion <- operationService.getOperations(
             accountId,
@@ -112,7 +112,8 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
             Sort.Ascending
           )
 
-          (opsBeforeDeletion, opsBeforeDeletionTotal, opsBeforeDeletionTrunc) = resOpsBeforeDeletion
+          GetOperationsResult(opsBeforeDeletion, opsBeforeDeletionTotal, opsBeforeDeletionTrunc) =
+            resOpsBeforeDeletion
 
           resUtxoBeforeDeletion <- operationService.getUTXOs(
             accountId,
@@ -121,16 +122,20 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
             offset = 0
           )
 
-          (utxosBeforeDeletion, utxosBeforeDeletionTotal, utxosBeforeDeletionTrunc) =
+          GetUtxosResult(utxosBeforeDeletion, utxosBeforeDeletionTotal, utxosBeforeDeletionTrunc) =
             resUtxoBeforeDeletion
 
-          now   = Instant.now()
-          start = now.minusSeconds(86400)
-          end   = now.plusSeconds(86400)
-          balancesBeforeDeletion <- balanceService.getBalancesHistory(accountId, start, end)
+          start = time.minusSeconds(86400)
+          end   = time.plusSeconds(86400)
+          balancesBeforeDeletion <- balanceService.getBalanceHistory(
+            accountId,
+            Some(start),
+            Some(end),
+            None
+          )
 
           _ <- transactionService.removeFromCursor(accountId, block.height)
-          _ <- balanceService.removeBalancesHistoryFromCursor(accountId, block.height)
+          _ <- balanceService.removeBalanceHistoryFromCursor(accountId, block.height)
 
           resOpsAfterDeletion <- operationService.getOperations(
             accountId,
@@ -140,9 +145,15 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
             Sort.Ascending
           )
 
-          (opsAfterDeletion, opsAfterDeletionTotal, opsAfterDeletionTrunc) = resOpsAfterDeletion
+          GetOperationsResult(opsAfterDeletion, opsAfterDeletionTotal, opsAfterDeletionTrunc) =
+            resOpsAfterDeletion
 
-          balancesAfterDeletion <- balanceService.getBalancesHistory(accountId, start, end)
+          balancesAfterDeletion <- balanceService.getBalanceHistory(
+            accountId,
+            Some(start),
+            Some(end),
+            None
+          )
 
           blocksAfterDelete <- transactionService.getLastBlocks(accountId).compile.toList
         } yield {
@@ -156,7 +167,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
           utxosBeforeDeletionTotal shouldBe 3
           utxosBeforeDeletionTrunc shouldBe false
 
-          balancesBeforeDeletion should have size 2
+          balancesBeforeDeletion should have size 3
 
           opsAfterDeletion shouldBe empty
           opsAfterDeletionTotal shouldBe 0

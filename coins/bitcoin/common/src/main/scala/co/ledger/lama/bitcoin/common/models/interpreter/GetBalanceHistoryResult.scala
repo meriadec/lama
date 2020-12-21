@@ -6,8 +6,7 @@ import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto.{deriveConfiguredDecoder, deriveConfiguredEncoder}
 
 case class GetBalanceHistoryResult(
-    balances: Seq[BalanceHistory],
-    total: Int
+    balances: List[BalanceHistory]
 )
 
 object GetBalanceHistoryResult {
@@ -18,7 +17,6 @@ object GetBalanceHistoryResult {
 
   def fromProto(proto: protobuf.GetBalanceHistoryResult): GetBalanceHistoryResult =
     GetBalanceHistoryResult(
-      proto.balances.map(BalanceHistory.fromProto),
-      proto.total
+      proto.balances.map(BalanceHistory.fromProto).toList
     )
 }

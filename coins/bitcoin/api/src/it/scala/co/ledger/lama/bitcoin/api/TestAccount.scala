@@ -20,6 +20,7 @@ case class AccountExpectedResult(
     utxosSize: Int,
     lastTxHash: String,
     balance: Long,
+    balanceHistorySize: Int,
     amountReceived: Long,
     amountSent: Long
 )

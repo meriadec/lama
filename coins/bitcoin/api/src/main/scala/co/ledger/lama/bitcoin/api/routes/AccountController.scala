@@ -1,7 +1,11 @@
 package co.ledger.lama.bitcoin.api.routes
 
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+
 import cats.effect.{ContextShift, IO}
 import cats.implicits._
+import co.ledger.lama.bitcoin.api.models.BalancePreset
 import co.ledger.lama.bitcoin.api.models.accountManager._
 import co.ledger.lama.bitcoin.api.models.transactor._
 import co.ledger.lama.common.logging.IOLogging
@@ -224,22 +228,29 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
       case GET -> Root / UUIDVar(
             accountId
           ) / "balances" :? OptionalStartInstantQueryParamMatcher(start)
-          +& OptionalEndInstantQueryParamMatcher(end) =>
+          +& OptionalEndInstantQueryParamMatcher(end)
+          +& OptionalIntervalQueryParamMatcher(interval) =>
         log.info(s"Fetching balances history for account: $accountId") *>
           interpreterClient
             .getBalanceHistory(
               accountId,
               start,
-              end
+              end,
+              interval
             )
             .flatMap(Ok(_))
 
       case GET -> Root / UUIDVar(
             accountId
-          ) / "balances" / "demo" =>
+          ) / "balances" / BalancePreset(preset) =>
         log.info(s"Fetching balances history for account: $accountId") *>
           interpreterClient
-            .getBalanceHistories(accountId)
+            .getBalanceHistory(
+              accountId,
+              Some(Instant.now().minus(preset.durationInSeconds, ChronoUnit.SECONDS)),
+              Some(Instant.now()),
+              Some(preset.interval)
+            )
             .flatMap(Ok(_))
 
       case req @ POST -> Root / UUIDVar(

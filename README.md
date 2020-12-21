@@ -21,6 +21,12 @@ Main features of Lama are:
 
 ![](./excalidraw/lama-overview.png)
 
+## Run lama components through docker
+
+`docker-compose up`
+
+Please have a look on `docker-compose.yml` file for more details on the configuration.
+
 ## Account manager
 
 The account manager handles account registration and unregistration and emits events to the dedicated coin worker.
@@ -31,8 +37,6 @@ Please refer to the [account manager README][account-manager] for more details o
 Install [docker][docker] then run `docker-compose up account-manager`.
 
 This will create a PostgreSql, a RabbitMQ, a Redis and the latest published image of the lama account manager.
-
-This will also apply migration on the PostgreSql database through [flyway][flyway].
 
 Please have a look on `docker-compose.yml` file for more details on the configuration.
 
@@ -45,6 +49,22 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 Please refer to the [getting started][account-manager-getting-started] section of the account manager README.
 
 ## Coin integration
+
+### Bitcoin REST API
+
+#### Run through docker (recommended)
+
+Run `docker-compose up bitcoin-api`.
+
+Please have a look on `docker-compose.yml` file for more details on the configuration.
+
+##### Build and publish image in local
+
+`sbt bitcoinApi/docker:publishLocal`
+
+#### Run manually
+
+Please refer to the [getting started][bitcoin-api-getting-started] section of the bitcoin api README.
 
 ### Bitcoin Worker
 
@@ -78,26 +98,26 @@ Please have a look on `docker-compose.yml` file for more details on the configur
 
 Please refer to the [getting started][bitcoin-interpreter-getting-started] section of the bitcoin interpreter README.
 
-### Bitcoin REST API
+### Bitcoin transactor
 
 #### Run through docker (recommended)
 
-Run `docker-compose up service`.
+Run `docker-compose up bitcoin-transactor`.
 
 Please have a look on `docker-compose.yml` file for more details on the configuration.
 
 ##### Build and publish image in local
 
-`sbt bitcoinApi/docker:publishLocal`
+`sbt bitcoinTransactor/docker:publishLocal`
 
 #### Run manually
 
-Please refer to the [getting started][bitcoin-api-getting-started] section of the bitcoin api README.
+Please refer to the [getting started][bitcoin-transactor-getting-started] section of the bitcoin transactor README.
 
 [docker]: https://docs.docker.com/get-docker/
-[flyway]: https://flywaydb.org/
 [account-manager]: https://github.com/LedgerHQ/lama/tree/master/account-manager
 [account-manager-getting-started]: account-manager/README.md#getting-started
 [bitcoin-api-getting-started]: coins/bitcoin/api//README.md#getting-started
 [bitcoin-interpreter-getting-started]: coins/bitcoin/interpreter/README.md#getting-started
 [bitcoin-worker-getting-started]: coins/bitcoin/worker/README.md#getting-started
+[bitcoin-transactor-getting-started]: coins/bitcoin/transactor/README.md#getting-started

@@ -16,9 +16,8 @@ service BitcoinInterpreterService {
   rpc GetOperations(GetOperationsRequest) returns (GetOperationsResult) {}
   rpc Compute(ComputeRequest) returns (ResultCount) {}
   rpc GetUTXOs(GetUTXOsRequest) returns (GetUTXOsResult) {}
-  rpc GetBalance(GetBalanceRequest) returns (BalanceHistory) {}
+  rpc GetBalance(GetBalanceRequest) returns (CurrentBalance) {}
   rpc GetBalanceHistory(GetBalanceHistoryRequest) returns (GetBalanceHistoryResult) {}
-  rpc GetBalanceHistories(GetBalanceHistoriesRequest) returns (GetBalanceHistoryResult) {}
 }
 
 // We sort by date
@@ -82,19 +81,15 @@ message GetBalanceRequest {
   bytes account_id = 1;
 }
 
-message GetBalanceHistoriesRequest {
-  bytes account_id = 1;
-}
-
 message GetBalanceHistoryRequest {
   bytes account_id = 1;
   google.protobuf.Timestamp start = 2;
   google.protobuf.Timestamp end = 3;
+  int32 interval = 4;
 }
 
 message GetBalanceHistoryResult {
   repeated BalanceHistory balances = 1;
-  int32 total = 2;
 }
 
 message ResultCount {
