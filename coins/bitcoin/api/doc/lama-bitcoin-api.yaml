@@ -2,9 +2,9 @@ openapi: 3.0.1
 info:
   title: Lama Bitcoin API
   description: A collection of endpoints exposed by the Lama Bitcoin API
-  version: 0.3.0
+  version: 0.5.0
 servers:
-  - url: http://localhost:8080/
+  - url: http://localhost:8080
 paths:
   /accounts:
     post:
@@ -36,17 +36,16 @@ paths:
       operationId: getAccount
       responses:
         200:
-          description: The account found
+          description: Account
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetAccountResponse'
         404:
           description: Account not found
-          content: {}
     put:
-      summary: Update the sync frequency of an account
-      operationId: updateAccountSyncFrequency
+      summary: Update an account
+      operationId: updateAccount
       requestBody:
         required: true
         content:
@@ -55,21 +54,16 @@ paths:
               $ref: '#/components/schemas/UpdateAccountRequest'
       responses:
         200:
-          description: The new sync frequency
-          content:
-            text/plain:
-              schema:
-                type: number
-                example: 60
+          description: OK
     delete:
-      summary: Unregister account
+      summary: Unregister an account and delete synchronized data
       operationId: unregisterAccount
       responses:
         200:
-          description: The account has been unregistered successfully
+          description: OK
   /accounts/{accountId}/utxos:
     get:
-      summary: Get utxos from an account
+      summary: Get account utxos
       parameters:
         - name: accountId
           in: path
@@ -83,7 +77,7 @@ paths:
             type: number
             minimum: 1
             maximum: 1000
-            default: 20
+            default: 100
         - name: offset
           in: query
           schema:
@@ -98,7 +92,7 @@ paths:
             default: ASC
       responses:
         200:
-          description: The utxos from the account
+          description: OK
           content:
             application/json:
               schema:
@@ -113,18 +107,13 @@ paths:
           schema:
             type: string
             format: 'uuid'
-        - name: block_height
-          in: query
-          schema:
-            type: number
-            format: int64
         - name: limit
           in: query
           schema:
             type: number
             minimum: 1
-            maximum: 20
-            default: 20
+            maximum: 1000
+            default: 100
         - name: offset
           in: query
           schema:
@@ -139,14 +128,14 @@ paths:
             default: ASC
       responses:
         200:
-          description: The operations from the account
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetOperationsResult'
   /accounts/{accountId}/balances:
     get:
-      summary: Get balance history from an account
+      summary: Get balances history for an account
       parameters:
         - name: accountId
           in: path
@@ -157,38 +146,154 @@ paths:
         - name: start
           in: query
           schema:
-            type: number
-            format: instant
+            type: string
+            format: timestamp
+            example: '2020-01-01T00:00:00.000Z'
         - name: end
           in: query
           schema:
+            type: string
+            format: timestamp
+            example: '2020-12-31T23:59:59.000Z'
+        - name: interval
+          in: query
+          schema:
             type: number
-            format: instant
+            example: 12
       responses:
         200:
-          description: All the balance histories from the account
+          description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/BalanceHistory'
+  /accounts/{accountId}/balances/daily:
+    get:
+      summary: Get daily balances history for an account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: 'uuid'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BalanceHistory'
+  /accounts/{accountId}/balances/monthly:
+    get:
+      summary: Get monthly balances history for an account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: 'uuid'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BalanceHistory'
+  /accounts/{accountId}/balances/yearly:
+    get:
+      summary: Get yearly balances history for an account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: 'uuid'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BalanceHistory'
+  /accounts/{accountId}/addresses:
+    get:
+      summary: Get account observable addresses
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: 'uuid'
+        - name: change
+          in: query
+          schema:
+            $ref: '#/components/schemas/ChangeType'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Address'
+  /accounts/{accountId}/addresses/fresh:
+    get:
+      summary: Get account fresh addresses
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: 'uuid'
+        - name: change
+          in: query
+          schema:
+            $ref: '#/components/schemas/ChangeType'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Address'
 components:
   schemas:
     GetAccountResponse:
       required:
         - account_id
+        - coin
         - sync_frequency
         - balance
         - utxos
         - received
         - sent
+        - label
       type: object
       properties:
         account_id:
           type: string
           format: 'uuid'
           example: '013260eb-7624-40d2-8327-97177a69d8f3'
+        coin:
+          type: string
+          enum: [btc, btc_testnet, btc_regtest]
+          example: 'btc'
         sync_frequency:
           type: number
           format: seconds
@@ -211,6 +316,91 @@ components:
           type: string
           format: bigint
           example: '1625399'
+        label:
+          type: string
+          example: 'an example account'
+    RegisterAccountRequest:
+      required:
+        - extended_public_key
+        - scheme
+        - lookahead_size
+        - network
+        - coin_family
+        - coin
+      type: object
+      properties:
+        extended_public_key:
+          type: string
+          example: 'tpubDCmWgKi3ZvZr7w7TvZK7cfh9Jpr7VaBmr6QEkhbtPeZXSeW34TunnoP982NCrgCsFBPLvTxS6qyiqBT3EH8KDeXq2mA23CbPfWPMWZ8LwWk'
+        scheme:
+          type: string
+          enum: [BIP44, BIP49, BIP84]
+          example: 'BIP84'
+        lookahead_size:
+          type: number
+          example: 20
+        coin:
+          type: string
+          enum: [btc, btc_testnet, btc_regtest]
+          example: 'btc_testnet'
+        label:
+          type: string
+          example: 'testnet account'
+    RegisterAccountResponse:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+          example: '013260eb-7624-40d2-8327-97177a69d8f3'
+        sync_id:
+          type: string
+          format: uuid
+          example: '013260eb-7624-40d2-8327-97177a69d8f3'
+        sync_frequency:
+          type: number
+          example: 600
+    UpdateAccountRequest:
+      required:
+        - sync_frequency
+        - label
+      type: object
+      properties:
+        sync_frequency:
+          type: number
+          example: 60
+        label:
+          type: string
+          example: 'new label'
+    GetOperationsResult:
+      required:
+        - truncated
+        - operations
+        - total
+      type: object
+      properties:
+        truncated:
+          type: boolean
+          example: false
+        operations:
+          $ref: '#/components/schemas/Operation'
+        total:
+          type: number
+          example: 1
+    Address:
+      required:
+        - account_address
+        - change_type
+        - derivation
+      type: object
+      properties:
+        account_address:
+          type: string
+          example: 'tb1q3takqxt56y4d348jl0z8argngj8tw63lnqwds9'
+        change_type:
+          $ref: '#/components/schemas/ChangeType'
+        derivation:
+          $ref: '#/components/schemas/Derivation'
     SyncEvent:
       required:
         - account_id
@@ -229,75 +419,19 @@ components:
           example: '013260eb-7624-40d2-8327-97177a69d8f3'
         status:
           type: string
-          enum: [registered, unregistered, published, synchronized, sync_failed, deleted, delete_failed]
-        payload:
+          enum: [ registered, unregistered, published, synchronized, sync_failed, deleted, delete_failed ]
+        cursor:
           type: object
-    RegisterAccountRequest:
-      required:
-        - extended_public_key
-        - scheme
-        - lookahead_size
-        - network
-        - coin_family
-        - coin
-      type: object
-      properties:
-        extended_public_key:
+          example:
+            hash: 000000000000003e0848b000c0e25783a8eca43638864909ac2d2d8a724f183f
+            time: '2020-12-08T14:05:55Z'
+            height: 1896649
+        error:
+          type: object
+          example:
+        time:
           type: string
-          example: 'xpub6BuPWhjLqutPV8SF4RMrrn8c3t7uBZbz4CBbThpbg9GYjqRMncra9mjgSfWSK7uMDz37hhzJ8wvkbDDQQJt6VgwLoszvmPiSBtLA1bPLLSn'
-        scheme:
-          type: string
-          example: 'BIP44'
-        lookahead_size:
-          type: number
-          example: 20
-        network:
-          type: string
-          enum: [MainNet, TestNet, RegTest]
-          example: 'MainNet'
-        coin_family:
-          type: integer
-          enum: [bitcoin]
-          example: 'bitcoin'
-        coin:
-          type: string
-          enum: [btc, btc_testnet, btc_regtest]
-          example: 'btc'
-    RegisterAccountResponse:
-      type: object
-      properties:
-        account_id:
-          type: string
-          format: uuid
-          example: '013260eb-7624-40d2-8327-97177a69d8f3'
-        sync_id:
-          type: string
-          format: uuid
-          example: '013260eb-7624-40d2-8327-97177a69d8f3'
-        sync_frequency:
-          type: number
-          example: 600
-    UpdateAccountRequest:
-      required:
-        - sync_frequency
-      type: object
-      properties:
-        sync_frequency:
-          type: number
-          example: 60
-    GetOperationsResult:
-      required:
-        - truncated
-        - operations
-        - size
-      type: object
-      properties:
-        truncated:
-          type: boolean
-        operations:
-          $ref: '#/components/schemas/Operation'
-        size:
-          type: number
+          example: '2021-01-05T10:15:35.067Z'
     Operation:
       required:
         - accountId
@@ -316,17 +450,21 @@ components:
         transaction:
           $ref: '#/components/schemas/Transaction'
         operation_type:
-          format: string
+          type: string
           enum: [sent, received]
+          example: 'sent'
         value:
           type: string
           format: bigint
+          example: 302641
         fees:
           type: string
           format: bigint
+          example: 2641
         time:
-          type: number
-          format: instant
+          type: string
+          format: timestamp
+          example: '2020-12-08T14:05:55Z'
     Transaction:
       required:
         - id
@@ -342,17 +480,22 @@ components:
       properties:
         id:
           type: string
+          example: '43b83b33ce7678738bc7ae4b99fc5274c1b6e554b8f5832bc2cf4d0afbdf21df'
         hash:
           type: string
+          example: '43b83b33ce7678738bc7ae4b99fc5274c1b6e554b8f5832bc2cf4d0afbdf21df'
         received_at:
-          type: number
-          format: instant
+          type: string
+          format: timestamp
+          example: '2020-12-08T14:05:55Z'
         lock_time:
           type: number
           format: int64
+          example: 0
         fees:
           type: string
           format: bigint
+          example: 2641
         inputs:
           type: array
           items:
@@ -365,6 +508,7 @@ components:
           $ref: '#/components/schemas/Block'
         confirmations:
           type: number
+          example: 5836
     Block:
       required:
         - hash
@@ -373,12 +517,15 @@ components:
       properties:
         hash:
           type: string
+          example: '000000000000003e0848b000c0e25783a8eca43638864909ac2d2d8a724f183f'
         height:
           type: number
           format: int64
+          example: 1896649
         time:
-          type: number
-          format: instant
+          type: string
+          format: timestamp
+          example: '2020-12-08T14:05:55Z'
     Input:
       required:
         - output_hash
@@ -394,26 +541,33 @@ components:
       properties:
         output_hash:
           type: string
+          example: '1b36e538120a0ee5b5997243123e4d45332832a3767ef114a91eb4993fe13d42'
         output_index:
           type: number
-        inputIndex:
+          example: 1
+        input_index:
           type: number
+          example: 0
         value:
           type: string
           format: bigint
+          example: 987359
         address:
           type: string
+          example: 'tb1qrapaq3jhc7peu3my0hkj4zkhmxvacmhj3g9ady'
         script_signature:
           type: string
         txinwitness:
           type: array
           items:
             type: string
+          example: ['3044022069cdb79bf7fdfe03deec158a4ebb3958b91b782f2d34cc32af064ad97e79413002201e4ce2af1f8fadd315d0dc083262c0574bbaa1294f339f06d674cdabf40e5ebc01']
         sequence:
           type: number
           format: int64
-        belongs:
-          type: boolean
+          example: '4294967295'
+        derivation:
+          $ref: '#/components/schemas/Derivation'
     Output:
       required:
         - output_index
@@ -425,82 +579,95 @@ components:
       properties:
         output_index:
           type: number
+          example: 0
         value:
           type: string
           format: bigint
+          example: 300000
         address:
           type: string
+          example: 'tb1qf8xlchz5ynxzg38dzsjkddug6uyhgqsmtxffxk'
         script_hex:
           type: string
-        belongs:
-          type: boolean
+          example: '001449cdfc5c5424cc2444ed142566b788d70974021b'
         change_type:
-          type: array
-          items:
-            $ref: '#/components/schemas/ChangeType'
+          $ref: '#/components/schemas/ChangeType'
+        derivation:
+          $ref: '#/components/schemas/Derivation'
     ChangeType:
       type: string
       enum: [internal, external]
+    Derivation:
+      type: array
+      items:
+        type: number
+      example: [1, 2]
     GetUtxosResult:
       required:
         - truncated
         - utxos
-        - size
+        - total
       type: object
       properties:
         truncated:
           type: boolean
-        operations:
+          example: false
+        utxos:
           $ref: '#/components/schemas/Utxo'
-        size:
+        total:
           type: number
+          example: 1
     Utxo:
       required:
+        - transaction_hash
         - output_index
         - value
         - address
         - script_hex
-        - belongs
+        - derivation
         - time
       type: object
       properties:
+        transaction_hash:
+          type: string
+          example: '18471605b534d27fb4feaf158369cec6d5170bc062bf3ff9fdc4a6be96376068'
         output_index:
           type: number
+          example: 1
         value:
           type: string
           format: bigint
+          example: '897359'
         address:
           type: string
+          example: 'tb1qv8v7s8q7rf0h2raa3w94v4tlh6t2qrjfwffsfl'
         script_hex:
           type: string
-        belongs:
-          type: boolean
+          example: '001461d9e81c1e1a5f750fbd8b8b56557fbe96a00e49'
+        derivation:
+          $ref: '#/components/schemas/Derivation'
         change_type:
-          type: array
-          items:
-            $ref: '#/components/schemas/ChangeType'
+          $ref: '#/components/schemas/ChangeType'
         time:
-          type: number
-          format: instant
+          type: string
+          format: timestamp
+          example: '2020-12-04T15:29:30Z'
     BalanceHistory:
       required:
         - balance
-        - utxos
-        - received
-        - sent
+        - block_height
+        - time
       type: object
       properties:
         balance:
           type: string
           format: bigint
-        utxos:
+          example: '59738587'
+        block_height:
           type: number
-        received:
-          type: string
-          format: bigint
-        sent:
-          type: string
-          format: bigint
+          format: int64
+          example: 1896649
         time:
-          type: number
-          format: instant
+          type: string
+          format: timestamp
+          example: '2020-12-08T14:05:55Z'
