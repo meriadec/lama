@@ -31,8 +31,8 @@ object IOUtils {
     Stream
       .eval(io)
       .attempts(policy)
-      .collectFirst {
-        case Right(res) => res
+      .collectFirst { case Right(res) =>
+        res
       }
       .compile
       .lastOrError

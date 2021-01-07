@@ -1,6 +1,5 @@
 package co.ledger.lama.bitcoin.api
 
-import co.ledger.lama.common.services.RabbitNotificationService
 import cats.effect.{ExitCode, IO, IOApp}
 import co.ledger.lama.bitcoin.api.middlewares.LoggingMiddleware._
 import co.ledger.lama.bitcoin.common.clients.grpc.{
@@ -8,13 +7,11 @@ import co.ledger.lama.bitcoin.common.clients.grpc.{
   KeychainGrpcClient,
   TransactorGrpcClient
 }
-import co.ledger.lama.common.utils.RabbitUtils
 import co.ledger.lama.common.utils.ResourceUtils.grpcManagedChannel
 import Config.Config
 import co.ledger.lama.bitcoin.api.routes.{AccountController, HealthController, VersionController}
 import co.ledger.lama.common.clients.grpc.AccountManagerGrpcClient
 import co.ledger.protobuf.lama.common.HealthFs2Grpc
-import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import io.grpc.ManagedChannel
 import org.http4s.server.middleware._
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
@@ -28,7 +25,6 @@ import scala.concurrent.ExecutionContext
 object App extends IOApp {
 
   case class ServiceResources(
-      rabbitClient: RabbitClient[IO],
       accountManagerGrpcChannel: ManagedChannel,
       interpreterGrpcChannel: ManagedChannel,
       transactorGrpcChannel: ManagedChannel,
@@ -40,8 +36,6 @@ object App extends IOApp {
 
     val resources = for {
 
-      rabbitClient <- RabbitUtils.createClient(conf.rabbit)
-
       accountManagerGrpcChannel <- grpcManagedChannel(conf.accountManager)
 
       interpreterGrpcChannel <- grpcManagedChannel(conf.bitcoin.interpreter)
@@ -50,7 +44,6 @@ object App extends IOApp {
 
       keychainGrpcChannel <- grpcManagedChannel(conf.bitcoin.keychain)
     } yield ServiceResources(
-      rabbitClient = rabbitClient,
       accountManagerGrpcChannel = accountManagerGrpcChannel,
       interpreterGrpcChannel = interpreterGrpcChannel,
       transactorGrpcChannel = transactorGrpcChannel,
@@ -58,12 +51,6 @@ object App extends IOApp {
     )
 
     resources.use { res =>
-      val notificationService = new RabbitNotificationService(
-        res.rabbitClient,
-        conf.lamaNotificationsExchangeName,
-        conf.maxConcurrent
-      )
-
       val methodConfig = CORSConfig(
         anyOrigin = true,
         anyMethod = true,
@@ -75,7 +62,6 @@ object App extends IOApp {
         "accounts" -> CORS(
           loggingMiddleWare(
             AccountController.routes(
-              notificationService,
               new KeychainGrpcClient(res.keychainGrpcChannel),
               new AccountManagerGrpcClient(res.accountManagerGrpcChannel),
               new InterpreterGrpcClient(res.interpreterGrpcChannel),

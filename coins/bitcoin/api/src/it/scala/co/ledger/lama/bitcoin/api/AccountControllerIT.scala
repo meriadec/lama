@@ -1,6 +1,5 @@
 package co.ledger.lama.bitcoin.api
 
-import java.util.UUID
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import cats.implicits._
 import co.ledger.lama.bitcoin.api.ConfigSpec.ConfigSpec
@@ -14,9 +13,9 @@ import co.ledger.lama.bitcoin.common.models.interpreter.{
 import co.ledger.lama.common.models.Notification.BalanceUpdated
 import co.ledger.lama.common.models.Status.{Deleted, Published, Registered, Synchronized}
 import co.ledger.lama.common.models.{AccountRegistered, BalanceUpdatedNotification, Sort}
-import co.ledger.lama.common.services.RabbitNotificationService
 import co.ledger.lama.common.utils.{IOAssertion, IOUtils, RabbitUtils}
-import co.ledger.lama.manager.config.CoinConfig
+import dev.profunktor.fs2rabbit.interpreter.RabbitClient
+import dev.profunktor.fs2rabbit.model.{AMQPChannel, ExchangeName, QueueName, RoutingKey}
 import fs2.Stream
 import io.circe.parser._
 import org.http4s._
@@ -26,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import pureconfig.ConfigSource
 
+import java.util.UUID
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -93,15 +93,16 @@ trait AccountControllerIT extends AnyFlatSpecLike with Matchers {
       client       <- BlazeClientBuilder[IO](ExecutionContext.global).resource
       inputs       <- accountsRes(resourceName)
       rabbitClient <- RabbitUtils.createClient(conf.eventsConfig.rabbit)
-
+      channel      <- rabbitClient.createConnectionChannel
     } yield (
       inputs,
       client,
-      new RabbitNotificationService(rabbitClient, conf.eventsConfig.lamaEventsExchangeName, 4)
+      rabbitClient,
+      channel
     )
 
     resources
-      .use { case (accounts, client, notificationService) =>
+      .use { case (accounts, client, rabbitClient, channel) =>
         accounts.traverse { account =>
           for {
 
@@ -112,17 +113,29 @@ trait AccountControllerIT extends AnyFlatSpecLike with Matchers {
               )
             )
 
-            notifications <- AccountNotifications.notifications(
-              accountRegistered.accountId,
-              conf.eventsConfig.coins(account.registerRequest.coin),
-              notificationService
-            )
+            coinConf = conf.eventsConfig.coins(account.registerRequest.coin)
 
-            accountInfoAfterRegister <- client.expect[AccountWithBalance](
-              getAccountRequest(accountRegistered.accountId)
-            )
+            qName <- AccountNotifications
+              .ephemeralBoundQueue(
+                rabbitClient,
+                conf.eventsConfig.lamaEventsExchangeName,
+                RoutingKey(
+                  s"${coinConf.coinFamily}.${coinConf.coin}.${accountRegistered.accountId.toString}"
+                )
+              )(channel)
 
-            balanceNotification <- AccountNotifications.waitBalanceUpdated(notifications)
+            notifications <- AccountNotifications
+              .balanceUpdatedNotifications(rabbitClient, qName)(channel)
+
+            accountInfoAfterRegister <- client
+              .expect[AccountWithBalance](
+                getAccountRequest(accountRegistered.accountId)
+              )
+
+            balanceNotification <- AccountNotifications
+              .waitBalanceUpdated(
+                notifications
+              )
 
             operations <- IOUtils
               .fetchPaginatedItems[GetOperationsResult](
@@ -269,26 +282,21 @@ class AccountControllerIT_BtcTestnet extends AccountControllerIT {
 
 object AccountNotifications {
 
-  def notifications(
-      accountId: UUID,
-      coinConf: CoinConfig,
-      notificationService: RabbitNotificationService
-  ): IO[Stream[IO, BalanceUpdatedNotification]] = {
+  def ephemeralBoundQueue(
+      rabbitClient: RabbitClient[IO],
+      exchangeName: ExchangeName,
+      routingKey: RoutingKey
+  )(implicit channel: AMQPChannel): IO[QueueName] =
+    for {
+      q <- rabbitClient.declareQueue
+      _ <- rabbitClient.bindQueue(q, exchangeName, routingKey)
+    } yield q
 
-    notificationService
-      .createQueue(accountId, coinConf.coinFamily, coinConf.coin)
-      .map { _ =>
-        RabbitUtils.createAutoAckConsumer[BalanceUpdatedNotification](
-          notificationService.rabbitClient,
-          RabbitNotificationService.queueName(
-            notificationService.exchangeName,
-            accountId,
-            coinConf.coinFamily,
-            coinConf.coin
-          )
-        )
-      }
-
+  def balanceUpdatedNotifications(
+      rabbitClient: RabbitClient[IO],
+      queueName: QueueName
+  )(implicit channel: AMQPChannel): IO[Stream[IO, BalanceUpdatedNotification]] = {
+    RabbitUtils.consume[BalanceUpdatedNotification](rabbitClient, queueName)
   }
 
   def waitBalanceUpdated(

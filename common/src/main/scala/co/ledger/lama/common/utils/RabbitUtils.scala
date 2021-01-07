@@ -25,11 +25,10 @@ object RabbitUtils extends IOLogging {
       conf: Fs2RabbitConfig
   )(implicit cs: ContextShift[IO], t: Timer[IO]): Resource[IO, RabbitClient[IO]] = {
     for {
-      client <-
-        Resource
-          .make(IO(Executors.newCachedThreadPool()))(es => IO(es.shutdown()))
-          .map(Blocker.liftExecutorService)
-          .evalMap(blocker => RabbitClient[IO](conf, blocker))
+      client <- Resource
+        .make(IO(Executors.newCachedThreadPool()))(es => IO(es.shutdown()))
+        .map(Blocker.liftExecutorService)
+        .evalMap(blocker => RabbitClient[IO](conf, blocker))
 
       _ = log.logger.info("Creating rabbitmq client")
 
@@ -129,6 +128,14 @@ object RabbitUtils extends IOLogging {
         val parsed = parse(message.payload).flatMap(_.as[A])
         IO.fromEither(parsed)
       }
+
+  def consume[A: Decoder](
+      R: RabbitClient[IO],
+      queueName: QueueName
+  )(implicit channel: AMQPChannel): IO[Stream[IO, A]] =
+    R.createAutoAckConsumer[String](queueName).map { queue =>
+      queue.evalMap(message => IO.fromEither(io.circe.parser.decode(message.payload)))
+    }
 
   def createConsumer[A](R: RabbitClient[IO], queueName: QueueName)(implicit
       d: Decoder[A]

@@ -1,20 +1,19 @@
 package co.ledger.lama.bitcoin.interpreter
 
-import java.time.Instant
-import java.util.UUID
-
 import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.interpreter.services._
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models._
-import co.ledger.lama.common.services.NotificationService
 import io.circe.syntax._
 import doobie.Transactor
 
+import java.time.Instant
+import java.util.UUID
+
 class Interpreter(
-    notificationService: NotificationService,
+    publish: Notification => IO[Unit],
     db: Transactor[IO],
     maxConcurrent: Int
 )(implicit cs: ContextShift[IO])
@@ -88,7 +87,8 @@ class Interpreter(
       _                   <- log.info("Computing balance history")
       _                   <- balanceService.computeNewBalanceHistory(accountId)
       currentBalance      <- balanceService.getCurrentBalance(accountId)
-      _ <- notificationService.notify(
+
+      _ <- publish(
         BalanceUpdatedNotification(
           accountId = accountId,
           coinFamily = CoinFamily.Bitcoin,
@@ -96,6 +96,7 @@ class Interpreter(
           currentBalance = currentBalance.asJson
         )
       )
+
     } yield nbSavedOps
 
   def computeOps(
@@ -115,7 +116,7 @@ class Interpreter(
         .through(operationService.saveOperationSink)
         .parEvalMap(maxConcurrent) { op =>
           if (shouldNotify) {
-            notificationService.notify(
+            publish(
               OperationNotification(
                 accountId = accountId,
                 coinFamily = CoinFamily.Bitcoin,

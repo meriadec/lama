@@ -1,12 +1,12 @@
 package co.ledger.lama.bitcoin.interpreter
 
-import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.{ExitCode, IO, IOApp, Resource}
 import co.ledger.lama.common.services.RabbitNotificationService
 import co.ledger.lama.common.services.grpc.HealthService
-import co.ledger.lama.common.utils.{DbUtils, RabbitUtils}
 import co.ledger.lama.common.utils.ResourceUtils.{grpcServer, postgresTransactor}
-import pureconfig.ConfigSource
+import co.ledger.lama.common.utils.{DbUtils, RabbitUtils}
 import fs2.Stream
+import pureconfig.ConfigSource
 
 object App extends IOApp {
 
@@ -16,12 +16,14 @@ object App extends IOApp {
     val resources = for {
       rabbit <- RabbitUtils.createClient(conf.rabbit)
 
-      notificationService =
-        new RabbitNotificationService(
-          rabbit,
+      channel <- rabbit.createConnectionChannel
+
+      publisher <- Resource.liftF(
+        RabbitNotificationService.publisher(
           conf.lamaNotificationsExchangeName,
-          conf.maxConcurrent
-        )
+          RabbitNotificationService.routingKey
+        )(rabbit, channel)
+      )
 
       // create the db transactor
       db <- postgresTransactor(conf.postgres)
@@ -29,7 +31,7 @@ object App extends IOApp {
       // define rpc service definitions
       serviceDefinitions = List(
         new InterpreterGrpcService(
-          new Interpreter(notificationService, db, conf.maxConcurrent)
+          new Interpreter(publisher, db, conf.maxConcurrent)
         ).definition,
         new HealthService().definition
       )

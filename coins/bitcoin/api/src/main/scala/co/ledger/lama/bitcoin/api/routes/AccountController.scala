@@ -9,7 +9,6 @@ import co.ledger.lama.bitcoin.api.models.BalancePreset
 import co.ledger.lama.bitcoin.api.models.accountManager._
 import co.ledger.lama.bitcoin.api.models.transactor._
 import co.ledger.lama.common.logging.IOLogging
-import co.ledger.lama.common.services.NotificationService
 import co.ledger.lama.common.utils.UuidUtils
 import co.ledger.lama.bitcoin.api.utils.RouterUtils._
 import co.ledger.lama.bitcoin.common.models.interpreter.ChangeType
@@ -32,7 +31,6 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
   implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)
 
   def routes(
-      notificationService: NotificationService,
       keychainClient: KeychainClient,
       accountManagerClient: AccountManagerClient,
       interpreterClient: InterpreterClient,
@@ -130,13 +128,6 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
             creationRequest.label
           )
 
-          // This creates a new queue for this account notifications
-          _ <- notificationService.createQueue(
-            account.accountId,
-            creationRequest.coin.coinFamily,
-            creationRequest.coin
-          )
-
           _ <- log.info(
             s"Account registered with id: ${account.accountId}"
           )
@@ -181,14 +172,6 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           _ <- log.info("Unregistering account")
           _ <- accountManagerClient.unregisterAccount(account.id)
           _ <- log.info("Account unregistered")
-
-          _ <- log.info("Deleting queue")
-          _ <- notificationService.deleteQueue(
-            accountId,
-            account.coinFamily,
-            account.coin
-          )
-          _ <- log.info("Queue deleted")
 
         } yield ()
 
