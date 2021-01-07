@@ -33,7 +33,7 @@ lazy val dockerSettings = Seq(
 )
 
 lazy val coverageSettings = Seq(
-  coverageMinimum := 45,
+  coverageMinimum := 0,
   coverageFailOnMinimum := false
 )
 
