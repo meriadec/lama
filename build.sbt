@@ -32,8 +32,13 @@ lazy val dockerSettings = Seq(
   javaAgents += "com.datadoghq" % "dd-java-agent" % "0.70.0"
 )
 
+lazy val coverageSettings = Seq(
+  coverageMinimum := 45,
+  coverageFailOnMinimum := false
+)
+
 lazy val sharedSettings =
-  dockerSettings ++ Defaults.itSettings
+  dockerSettings ++ Defaults.itSettings ++ coverageSettings
 
 lazy val lamaProtobuf = (project in file("protobuf"))
   .enablePlugins(Fs2Grpc)
