@@ -13,6 +13,7 @@ import io.grpc.{ManagedChannel, Metadata}
 
 trait BitcoinLibClient {
   def createTransaction(
+      network: BitcoinNetwork,
       selectedUtxos: List[Utxo],
       outputs: List[PrepareTxOutput],
       changeAddress: String,
@@ -40,6 +41,7 @@ class BitcoinLibGrpcClient(val managedChannel: ManagedChannel)(implicit val cs: 
     GrpcClient.resolveClient(libgrpc.CoinServiceFs2Grpc.stub[IO], managedChannel)
 
   def createTransaction(
+      network: BitcoinNetwork,
       selectedUtxos: List[Utxo],
       outputs: List[PrepareTxOutput],
       changeAddress: String,
@@ -57,7 +59,7 @@ class BitcoinLibGrpcClient(val managedChannel: ManagedChannel)(implicit val cs: 
               prepareTxOutput.value
             )
           ),
-          BitcoinNetwork.TestNet3,
+          network,
           changeAddress,
           feeSatPerKb
         ).toProto,

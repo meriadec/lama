@@ -17,13 +17,19 @@ object Coin {
   case object Btc extends Coin("btc", CoinFamily.Bitcoin) {
     def toProto: protobuf.Coin = protobuf.Coin.btc
   }
+
   case object BtcTestnet extends Coin("btc_testnet", CoinFamily.Bitcoin) {
     def toProto: protobuf.Coin = protobuf.Coin.btc_testnet
   }
 
+  case object BtcRegtest extends Coin("btc_regtest", CoinFamily.Bitcoin) {
+    def toProto: protobuf.Coin = protobuf.Coin.btc_regtest
+  }
+
   val all: Map[String, Coin] = Map(
     Btc.name        -> Btc,
-    BtcTestnet.name -> BtcTestnet
+    BtcTestnet.name -> BtcTestnet,
+    BtcRegtest.name -> BtcRegtest
   )
 
   def fromKey(key: String): Option[Coin] = all.get(key)
@@ -36,6 +42,7 @@ object Coin {
 
   def fromProto(proto: protobuf.Coin): Coin = proto match {
     case protobuf.Coin.btc_testnet => Coin.BtcTestnet
+    case protobuf.Coin.btc_regtest => Coin.BtcRegtest
     case _                         => Coin.Btc
   }
 

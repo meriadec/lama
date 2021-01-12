@@ -8,6 +8,7 @@ import co.ledger.lama.bitcoin.transactor.models.bitcoinLib
 class BitcoinLibClientServiceMock extends BitcoinLibClient {
 
   def createTransaction(
+      network: BitcoinNetwork,
       selectedUtxos: List[interpreter.Utxo],
       outputs: List[transactor.PrepareTxOutput],
       changeAddress: String,

@@ -1,7 +1,6 @@
 package co.ledger.lama.bitcoin.transactor
 
 import java.util.UUID
-
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.utils.CoinImplicits._
 import co.ledger.lama.bitcoin.common.models.interpreter.{ChangeType, Utxo}
@@ -14,6 +13,7 @@ import co.ledger.lama.bitcoin.common.models.transactor.{
 }
 import co.ledger.lama.bitcoin.common.clients.grpc.{InterpreterClient, KeychainClient}
 import co.ledger.lama.bitcoin.common.clients.http.ExplorerClient
+import co.ledger.lama.bitcoin.common.models.BitcoinNetwork
 import co.ledger.lama.bitcoin.transactor.clients.grpc.BitcoinLibClient
 import co.ledger.lama.bitcoin.transactor.models.bitcoinLib.SignatureMetadata
 import co.ledger.lama.bitcoin.transactor.services.CoinSelectionService
@@ -51,6 +51,7 @@ class Transactor(
       estimatedFeeSatPerKb <-
         coin match {
           case Coin.BtcTestnet => IO.pure(25642L)
+          case Coin.BtcRegtest => IO.pure(25642L)
           case c               => explorerClient(c).getSmartFees.map(_.normal)
         }
 
@@ -67,6 +68,7 @@ class Transactor(
         }
 
       rawTransaction <- createRawTransactionRec(
+        coin.toNetwork,
         coinSelection,
         utxos,
         outputs,
@@ -143,6 +145,7 @@ class Transactor(
   }
 
   private def createRawTransactionRec(
+      network: BitcoinNetwork,
       strategy: CoinSelectionStrategy,
       utxos: List[Utxo],
       outputs: List[PrepareTxOutput],
@@ -180,6 +183,7 @@ class Transactor(
       _ <- validateTransaction(selectedUtxos, outputs)
 
       rawTransaction <- bitcoinLibClient.createTransaction(
+        network,
         selectedUtxos,
         outputs,
         changeAddress,
@@ -198,6 +202,7 @@ class Transactor(
         )
       )(notEnoughUtxo =>
         createRawTransactionRec(
+          network,
           strategy,
           utxos,
           outputs,

@@ -7,7 +7,7 @@ import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.transactor.FeeInfo
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Coin
-import co.ledger.lama.common.models.Coin.{Btc, BtcTestnet}
+import co.ledger.lama.common.models.Coin.{Btc, BtcRegtest, BtcTestnet}
 import co.ledger.lama.common.utils.IOUtils
 import fs2.{Chunk, Pull, Stream}
 import io.circe.{Decoder, Json}
@@ -42,6 +42,7 @@ class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coi
   private val coinBasePath = coin match {
     case Btc        => "/blockchain/v3/btc"
     case BtcTestnet => "/blockchain/v3/btc_testnet"
+    case BtcRegtest => "/blockchain/v3/btc_regtest"
   }
 
   private def callExpect[A](uri: Uri)(implicit d: EntityDecoder[IO, A]): IO[A] =

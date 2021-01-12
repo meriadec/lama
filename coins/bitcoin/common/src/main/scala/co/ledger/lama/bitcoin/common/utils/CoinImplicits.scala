@@ -11,6 +11,7 @@ object CoinImplicits {
       coin match {
         case Coin.Btc        => BitcoinNetwork.MainNet
         case Coin.BtcTestnet => BitcoinNetwork.TestNet3
+        case Coin.BtcRegtest => BitcoinNetwork.RegTest
         case _               => BitcoinNetwork.Unspecified
       }
     }
