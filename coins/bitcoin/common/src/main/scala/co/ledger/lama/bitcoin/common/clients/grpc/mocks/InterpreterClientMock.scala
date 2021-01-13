@@ -1,21 +1,33 @@
 package co.ledger.lama.bitcoin.common.clients.grpc.mocks
 
-import java.time.Instant
-import java.util.UUID
-
 import cats.effect.IO
-import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, DefaultInput}
-import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.common.clients.grpc.InterpreterClient
+import co.ledger.lama.bitcoin.common.models.explorer.{
+  Block,
+  ConfirmedTransaction,
+  DefaultInput,
+  UnconfirmedTransaction
+}
+import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.common.models.{Coin, Sort}
 
+import java.time.Instant
+import java.util.UUID
 import scala.collection.mutable
 
 class InterpreterClientMock extends InterpreterClient {
 
   var savedTransactions: mutable.Map[UUID, List[ConfirmedTransaction]] = mutable.Map.empty
-  var transactions: mutable.Map[UUID, List[TransactionView]]           = mutable.Map.empty
-  var operations: mutable.Map[UUID, List[Operation]]                   = mutable.Map.empty
+  var savedUnconfirmedTransactions: mutable.ArrayDeque[(UUID, List[UnconfirmedTransaction])] =
+    mutable.ArrayDeque.empty
+  var transactions: mutable.Map[UUID, List[TransactionView]] = mutable.Map.empty
+  var operations: mutable.Map[UUID, List[Operation]]         = mutable.Map.empty
+
+  def saveUnconfirmedTransactions(accountId: UUID, txs: List[UnconfirmedTransaction]): IO[Int] =
+    IO.delay {
+      savedUnconfirmedTransactions += accountId -> txs
+      txs.size
+    }
 
   def saveTransactions(
       accountId: UUID,

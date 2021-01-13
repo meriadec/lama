@@ -1,12 +1,10 @@
 package co.ledger.lama.bitcoin.worker
 
-import java.util.UUID
-
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
-import co.ledger.lama.bitcoin.common.models.explorer.{Block, DefaultInput}
 import co.ledger.lama.bitcoin.common.clients.grpc.{InterpreterClient, KeychainClient}
 import co.ledger.lama.bitcoin.common.clients.http.ExplorerClient
+import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, DefaultInput}
 import co.ledger.lama.bitcoin.worker.config.Config
 import co.ledger.lama.bitcoin.worker.models.BatchResult
 import co.ledger.lama.bitcoin.worker.services._
@@ -17,6 +15,7 @@ import co.ledger.lama.common.models.{Coin, ReportError, ReportableEvent}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.syntax._
 
+import java.util.UUID
 import scala.util.Try
 
 class Worker(
@@ -27,6 +26,14 @@ class Worker(
     cursorStateService: Coin => CursorStateService,
     conf: Config
 ) extends IOLogging {
+
+  val bookkeeper = new Bookkeeper(
+    keychainClient,
+    explorerClient,
+    interpreterClient,
+    conf.maxTxsToSavePerBatch,
+    conf.maxConcurrent
+  )
 
   def run(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, Unit] =
     syncEventService.consumeWorkerMessages
@@ -92,6 +99,20 @@ class Worker(
         } yield lvb
       }.sequence
 
+      addressesUsedByMempool <- bookkeeper
+        .recordUnconfirmedTransactions(
+          account.coin,
+          account.id,
+          keychainId,
+          keychainInfo.lookaheadSize,
+          0,
+          keychainInfo.lookaheadSize
+        )
+        .stream
+        .flatMap(r => Stream.emits(r.addresses))
+        .compile
+        .toList
+
       batchResults <- syncAccountBatch(
         account.coin,
         account.id,
@@ -107,7 +128,7 @@ class Worker(
       opsCount <- interpreterClient.compute(
         account.id,
         account.coin,
-        addresses
+        (addresses ++ addressesUsedByMempool).distinct
       )
 
       _ <- log.info(s"$opsCount operations computed")
@@ -141,7 +162,10 @@ class Worker(
       blockHashCursor: Option[String],
       fromAddrIndex: Int,
       toAddrIndex: Int
-  )(implicit cs: ContextShift[IO], t: Timer[IO]): Pull[IO, BatchResult, Unit] =
+  )(implicit
+      cs: ContextShift[IO],
+      t: Timer[IO]
+  ): Pull[IO, BatchResult[ConfirmedTransaction], Unit] =
     Pull
       .eval {
         for {
@@ -151,23 +175,22 @@ class Worker(
 
           // For this batch of addresses, fetch transactions from the explorer.
           _ <- log.info("Fetching transactions from explorer")
-          transactions <-
-            explorerClient(coin)
-              .getConfirmedTransactions(addressInfos.map(_.accountAddress), blockHashCursor)
-              .prefetch
-              .chunkN(conf.maxTxsToSavePerBatch)
-              .map(_.toList)
-              .parEvalMapUnordered(conf.maxConcurrent) { txs =>
-                // Ask to interpreter to save transactions.
-                for {
-                  _             <- log.info(s"Sending ${txs.size} transactions to interpreter")
-                  savedTxsCount <- interpreterClient.saveTransactions(accountId, txs)
-                  _             <- log.info(s"$savedTxsCount new transactions saved")
-                } yield txs
-              }
-              .flatMap(Stream.emits(_))
-              .compile
-              .toList
+          transactions <- explorerClient(coin)
+            .getConfirmedTransactions(addressInfos.map(_.accountAddress), blockHashCursor)
+            .prefetch
+            .chunkN(conf.maxTxsToSavePerBatch)
+            .map(_.toList)
+            .parEvalMapUnordered(conf.maxConcurrent) { txs =>
+              // Ask to interpreter to save transactions.
+              for {
+                _             <- log.info(s"Sending ${txs.size} transactions to interpreter")
+                savedTxsCount <- interpreterClient.saveTransactions(accountId, txs)
+                _             <- log.info(s"$savedTxsCount new transactions saved")
+              } yield txs
+            }
+            .flatMap(Stream.emits(_))
+            .compile
+            .toList
 
           // Filter only used addresses.
           usedAddressesInfos = addressInfos.filter { a =>
@@ -191,10 +214,9 @@ class Worker(
             } else IO.unit
 
           // Flag to know if we continue or not to discover addresses
-          continue <-
-            keychainClient
-              .getAddresses(keychainId, toAddrIndex, toAddrIndex + lookaheadSize)
-              .map(_.nonEmpty)
+          continue <- keychainClient
+            .getAddresses(keychainId, toAddrIndex, toAddrIndex + lookaheadSize)
+            .map(_.nonEmpty)
 
         } yield BatchResult(usedAddressesInfos, transactions, continue)
       }

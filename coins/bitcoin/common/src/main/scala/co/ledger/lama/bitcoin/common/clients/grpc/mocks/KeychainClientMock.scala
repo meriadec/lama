@@ -19,7 +19,7 @@ class KeychainClientMock extends KeychainClient with IOLogging {
   private val derivations: NonEmptyList[Int]   = NonEmptyList(1, List(0))
   private val change: ChangeType.External.type = ChangeType.External
 
-  private val derivedAddresses: List[AccountAddress] = List(
+  val derivedAddresses: List[AccountAddress] = List(
     AccountAddress("1MZbRqZGpiSWGRLg8DUdVrDKHwNe1oesUZ", change, derivations),
     AccountAddress("1LD1pARePgXXyZA1J3EyvRtB82vxENs5wQ", change, derivations),
     AccountAddress("1MfeDvj5AUBG4xVMrx1xPgmYdXQrzHtW5b", change, derivations),

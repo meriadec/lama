@@ -2,9 +2,8 @@ package co.ledger.lama.bitcoin.common.clients.grpc
 
 import java.time.Instant
 import java.util.UUID
-
 import cats.effect.{ContextShift, IO}
-import co.ledger.lama.bitcoin.common.models.explorer.ConfirmedTransaction
+import co.ledger.lama.bitcoin.common.models.explorer.{ConfirmedTransaction, UnconfirmedTransaction}
 import co.ledger.lama.bitcoin.common.models.interpreter._
 import co.ledger.lama.bitcoin.common.utils.BtcProtoUtils._
 import co.ledger.lama.bitcoin.interpreter.protobuf
@@ -15,6 +14,8 @@ import io.grpc.{ManagedChannel, Metadata}
 
 trait InterpreterClient {
   def saveTransactions(accountId: UUID, txs: List[ConfirmedTransaction]): IO[Int]
+
+  def saveUnconfirmedTransactions(accountId: UUID, txs: List[UnconfirmedTransaction]): IO[Int]
 
   def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int]
 
@@ -70,6 +71,9 @@ class InterpreterGrpcClient(
         new Metadata()
       )
       .map(_.count)
+
+  def saveUnconfirmedTransactions(accountId: UUID, txs: List[UnconfirmedTransaction]): IO[Int] =
+    IO.pure(txs.size)
 
   def removeDataFromCursor(accountId: UUID, blockHeightCursor: Option[Long]): IO[Int] =
     client

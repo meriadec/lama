@@ -2,12 +2,14 @@ package co.ledger.lama.bitcoin.common.clients.http
 
 import cats.effect.{ContextShift, IO, Timer}
 import co.ledger.lama.bitcoin.common.Exceptions.ExplorerClientException
+import co.ledger.lama.bitcoin.common.clients.http.ExplorerClient.Address
 import co.ledger.lama.bitcoin.common.config.ExplorerConfig
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.transactor.FeeInfo
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Coin
 import co.ledger.lama.common.models.Coin.{Btc, BtcRegtest, BtcTestnet}
+import co.ledger.lama.common.utils
 import co.ledger.lama.common.utils.IOUtils
 import fs2.{Chunk, Pull, Stream}
 import io.circe.{Decoder, Json}
@@ -15,6 +17,8 @@ import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe.CirceEntityEncoder._
 import org.http4s.client.Client
 import org.http4s.{EntityDecoder, Method, Request, Uri}
+
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 trait ExplorerClient {
 
@@ -25,14 +29,21 @@ trait ExplorerClient {
   def getBlock(height: Long): IO[Block]
 
   def getConfirmedTransactions(
-      addresses: Seq[String],
+      addresses: Seq[Address],
       blockHash: Option[String]
   )(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, ConfirmedTransaction]
+
+  def getUnconfirmedTransactions(
+      addresses: Set[Address]
+  )(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, UnconfirmedTransaction]
 
   def getSmartFees: IO[FeeInfo]
 
   def broadcastTransaction(tx: String): IO[String]
+}
 
+object ExplorerClient {
+  type Address = String
 }
 
 class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coin)
@@ -55,6 +66,16 @@ class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coi
       .expect[A](req)
       .handleErrorWith(e => IO.raiseError(ExplorerClientException(req.uri, e)))
 
+  private def callWithRetry[A](
+      req: Request[IO],
+      timeout: FiniteDuration
+  )(implicit cs: ContextShift[IO], c: EntityDecoder[IO, A], t: Timer[IO]): IO[A] =
+    IOUtils.retry(
+      callExpect(req)
+        .timeout(timeout),
+      policy = utils.RetryPolicy.exponential(initial = 500.millis, maxElapsedTime = 1.minute)
+    )
+
   def getCurrentBlock: IO[Block] =
     callExpect[Block](conf.uri.withPath(s"$coinBasePath/blocks/current"))
 
@@ -66,7 +87,7 @@ class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coi
     callExpect[Block](conf.uri.withPath(s"$coinBasePath/blocks/$height"))
 
   def getConfirmedTransactions(
-      addresses: Seq[String],
+      addresses: Seq[Address],
       blockHash: Option[String]
   )(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, ConfirmedTransaction] =
     Stream
@@ -83,6 +104,32 @@ class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coi
           }
       }
       .parJoinUnbounded
+
+  def getUnconfirmedTransactions(
+      addresses: Set[Address]
+  )(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, UnconfirmedTransaction] = {
+
+    val getPendingTransactionRequest = (as: Chunk[Address]) => {
+      val baseUri = conf.uri
+        .withPath(s"$coinBasePath/addresses/${as.toList.mkString(",")}/transactions/pending")
+      Request[IO](Method.GET, baseUri)
+    }
+
+    val logInfo = (as: Chunk[Address]) => {
+      log.info(
+        s"Getting pending txs for addresses: ${as.toList.mkString(",")}"
+      )
+    }
+
+    Stream
+      .emits(addresses.toSeq)
+      .chunkN(conf.addressesSize)
+      .evalTap(logInfo)
+      .map(getPendingTransactionRequest)
+      .evalTap(r => log.debug(s"$r"))
+      .evalMap(request => callWithRetry[List[UnconfirmedTransaction]](request, conf.timeout))
+      .flatMap(Stream.emits(_))
+  }
 
   def getSmartFees: IO[FeeInfo] = {
     val feeUri = conf.uri.withPath(s"$coinBasePath/fees")
@@ -182,5 +229,4 @@ class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coi
           Pull.output(Chunk(res))
         }
       }
-
 }
