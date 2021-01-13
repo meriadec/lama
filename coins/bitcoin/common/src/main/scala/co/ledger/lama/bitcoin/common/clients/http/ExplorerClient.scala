@@ -71,7 +71,7 @@ class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coi
   )(implicit cs: ContextShift[IO], t: Timer[IO]): Stream[IO, ConfirmedTransaction] =
     Stream
       .emits(addresses)
-      .chunkLimit(conf.addressesSize)
+      .chunkN(conf.addressesSize)
       .map { chunk =>
         fetchPaginatedTransactions(chunk.toList, blockHash).stream
           .flatMap { res =>
