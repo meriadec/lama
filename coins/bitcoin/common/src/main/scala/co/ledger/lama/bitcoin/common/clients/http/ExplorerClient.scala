@@ -165,10 +165,6 @@ class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coi
       )
       .flatMap { res =>
         if (res.truncated) {
-          // The explorer returns batch_size + 1 tx.
-          // So, we need to drop the last tx to avoid having duplicate txs.
-          val fixedRes = res.copy(txs = res.txs.dropRight(1))
-
           // Txs are not sorted per page,
           // so we need get only confirmed txs and
           // get the most recent fetched block hash for the next cursor
@@ -180,7 +176,7 @@ class ExplorerHttpClient(httpClient: Client[IO], conf: ExplorerConfig, coin: Coi
               .maxByOption(_.block.time)
               .map(_.block.hash)
 
-          Pull.output(Chunk(fixedRes)) >>
+          Pull.output(Chunk(res)) >>
             fetchPaginatedTransactions(addresses, lastBlockHash)
         } else {
           Pull.output(Chunk(res))
