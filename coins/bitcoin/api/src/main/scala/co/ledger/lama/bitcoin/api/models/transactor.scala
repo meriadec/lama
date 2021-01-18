@@ -2,6 +2,7 @@ package co.ledger.lama.bitcoin.api.models
 
 import co.ledger.lama.bitcoin.common.models.transactor.{
   CoinSelectionStrategy,
+  FeeLevel,
   PrepareTxOutput,
   RawTransaction
 }
@@ -13,7 +14,9 @@ object transactor {
 
   case class CreateTransactionRequest(
       coinSelection: CoinSelectionStrategy,
-      outputs: List[PrepareTxOutput]
+      outputs: List[PrepareTxOutput],
+      feeLevel: FeeLevel,
+      customFee: Option[Long]
   )
 
   object CreateTransactionRequest {

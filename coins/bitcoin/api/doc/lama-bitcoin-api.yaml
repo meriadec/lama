@@ -272,6 +272,31 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Address'
+  /accounts/{accountId}/transactions:
+    parameters:
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: 'uuid'
+    post:
+      summary: Create a transaction
+      operationId: createTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        200:
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateTransactionResponse'
+
 components:
   schemas:
     GetAccountResponse:
@@ -283,7 +308,6 @@ components:
         - utxos
         - received
         - sent
-        - label
       type: object
       properties:
         account_id:
@@ -348,6 +372,10 @@ components:
           example: 'testnet account'
     RegisterAccountResponse:
       type: object
+      required:
+        - account_id
+        - sync_id
+        - sync_frequency
       properties:
         account_id:
           type: string
@@ -361,9 +389,6 @@ components:
           type: number
           example: 600
     UpdateAccountRequest:
-      required:
-        - sync_frequency
-        - label
       type: object
       properties:
         sync_frequency:
@@ -387,11 +412,67 @@ components:
         total:
           type: number
           example: 1
+    CreateTransactionRequest:
+      required:
+        - coin_selection
+        - outputs
+        - fee_level
+      type: object
+      properties:
+        coin_selection:
+          type: string
+          enum: [ 'depth_first' ]
+          example: 'depth_first'
+        outputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutputRequest'
+        fee_level:
+          type: string
+          enum: [ slow, normal, fast ]
+          example: 'normal'
+        custom_fee:
+          type: string
+          format: bigint
+          example: '20000'
+    OutputRequest:
+      required:
+        - address
+        - value
+      type: object
+      properties:
+        address:
+          type: string
+          example: 'tb1qq93nw8lddl6d9trzcmunkw3kufzs0p4hgnu3hl'
+        value:
+          type: string
+          format: bigint
+          example: 300000
+    CreateTransactionResponse:
+      type: object
+      required:
+        - hex
+        - hash
+        - witness_hash
+        - utxos
+      properties:
+        hex:
+          type: string
+          example: '010000000168603796bea6c4fdf93fbf62c00b17d5c6ce698315affeb47fd234b5051647180100000000ffffffff02a0860100000000001600140163371fed6ff4d2ac62c6f93b3a36e2450786b773020c00000000001600148afb601974d12ad8d4f2fbc47e8d13448eb76a3f00000000'
+        hash:
+          type: string
+          example: 'c3781a66af971634002de4a4592ea5b62a7569a7d823998d1e27c1fad62837c6'
+        witness_hash:
+          type: string
+          example: 'c3781a66af971634002de4a4592ea5b62a7569a7d823998d1e27c1fad62837c6'
+        utxos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Utxo'
     Address:
       required:
         - account_address
         - change_type
-        - derivation
       type: object
       properties:
         account_address:
@@ -406,7 +487,7 @@ components:
         - account_id
         - sync_id
         - status
-        - payload
+        - time
       type: object
       properties:
         account_id:

@@ -1,11 +1,11 @@
 package co.ledger.lama.bitcoin.common.clients.grpc
 
 import java.util.UUID
-
 import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.transactor.{
   BroadcastTransaction,
   CoinSelectionStrategy,
+  FeeLevel,
   PrepareTxOutput,
   RawTransaction
 }
@@ -21,9 +21,11 @@ trait TransactorClient {
   def createTransaction(
       accountId: UUID,
       keychainId: UUID,
+      coin: Coin,
       coinSelection: CoinSelectionStrategy,
       outputs: List[PrepareTxOutput],
-      coin: Coin
+      feeLevel: FeeLevel,
+      customFee: Option[Long]
   ): IO[RawTransaction]
 
   def generateSignature(
@@ -50,9 +52,11 @@ class TransactorGrpcClient(
   def createTransaction(
       accountId: UUID,
       keychainId: UUID,
+      coin: Coin,
       coinSelection: CoinSelectionStrategy,
       outputs: List[PrepareTxOutput],
-      coin: Coin
+      feeLevel: FeeLevel,
+      customFee: Option[Long]
   ): IO[RawTransaction] =
     client
       .createTransaction(
@@ -61,7 +65,9 @@ class TransactorGrpcClient(
           UuidUtils.uuidToBytes(keychainId),
           coinSelection.toProto,
           outputs.map(_.toProto),
-          coin.name
+          coin.name,
+          feeLevel.toProto,
+          customFee.getOrElse(0L)
         ),
         new Metadata
       )

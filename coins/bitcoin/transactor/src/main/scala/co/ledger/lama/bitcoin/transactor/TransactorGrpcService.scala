@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.{ConcurrentEffect, IO}
 import co.ledger.lama.bitcoin.common.models.transactor.{
   CoinSelectionStrategy,
+  FeeLevel,
   PrepareTxOutput,
   RawTransaction
 }
@@ -31,12 +32,16 @@ class TransactorGrpcService(transactor: Transactor) extends TransactorService wi
       coin       <- Coin.fromKeyIO(request.coinId)
       outputs       = request.outputs.map(PrepareTxOutput.fromProto).toList
       coinSelection = CoinSelectionStrategy.fromProto(request.coinSelection)
+      feeLevel      = FeeLevel.fromProto(request.feeLevel)
+      optCustomFee  = if (request.customFee > 0L) Some(request.customFee) else None
 
       _ <- log.info(
         s"""Preparing transaction:
             - accountId: $accountId
             - strategy: ${coinSelection.name}
             - coin: ${coin.name}
+            - feeLevel: $feeLevel
+            - customFee: $optCustomFee
          """
       )
 
@@ -45,7 +50,9 @@ class TransactorGrpcService(transactor: Transactor) extends TransactorService wi
         keychainId,
         outputs,
         coin,
-        coinSelection
+        coinSelection,
+        feeLevel,
+        optCustomFee
       )
 
     } yield {

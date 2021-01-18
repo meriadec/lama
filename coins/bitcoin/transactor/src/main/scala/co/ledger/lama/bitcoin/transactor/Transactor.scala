@@ -7,6 +7,7 @@ import co.ledger.lama.bitcoin.common.models.interpreter.{ChangeType, Utxo}
 import co.ledger.lama.bitcoin.common.models.transactor.{
   BroadcastTransaction,
   CoinSelectionStrategy,
+  FeeLevel,
   PrepareTxOutput,
   RawTransaction,
   RawTransactionAndUtxos
@@ -34,7 +35,9 @@ class Transactor(
       keychainId: UUID,
       outputs: List[PrepareTxOutput],
       coin: Coin,
-      coinSelection: CoinSelectionStrategy
+      coinSelection: CoinSelectionStrategy,
+      feeLevel: FeeLevel,
+      customFee: Option[Long]
   ): IO[RawTransactionAndUtxos] = {
 
     for {
@@ -47,15 +50,20 @@ class Transactor(
          """
       )
 
-      // TODO: testnet smart fees is buggy on explorer v3
       estimatedFeeSatPerKb <-
-        coin match {
-          case Coin.BtcTestnet => IO.pure(25642L)
-          case Coin.BtcRegtest => IO.pure(25642L)
-          case c               => explorerClient(c).getSmartFees.map(_.normal)
+        customFee match {
+          case Some(custom) => log.info(s"Custom fee: $custom") *> IO.pure(custom)
+          case _            =>
+            // TODO: testnet smart fees is buggy on explorer v3
+            for {
+              smartFee <- coin match {
+                case Coin.BtcTestnet => IO.pure(25642L)
+                case Coin.BtcRegtest => IO.pure(25642L)
+                case c               => explorerClient(c).getSmartFees.map(_.getValue(feeLevel))
+              }
+              _ <- log.info(s"GetSmartFees feeLevel: $feeLevel - feeSatPerKb: $smartFee ")
+            } yield smartFee
         }
-
-      _ <- log.info(s"GetSmartFees feeLevel: Normal - feeSatPerKb: $estimatedFeeSatPerKb ")
 
       changeAddress <- keychainClient
         .getFreshAddresses(keychainId, ChangeType.Internal, 1)

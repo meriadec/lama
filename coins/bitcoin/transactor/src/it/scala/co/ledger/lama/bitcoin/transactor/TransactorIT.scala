@@ -2,10 +2,13 @@ package co.ledger.lama.bitcoin.transactor
 
 import java.time.Instant
 import java.util.UUID
-
 import cats.data.NonEmptyList
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
-import co.ledger.lama.bitcoin.common.models.transactor.{CoinSelectionStrategy, PrepareTxOutput}
+import co.ledger.lama.bitcoin.common.models.transactor.{
+  CoinSelectionStrategy,
+  FeeLevel,
+  PrepareTxOutput
+}
 import co.ledger.lama.bitcoin.common.models.explorer.{Block, ConfirmedTransaction, Output}
 import co.ledger.lama.bitcoin.common.clients.grpc.mocks.{InterpreterClientMock, KeychainClientMock}
 import co.ledger.lama.bitcoin.common.clients.http.mocks.ExplorerClientMock
@@ -101,7 +104,9 @@ class TransactorIT extends AnyFlatSpecLike with Matchers {
         UUID.randomUUID(),
         recipients,
         Coin.Btc,
-        CoinSelectionStrategy.DepthFirst
+        CoinSelectionStrategy.DepthFirst,
+        FeeLevel.Normal,
+        None
       )
 
     } yield {

@@ -9,7 +9,7 @@ abstract class CoinSelectionStrategy(val name: String) {
 
 object CoinSelectionStrategy {
 
-  case object DepthFirst extends CoinSelectionStrategy(name = "DepthFirst") {
+  case object DepthFirst extends CoinSelectionStrategy("depth_first") {
     def toProto: protobuf.CoinSelector = protobuf.CoinSelector.DEPTH_FIRST
   }
 
@@ -22,7 +22,7 @@ object CoinSelectionStrategy {
   implicit val encoder: Encoder[CoinSelectionStrategy] = Encoder.encodeString.contramap(_.name)
 
   implicit val decoder: Decoder[CoinSelectionStrategy] =
-    Decoder.decodeString.emap(fromKey(_).toRight("unable to decode sort"))
+    Decoder.decodeString.emap(fromKey(_).toRight("unable to decode coin selection strategy"))
 
   def fromProto(proto: protobuf.CoinSelector): CoinSelectionStrategy =
     proto match {

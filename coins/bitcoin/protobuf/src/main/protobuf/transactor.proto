@@ -23,6 +23,8 @@ message CreateTransactionRequest {
   CoinSelector coin_selection = 3;
   repeated PrepareTxOutput outputs = 4;
   string coinId = 5;
+  FeeLevel fee_level = 6;
+  int64 custom_fee = 7;
 }
 
 message CreateTransactionResponse {
@@ -57,4 +59,10 @@ message BroadcastTransactionResponse {
 message PrepareTxOutput {
   string address = 1;
   string value = 2;
+}
+
+enum FeeLevel {
+  SLOW = 0;
+  NORMAL = 1;
+  FAST = 3;
 }
