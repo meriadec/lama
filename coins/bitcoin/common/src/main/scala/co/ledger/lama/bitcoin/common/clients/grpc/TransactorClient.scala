@@ -12,7 +12,7 @@ import co.ledger.lama.bitcoin.common.models.transactor.{
 import co.ledger.lama.bitcoin.transactor.protobuf
 import co.ledger.lama.common.clients.grpc.GrpcClient
 import co.ledger.lama.common.models.Coin
-import co.ledger.lama.common.utils.UuidUtils
+import co.ledger.lama.common.utils.{HexUtils, UuidUtils}
 import com.google.protobuf.ByteString
 import io.grpc.{ManagedChannel, Metadata}
 
@@ -31,13 +31,13 @@ trait TransactorClient {
   def generateSignature(
       rawTransaction: RawTransaction,
       privKey: String
-  ): IO[List[Array[Byte]]]
+  ): IO[List[String]]
 
   def broadcastTransaction(
       keychainId: UUID,
       coinId: String,
       rawTransaction: RawTransaction,
-      signatures: List[Array[Byte]]
+      hexSignatures: List[String]
   ): IO[BroadcastTransaction]
 }
 
@@ -73,7 +73,7 @@ class TransactorGrpcClient(
       )
       .map(RawTransaction.fromProto)
 
-  def generateSignature(rawTransaction: RawTransaction, privKey: String): IO[List[Array[Byte]]] =
+  def generateSignature(rawTransaction: RawTransaction, privKey: String): IO[List[String]] =
     client
       .generateSignatures(
         protobuf.GenerateSignaturesRequest(
@@ -83,14 +83,14 @@ class TransactorGrpcClient(
         new Metadata
       )
       .map(
-        _.signatures.map(_.toByteArray).toList
+        _.signatures.map(sig => HexUtils.valueOf(sig.toByteArray)).toList
       )
 
   def broadcastTransaction(
       keychainId: UUID,
       coinId: String,
       rawTransaction: RawTransaction,
-      signatures: List[Array[Byte]]
+      hexSignatures: List[String]
   ): IO[BroadcastTransaction] = {
     client
       .broadcastTransaction(
@@ -98,7 +98,7 @@ class TransactorGrpcClient(
           UuidUtils.uuidToBytes(keychainId),
           coinId,
           Some(rawTransaction.toProto),
-          signatures.map(signature => ByteString.copyFrom(signature))
+          hexSignatures.map(signature => ByteString.copyFrom(HexUtils.valueOf(signature)))
         ),
         new Metadata
       )

@@ -27,9 +27,8 @@ object transactor {
   }
 
   case class BroadcastTransactionRequest(
-      coinSelection: CoinSelectionStrategy,
       rawTransaction: RawTransaction,
-      signatures: List[Array[Byte]]
+      signatures: List[String]
   )
 
   object BroadcastTransactionRequest {

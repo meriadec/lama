@@ -296,6 +296,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateTransactionResponse'
+  /accounts/{accountId}/transactions/send:
+    parameters:
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: 'uuid'
+    post:
+      summary: Send a transaction with signatures for broadcast
+      operationId: sendTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendTransactionRequest'
+      responses:
+        200:
+          description: Broadcasted transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawTransaction'
 
 components:
   schemas:
@@ -449,7 +473,6 @@ components:
           format: bigint
           example: 300000
     CreateTransactionResponse:
-      type: object
       required:
         - hex
         - hash
@@ -469,6 +492,36 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Utxo'
+    SendTransactionRequest:
+      required:
+        - raw_transaction
+        - signatures
+      type: object
+      properties:
+        raw_transaction:
+          $ref: '#/components/schemas/RawTransaction'
+        signatures:
+          type: array
+          items:
+            type: string
+            format: hex
+    RawTransaction:
+      type: object
+      required:
+        - hex
+        - hash
+        - witness_hash
+      properties:
+        hex:
+          type: string
+          format: hex format of the raw tx
+          example: '010000000168603796bea6c4fdf93fbf62c00b17d5c6ce698315affeb47fd234b5051647180100000000ffffffff02a0860100000000001600140163371fed6ff4d2ac62c6f93b3a36e2450786b773020c00000000001600148afb601974d12ad8d4f2fbc47e8d13448eb76a3f00000000'
+        hash:
+          type: string
+          example: 'c3781a66af971634002de4a4592ea5b62a7569a7d823998d1e27c1fad62837c6'
+        witness_hash:
+          type: string
+          example: 'c3781a66af971634002de4a4592ea5b62a7569a7d823998d1e27c1fad62837c6'
     Address:
       required:
         - account_address
