@@ -52,7 +52,7 @@ class KeychainGrpcClient(
     client
       .createKeychain(
         keychain.CreateKeychainRequest(
-          extendedPublicKey,
+          keychain.CreateKeychainRequest.Account.ExtendedPublicKey(extendedPublicKey),
           scheme.toProto,
           lookaheadSize,
           network.toKeychainProto

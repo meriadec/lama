@@ -68,7 +68,7 @@ services:
       - 6379:6379
 
   bitcoin-lib-grpc:
-    image: ledgerhq/bitcoin-lib-grpc:${BITCOIN_LIB_GRPC_VERSION}
+    image: docker.pkg.github.com/ledgerhq/bitcoin-lib-grpc/bitcoin-lib-grpc:${BITCOIN_LIB_GRPC_VERSION}
     environment:
       BITCOIN_HOST: ${BITCOIN_LIB_GRPC_HOST}
       BITCOIN_PORT: ${BITCOIN_LIB_GRPC_PORT}
@@ -76,7 +76,7 @@ services:
       - ${BITCOIN_LIB_GRPC_PORT}:${BITCOIN_LIB_GRPC_PORT}
 
   bitcoin-keychain:
-    image: ledgerhq/bitcoin-keychain:${BITCOIN_KEYCHAIN_VERSION}
+    image: docker.pkg.github.com/ledgerhq/bitcoin-keychain/bitcoin-keychain:${BITCOIN_KEYCHAIN_VERSION}
     environment:
       BITCOIN_KEYCHAIN_HOST: ${BITCOIN_KEYCHAIN_HOST}
       BITCOIN_KEYCHAIN_PORT: ${BITCOIN_KEYCHAIN_PORT}
