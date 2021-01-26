@@ -22,16 +22,16 @@ case class IOLogger(logger: Logger) {
 
   // DEBUG
 
-  def debug(message: String): IO[Unit] =
+  def debug(message: => String): IO[Unit] =
     IO(logger.debug(message))
 
-  def debug(marker: Marker, message: String): IO[Unit] =
+  def debug(marker: Marker, message: => String): IO[Unit] =
     IO(logger.debug(marker, message))
 
-  def debug(message: String, cause: Throwable): IO[Unit] =
+  def debug(message: => String, cause: Throwable): IO[Unit] =
     IO(logger.debug(message, cause))
 
-  def debug(marker: Marker, message: String, cause: Throwable): IO[Unit] =
+  def debug(marker: Marker, message: => String, cause: Throwable): IO[Unit] =
     IO(logger.debug(marker, message, cause))
 
   // INFO
