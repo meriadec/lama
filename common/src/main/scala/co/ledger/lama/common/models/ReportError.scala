@@ -5,12 +5,12 @@ import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto._
 import co.ledger.lama.common.models.implicits._
 
-case class ReportError(code: String, message: String)
+case class ReportError(code: String, message: Option[String])
 
 object ReportError {
   def fromThrowable(t: Throwable) = t match {
-    case e: GrpcClientException => ReportError(e.clientName, e.getMessage)
-    case unknown                => ReportError("UnknownError", unknown.getMessage)
+    case e: GrpcClientException => ReportError(e.clientName, Option(e.getMessage))
+    case unknown                => ReportError("UnknownError", Option(unknown.getMessage))
   }
 
   implicit val encoder: Encoder[ReportError] = deriveConfiguredEncoder[ReportError]

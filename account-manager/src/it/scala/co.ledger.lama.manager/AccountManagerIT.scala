@@ -62,7 +62,7 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
             messageSent2 <- worker.consumeWorkerMessage()
 
             // Report a failed sync event with an error message.
-            syncFailedError = ReportError(code = "sync_failed", message = "failed to sync")
+            syncFailedError = ReportError(code = "sync_failed", message = Some("failed to sync"))
             _ <- worker.publishReportMessage(
               ReportMessage(
                 account = messageSent2.account,
@@ -71,8 +71,7 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
             )
 
             // Unregister an account.
-            unregisteredResult <-
-              service.unregisterAccount(accountTest.id)
+            unregisteredResult <- service.unregisterAccount(accountTest.id)
 
             unregisteredAccountId = unregisteredResult.accountId
             unregisteredSyncId    = unregisteredResult.syncId
@@ -80,8 +79,10 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
             messageSent3 <- worker.consumeWorkerMessage()
 
             // Report a failed delete event with an error message.
-            deleteFailedError =
-              ReportError(code = "delete_failed", message = "failed to delete data")
+            deleteFailedError = ReportError(
+              code = "delete_failed",
+              message = Some("failed to delete data")
+            )
             _ <- worker.publishReportMessage(
               ReportMessage(
                 account = messageSent3.account,
@@ -100,13 +101,12 @@ class AccountManagerIT extends AnyFlatSpecLike with Matchers with TestResources 
             )
 
             // Fetch all sync events.
-            syncEvents <-
-              Queries
-                .getSyncEvents(accountTest.id, Sort.Ascending)
-                .take(nbEvents)
-                .compile
-                .toList
-                .transact(db)
+            syncEvents <- Queries
+              .getSyncEvents(accountTest.id, Sort.Ascending)
+              .take(nbEvents)
+              .compile
+              .toList
+              .transact(db)
           } yield {
             it should "have consumed messages from worker" in {
               messageSent1 shouldBe
