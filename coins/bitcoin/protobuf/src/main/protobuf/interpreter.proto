@@ -17,6 +17,7 @@ service BitcoinInterpreterService {
   rpc GetOperations(GetOperationsRequest) returns (GetOperationsResult) {}
   rpc Compute(ComputeRequest) returns (ResultCount) {}
   rpc GetUTXOs(GetUTXOsRequest) returns (GetUTXOsResult) {}
+  rpc GetUnconfirmedUTXOs(GetUnconfirmedUTXOsRequest) returns (GetUnconfirmedUTXOsResult) {}
   rpc GetBalance(GetBalanceRequest) returns (CurrentBalance) {}
   rpc GetBalanceHistory(GetBalanceHistoryRequest) returns (GetBalanceHistoryResult) {}
 }
@@ -84,6 +85,14 @@ message GetUTXOsResult {
   repeated Utxo utxos = 1;
   int32 total = 2;
   bool truncated = 3;
+}
+
+message GetUnconfirmedUTXOsRequest {
+  bytes account_id = 1;
+}
+
+message GetUnconfirmedUTXOsResult {
+  repeated Utxo utxos = 1;
 }
 
 message GetBalanceRequest {

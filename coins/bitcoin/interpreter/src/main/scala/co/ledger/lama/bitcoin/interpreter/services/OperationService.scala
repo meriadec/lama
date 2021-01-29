@@ -6,7 +6,8 @@ import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.interpreter.{
   GetOperationsResult,
   GetUtxosResult,
-  TransactionView
+  TransactionView,
+  Utxo
 }
 import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
 import co.ledger.lama.common.logging.IOLogging
@@ -83,11 +84,63 @@ class OperationService(
           .compile
           .toList
 
+      // Flag utxos used in the mempool
+      unconfirmedTxs <-
+        OperationQueries
+          .fetchUnconfirmedTransactionsViews(accountId)
+          .transact(db)
+
+      unconfirmedInputs = unconfirmedTxs.flatMap(_.inputs).filter(_.belongs)
+
+      utxos = confirmedUtxos.map(utxo =>
+        utxo.copy(
+          usedInMempool = unconfirmedInputs.exists(input =>
+            input.outputHash == utxo.transactionHash && input.outputIndex == utxo.outputIndex
+          )
+        )
+      )
+
       total <- OperationQueries.countUTXOs(accountId).transact(db)
 
-      // we get 1 more than necessary to know if there's more, then we return the correct number
-      truncated = confirmedUtxos.size > limit
-    } yield GetUtxosResult(confirmedUtxos.slice(0, limit), total, truncated)
+      // We get 1 more than necessary to know if there's more, then we return the correct number
+      truncated = utxos.size > limit
+
+    } yield GetUtxosResult(utxos.slice(0, limit), total, truncated)
+
+  def getUnconfirmedUtxos(accountId: UUID): IO[List[Utxo]] = {
+    for {
+      unconfirmedTxs <-
+        OperationQueries
+          .fetchUnconfirmedTransactionsViews(accountId)
+          .transact(db)
+
+      inputs    = unconfirmedTxs.flatMap(_.inputs).filter(_.belongs)
+      outputMap = unconfirmedTxs.map(tx => (tx, tx.outputs.filter(_.belongs)))
+
+      unspentOutputs = outputMap
+        .flatMap { case (tx, outputs) =>
+          outputs
+            .filterNot(output =>
+              inputs.exists(input =>
+                input.outputHash == tx.hash && input.outputIndex == output.outputIndex
+              )
+            )
+            .map(output =>
+              Utxo(
+                tx.hash,
+                output.outputIndex,
+                output.value,
+                output.address,
+                output.scriptHex,
+                output.changeType,
+                output.derivation.get,
+                tx.receivedAt
+              )
+            )
+        }
+
+    } yield unspentOutputs
+  }
 
   def removeFromCursor(accountId: UUID, blockHeight: Long): IO[Int] =
     OperationQueries.removeFromCursor(accountId, blockHeight).transact(db)

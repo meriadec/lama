@@ -68,6 +68,11 @@ class Interpreter(
     operationService.getUTXOs(accountId, sort, limit, offset)
   }
 
+  def getUnconfirmedUTXOs(
+      accountId: UUID
+  ): IO[List[Utxo]] =
+    operationService.getUnconfirmedUtxos(accountId)
+
   def removeDataFromCursor(
       accountId: UUID,
       blockHeight: Long

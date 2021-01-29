@@ -235,6 +235,8 @@ class InterpreterClientMock extends InterpreterClient {
 
   }
 
+  def getUnconfirmedUTXOs(accountId: UUID): IO[List[Utxo]] = IO.pure(Nil)
+
   def getBalance(accountId: UUID): IO[CurrentBalance] =
     IO.raiseError(new Exception("Not implements Yet"))
 
