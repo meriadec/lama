@@ -42,7 +42,7 @@ class Transactor(
 
     for {
 
-      utxos <- getUTXOs(accountId, 100, Sort.Ascending).compile.toList
+      utxos <- getUTXOs(accountId, 100, Sort.Ascending).filter(!_.usedInMempool).compile.toList
       _ <- log.info(
         s"""Utxos found for account $accountId:
             - number of utxos: ${utxos.size}
