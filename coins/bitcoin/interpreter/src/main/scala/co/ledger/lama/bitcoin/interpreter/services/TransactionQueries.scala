@@ -6,13 +6,17 @@ import co.ledger.lama.bitcoin.common.models.explorer.{
   Block,
   ConfirmedTransaction,
   DefaultInput,
-  Output
+  Output,
+  UnconfirmedTransaction
 }
+import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import doobie._
 import doobie.implicits._
 import doobie.postgres.implicits._
 import fs2.Stream
+import io.circe.Json
+import io.circe.syntax._
 
 object TransactionQueries {
 
@@ -43,6 +47,37 @@ object TransactionQueries {
     } yield {
       txStatement
     }
+
+  def fetchUnconfirmedTransactions(
+      accountId: UUID
+  ): Stream[doobie.ConnectionIO, List[UnconfirmedTransaction]] = {
+    sql"""SELECT transactions
+          FROM unconfirmed_transaction_cache
+          WHERE account_id = $accountId
+       """
+      .query[Json]
+      .stream
+      .map(_.as[List[UnconfirmedTransaction]])
+      .rethrow
+  }
+
+  def deleteUnconfirmedTransactions(accountId: UUID): doobie.ConnectionIO[Int] = {
+    sql"""DELETE FROM unconfirmed_transaction_cache
+         WHERE account_id = $accountId
+       """.update.run
+  }
+
+  def saveUnconfirmedTransactions(
+      accountId: UUID,
+      txs: List[UnconfirmedTransaction]
+  ): ConnectionIO[Int] = {
+    sql"""INSERT INTO unconfirmed_transaction_cache (
+            account_id, transactions
+          ) VALUES (
+            $accountId, ${txs.asJson}
+          )
+       """.update.run
+  }
 
   private def insertTx(
       accountId: UUID,

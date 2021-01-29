@@ -3,7 +3,11 @@ package co.ledger.lama.bitcoin.interpreter.services
 import java.util.UUID
 
 import cats.effect.{ContextShift, IO}
-import co.ledger.lama.bitcoin.common.models.interpreter.{GetOperationsResult, GetUtxosResult}
+import co.ledger.lama.bitcoin.common.models.interpreter.{
+  GetOperationsResult,
+  GetUtxosResult,
+  TransactionView
+}
 import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Sort
@@ -41,10 +45,29 @@ class OperationService(
 
       // we get 1 more than necessary to know if there's more, then we return the correct number
       truncated = opsWithTx.size > limit
+
     } yield {
       val operations = opsWithTx.slice(0, limit)
       GetOperationsResult(operations, total, truncated)
     }
+
+  def deleteUnconfirmedTransactionView(accountId: UUID): IO[Int] =
+    OperationQueries
+      .deleteUnconfirmedTransactionsViews(accountId)
+      .transact(db)
+
+  def saveUnconfirmedTransactionView(
+      accountId: UUID,
+      transactions: List[TransactionView]
+  ): IO[Int] =
+    OperationQueries
+      .saveUnconfirmedTransactionView(accountId, transactions)
+      .transact(db)
+
+  def deleteUnconfirmedOperations(accountId: UUID): IO[Int] =
+    OperationQueries
+      .deleteUnconfirmedOperations(accountId)
+      .transact(db)
 
   def getUTXOs(
       accountId: UUID,
@@ -53,7 +76,7 @@ class OperationService(
       offset: Int
   ): IO[GetUtxosResult] =
     for {
-      utxos <-
+      confirmedUtxos <-
         OperationQueries
           .fetchUTXOs(accountId, sort, Some(limit + 1), Some(offset))
           .transact(db)
@@ -63,12 +86,15 @@ class OperationService(
       total <- OperationQueries.countUTXOs(accountId).transact(db)
 
       // we get 1 more than necessary to know if there's more, then we return the correct number
-      truncated = utxos.size > limit
-    } yield GetUtxosResult(utxos.slice(0, limit), total, truncated)
+      truncated = confirmedUtxos.size > limit
+    } yield GetUtxosResult(confirmedUtxos.slice(0, limit), total, truncated)
+
+  def removeFromCursor(accountId: UUID, blockHeight: Long): IO[Int] =
+    OperationQueries.removeFromCursor(accountId, blockHeight).transact(db)
 
   def compute(accountId: UUID): Stream[IO, OperationToSave] =
     operationSource(accountId)
-      .flatMap(op => Stream.chunk(op.computeOperations()))
+      .flatMap(op => Stream.chunk(op.computeOperations))
 
   private def operationSource(accountId: UUID): Stream[IO, TransactionAmounts] =
     OperationQueries
@@ -83,4 +109,5 @@ class OperationService(
           OperationQueries.saveOperations(batch).transact(db).map(_ => batch)
         }
         .flatMap(Stream.chunk)
+
 }

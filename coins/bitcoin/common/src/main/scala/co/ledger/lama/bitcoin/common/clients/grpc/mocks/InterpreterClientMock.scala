@@ -51,13 +51,13 @@ class InterpreterClientMock extends InterpreterClient {
     transactions.update(
       accountId,
       transactions(accountId)
-        .filter(tx => tx.block.height < blockHeightCursor.getOrElse(0L))
+        .filter(tx => tx.block.exists(_.height < blockHeightCursor.getOrElse(0L)))
     )
 
     operations.update(
       accountId,
       operations(accountId)
-        .filter(op => op.transaction.get.block.height < blockHeightCursor.getOrElse(0L))
+        .filter(op => op.transaction.get.block.exists(_.height < blockHeightCursor.getOrElse(0L)))
     )
 
     IO.pure(0)
@@ -106,7 +106,7 @@ class InterpreterClientMock extends InterpreterClient {
             addresses.find(_.accountAddress == o.address).map(_.derivation)
           )
         ),
-        BlockView(tx.block.hash, tx.block.height, tx.block.time),
+        Some(BlockView(tx.block.hash, tx.block.height, tx.block.time)),
         tx.confirmations
       )
     )
@@ -163,7 +163,8 @@ class InterpreterClientMock extends InterpreterClient {
       operationType,
       amount,
       tx.fees,
-      tx.block.time
+      tx.block.map(_.time).getOrElse(Instant.now()),
+      tx.block.map(_.height)
     )
   }
 
@@ -176,11 +177,11 @@ class InterpreterClientMock extends InterpreterClient {
   ): IO[GetOperationsResult] = {
 
     val ops: List[Operation] = operations(accountId)
-      .filter(_.transaction.get.block.height > blockHeight)
-      .sortBy(_.transaction.get.block.height)
+      .filter(_.transaction.get.block.exists(_.height > blockHeight))
+      .sortBy(_.transaction.get.block.get.height)
       .slice(offset, offset + limit)
 
-    val total = operations(accountId).count(_.transaction.get.block.height > blockHeight)
+    val total = operations(accountId).count(_.transaction.get.block.get.height > blockHeight)
 
     IO(
       new GetOperationsResult(
@@ -218,7 +219,7 @@ class InterpreterClientMock extends InterpreterClient {
           output.scriptHex,
           output.changeType,
           output.derivation.get,
-          tx.block.time
+          tx.block.map(_.time).getOrElse(Instant.now())
         )
       }
 

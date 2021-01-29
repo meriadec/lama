@@ -107,6 +107,41 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
       1
     )
 
+  val unconfirmedTx: TransactionView =
+    TransactionView(
+      "unconfirmedTx",
+      "unconfirmedTx",
+      time,
+      0,
+      500,
+      List(
+        InputView(
+          "txId2",
+          2,
+          0,
+          9434,
+          address3.accountAddress,
+          "script",
+          List(),
+          4294967295L,
+          Some(address2.derivation)
+        )
+      ),
+      List(
+        OutputView(
+          0,
+          1000,
+          address1.accountAddress,
+          "script",
+          Some(address1.changeType),
+          Some(address1.derivation)
+        ),
+        OutputView(1, 7934, notBelongingAddress, "script", None, None)
+      ),
+      None,
+      1
+    )
+
   it should "have the correct balance" in IOAssertion {
     setup() *>
       appResources.use { db =>
@@ -170,7 +205,7 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
       }
   }
 
-  it should "should be able to give intervals of balance" in IOAssertion {
+  it should "be able to give intervals of balance" in IOAssertion {
     setup() *>
       appResources.use { db =>
         val operationService = new OperationService(db, conf.maxConcurrent)
@@ -207,7 +242,7 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
       }
   }
 
-  it should "should give last balance before time range no balance exists in time range" in IOAssertion {
+  it should "give last balance before time range no balance exists in time range" in IOAssertion {
     setup() *>
       appResources.use { db =>
         val operationService = new OperationService(db, conf.maxConcurrent)
@@ -240,6 +275,46 @@ class BalanceIT extends AnyFlatSpecLike with Matchers with TestResources {
           balances should have size 5
           balances.head.balance shouldBe current.balance
           balances.last.balance shouldBe current.balance
+        }
+      }
+  }
+
+  it should "have unconfirmed transactions balance" in IOAssertion {
+    setup() *>
+      appResources.use { db =>
+        val operationService = new OperationService(db, conf.maxConcurrent)
+        val balanceService   = new BalanceService(db)
+        val flaggingService  = new FlaggingService(db)
+
+        for {
+          // save two transaction and compute balance
+          _ <- QueryUtils.saveTx(db, tx1, accountId)
+          _ <- QueryUtils.saveTx(db, tx2, accountId)
+          _ <- QueryUtils.saveTx(db, tx3, accountId)
+          _ <- QueryUtils.saveUnconfirmedTxView(db, accountId, List(unconfirmedTx))
+          _ <- flaggingService.flagInputsAndOutputs(
+            accountId,
+            List(address2, address3, address1)
+          )
+          _ <- operationService
+            .compute(accountId)
+            .through(operationService.saveOperationSink)
+            .compile
+            .toList
+          _ <- balanceService.computeNewBalanceHistory(accountId)
+
+          current  <- balanceService.getCurrentBalance(accountId)
+          balances <- balanceService.getBalanceHistory(accountId)
+
+        } yield {
+          current.balance shouldBe BigInt(24434)
+          current.unconfirmedBalance shouldBe BigInt(16000)
+          current.utxos shouldBe 2
+          current.received shouldBe BigInt(105000)
+          current.sent shouldBe BigInt(80566)
+
+          balances should have size 4
+          balances.last.balance shouldBe current.unconfirmedBalance
         }
       }
   }

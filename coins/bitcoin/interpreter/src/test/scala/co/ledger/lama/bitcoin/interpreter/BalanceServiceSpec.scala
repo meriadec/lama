@@ -22,7 +22,7 @@ class BalanceServiceSpec extends AnyFlatSpecLike with Matchers {
       BalanceHistory(
         uuid,
         value,
-        value,
+        Some(value),
         time.plus(value, ChronoUnit.SECONDS)
       )
     }.toList
@@ -43,8 +43,8 @@ class BalanceServiceSpec extends AnyFlatSpecLike with Matchers {
     val uuid = UUID.randomUUID()
     val time = Instant.now()
 
-    val balanceBeforeGap = BalanceHistory(uuid, 1, 1, time.minus(1, ChronoUnit.SECONDS))
-    val balanceAfterGap  = BalanceHistory(uuid, 2, 2, time.plus(100, ChronoUnit.SECONDS))
+    val balanceBeforeGap = BalanceHistory(uuid, 1, Some(1), time.minus(1, ChronoUnit.SECONDS))
+    val balanceAfterGap  = BalanceHistory(uuid, 2, Some(2), time.plus(100, ChronoUnit.SECONDS))
 
     val balances = List(
       balanceBeforeGap,
@@ -65,8 +65,8 @@ class BalanceServiceSpec extends AnyFlatSpecLike with Matchers {
     val uuid = UUID.randomUUID()
     val time = Instant.now()
 
-    val firstBalance = BalanceHistory(uuid, 1, 1, time.minus(1, ChronoUnit.SECONDS))
-    val lastBalance  = BalanceHistory(uuid, 2, 2, time.plus(3, ChronoUnit.SECONDS))
+    val firstBalance = BalanceHistory(uuid, 1, Some(1), time.minus(1, ChronoUnit.SECONDS))
+    val lastBalance  = BalanceHistory(uuid, 2, Some(2), time.plus(3, ChronoUnit.SECONDS))
 
     val balances = List(firstBalance, lastBalance)
 
@@ -91,7 +91,7 @@ class BalanceServiceSpec extends AnyFlatSpecLike with Matchers {
     val uuid = UUID.randomUUID()
     val time = Instant.now()
 
-    val firstBalance = BalanceHistory(uuid, 1, 1, time.plus(29, ChronoUnit.SECONDS))
+    val firstBalance = BalanceHistory(uuid, 1, Some(1), time.plus(29, ChronoUnit.SECONDS))
 
     val balances = List(firstBalance)
 

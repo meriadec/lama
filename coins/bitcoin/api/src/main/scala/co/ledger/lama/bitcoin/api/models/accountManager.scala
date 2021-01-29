@@ -18,6 +18,7 @@ object accountManager {
       syncFrequency: Long,
       lastSyncEvent: Option[SyncEvent[JsonObject]],
       balance: BigInt,
+      unconfirmedBalance: BigInt,
       utxos: Int,
       received: BigInt,
       sent: BigInt,

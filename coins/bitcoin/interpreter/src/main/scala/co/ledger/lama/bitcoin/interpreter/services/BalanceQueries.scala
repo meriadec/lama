@@ -3,7 +3,7 @@ package co.ledger.lama.bitcoin.interpreter.services
 import java.time.Instant
 import java.util.UUID
 
-import co.ledger.lama.bitcoin.common.models.interpreter.{BalanceHistory, CurrentBalance}
+import co.ledger.lama.bitcoin.common.models.interpreter.{BalanceHistory, BlockchainBalance}
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import doobie._
 import doobie.implicits._
@@ -40,9 +40,9 @@ object BalanceQueries {
       .query[BalanceHistory]
       .stream
 
-  def getCurrentBalance(
+  def getBlockchainBalance(
       accountId: UUID
-  ): ConnectionIO[CurrentBalance] = {
+  ): ConnectionIO[BlockchainBalance] = {
     val balanceAndUtxosQuery =
       sql"""SELECT COALESCE(SUM(o.value), 0), COALESCE(COUNT(o.value), 0)
           FROM output o
@@ -74,7 +74,7 @@ object BalanceQueries {
     } yield {
       val (balance, utxos) = result1
       val (received, sent) = result2
-      CurrentBalance(balance, utxos, received, sent)
+      BlockchainBalance(balance, utxos, received, sent)
     }
   }
 

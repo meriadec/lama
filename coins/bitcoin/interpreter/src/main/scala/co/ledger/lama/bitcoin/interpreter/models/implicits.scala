@@ -40,16 +40,17 @@ object implicits {
       (o.outputIndex, o.value, o.address, o.scriptHex)
     }
 
-  // Needs implicits because of the Block
   implicit lazy val readTransactionView: Read[TransactionView] =
-    Read[(String, String, String, Long, Instant, Instant, Long, BigInt, Int)]
+    Read[
+      (String, String, Option[String], Option[Long], Option[Instant], Instant, Long, BigInt, Int)
+    ]
       .map {
         case (
               id,
               hash,
-              blockHash,
-              blockHeight,
-              blockTime,
+              blockHashO,
+              blockHeightO,
+              blockTimeO,
               receivedAt,
               lockTime,
               fees,
@@ -63,15 +64,16 @@ object implicits {
             fees = fees,
             inputs = Seq(),
             outputs = Seq(),
-            block = BlockView(blockHash, blockHeight, blockTime),
+            block =
+              blockHashO.map(blockHash => BlockView(blockHash, blockHeightO.get, blockTimeO.get)),
             confirmations = confirmations
           )
       }
 
   // Needs implicit because of the Transaction "None"
   implicit lazy val readOperation: Read[Operation] =
-    Read[(UUID, String, OperationType, BigInt, BigInt, Instant)]
-      .map { case (accountId, hash, operationType, value, fees, time) =>
-        Operation(accountId, hash, None, operationType, value, fees, time)
+    Read[(UUID, String, OperationType, BigInt, BigInt, Instant, Option[Long])]
+      .map { case (accountId, hash, operationType, value, fees, time, height) =>
+        Operation(accountId, hash, None, operationType, value, fees, time, height)
       }
 }

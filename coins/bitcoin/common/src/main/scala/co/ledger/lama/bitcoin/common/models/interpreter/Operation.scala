@@ -16,7 +16,8 @@ case class Operation(
     operationType: OperationType,
     value: BigInt,
     fees: BigInt,
-    time: Instant
+    time: Instant,
+    blockHeight: Option[Long]
 ) {
   def toProto: protobuf.Operation = {
     protobuf.Operation(
@@ -26,7 +27,8 @@ case class Operation(
       operationType.toProto,
       value.toString,
       fees.toString,
-      Some(TimestampProtoUtils.serialize(time))
+      Some(TimestampProtoUtils.serialize(time)),
+      blockHeight.getOrElse(-1L)
     )
   }
 }
@@ -43,7 +45,8 @@ object Operation {
       OperationType.fromProto(proto.operationType),
       BigInt(proto.value),
       BigInt(proto.fees),
-      proto.time.map(TimestampProtoUtils.deserialize).getOrElse(Instant.now)
+      proto.time.map(TimestampProtoUtils.deserialize).getOrElse(Instant.now),
+      if (proto.blockHeight >= 0) Some(proto.blockHeight) else None
     )
   }
 }

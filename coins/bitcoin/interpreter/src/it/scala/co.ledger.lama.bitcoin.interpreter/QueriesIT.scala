@@ -82,8 +82,8 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
     }.sum,
     transactionToInsert.fees,
     block.time,
-    block.hash,
-    block.height
+    Some(block.hash),
+    Some(block.height)
   )
 
   "operation saved in db" should "be fetched" in IOAssertion {
@@ -102,7 +102,8 @@ class QueriesIT extends AnyFlatSpecLike with Matchers with TestResources {
               opToSave.operationType,
               opToSave.value,
               opToSave.fees,
-              opToSave.time
+              opToSave.time,
+              opToSave.blockHeight
             )
         }
       }

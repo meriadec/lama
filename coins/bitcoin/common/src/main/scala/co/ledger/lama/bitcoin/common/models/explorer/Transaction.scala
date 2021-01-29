@@ -2,6 +2,12 @@ package co.ledger.lama.bitcoin.common.models.explorer
 
 import java.time.Instant
 
+import co.ledger.lama.bitcoin.common.models.interpreter.{
+  AccountAddress,
+  InputView,
+  OutputView,
+  TransactionView
+}
 import co.ledger.lama.bitcoin.interpreter.protobuf
 import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.common.utils.TimestampProtoUtils
@@ -89,7 +95,47 @@ case class UnconfirmedTransaction(
     inputs: Seq[Input],
     outputs: Seq[Output],
     confirmations: Int
-) extends Transaction
+) extends Transaction {
+
+  def toTransactionView(
+      addresses: List[AccountAddress]
+  ): TransactionView = {
+    TransactionView(
+      id,
+      hash,
+      receivedAt,
+      lockTime,
+      fees,
+      inputs.collect { case i: DefaultInput =>
+        InputView(
+          i.outputHash,
+          i.outputIndex,
+          i.inputIndex,
+          i.value,
+          i.address,
+          i.scriptSignature,
+          i.txinwitness,
+          i.sequence,
+          addresses.find(_.accountAddress == i.address).map(_.derivation)
+        )
+      },
+      outputs.map { o =>
+        val addressO = addresses.find(_.accountAddress == o.address)
+        OutputView(
+          o.outputIndex,
+          o.value,
+          o.address,
+          o.scriptHex,
+          addressO.map(_.changeType),
+          addressO.map(_.derivation)
+        )
+      },
+      None,
+      confirmations
+    )
+  }
+
+}
 
 object UnconfirmedTransaction {
   implicit val encoder: Encoder[UnconfirmedTransaction] =
@@ -97,4 +143,16 @@ object UnconfirmedTransaction {
 
   implicit val decoder: Decoder[UnconfirmedTransaction] =
     deriveConfiguredDecoder[UnconfirmedTransaction]
+
+  def fromProto(proto: protobuf.Transaction): UnconfirmedTransaction =
+    UnconfirmedTransaction(
+      proto.id,
+      proto.hash,
+      proto.receivedAt.map(TimestampProtoUtils.deserialize).getOrElse(Instant.now),
+      proto.lockTime,
+      BigInt(proto.fees),
+      proto.inputs.map(Input.fromProto),
+      proto.outputs.map(Output.fromProto),
+      proto.confirmations
+    )
 }

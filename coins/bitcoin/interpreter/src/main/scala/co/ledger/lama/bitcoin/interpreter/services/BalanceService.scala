@@ -20,10 +20,10 @@ class BalanceService(db: Transactor[IO]) extends IOLogging {
         .getLastBalance(accountId)
         .transact(db)
         // If there is no history saved for this accountId yet, default to blockHeight = 0 and balance = 0
-        .map(_.getOrElse(BalanceHistory(accountId, 0, 0, Instant.MIN)))
+        .map(_.getOrElse(BalanceHistory(accountId, 0, Some(0), Instant.MIN)))
 
       balances <- BalanceQueries
-        .getUncomputedBalanceHistories(accountId, lastBalance.blockHeight)
+        .getUncomputedBalanceHistories(accountId, lastBalance.blockHeight.getOrElse(0))
         .transact(db)
         .map(balanceHistory =>
           // We need to adjust each balance with the last known balance.
@@ -41,13 +41,24 @@ class BalanceService(db: Transactor[IO]) extends IOLogging {
     } yield nbSaved
 
   def getCurrentBalance(accountId: UUID): IO[CurrentBalance] =
-    BalanceQueries.getCurrentBalance(accountId).transact(db)
+    for {
+      blockchainBalance    <- BalanceQueries.getBlockchainBalance(accountId).transact(db)
+      mempoolBalanceAmount <- getMempoolBalanceAmount(accountId)
+    } yield {
+      CurrentBalance(
+        blockchainBalance.balance,
+        blockchainBalance.utxos,
+        blockchainBalance.received,
+        blockchainBalance.sent,
+        blockchainBalance.balance + mempoolBalanceAmount
+      )
+    }
 
   def getBalanceHistory(
       accountId: UUID,
-      startO: Option[Instant],
-      endO: Option[Instant],
-      intervalO: Option[Int]
+      startO: Option[Instant] = None,
+      endO: Option[Instant] = None,
+      intervalO: Option[Int] = None
   ): IO[List[BalanceHistory]] =
     for {
       balances <- BalanceQueries
@@ -63,9 +74,32 @@ class BalanceService(db: Transactor[IO]) extends IOLogging {
           .transact(db)
       }
 
+      mempoolIsInTimeRange = endO.forall(end => end.isAfter(Instant.now()))
+
+      // Add mempool balance to the last balance
+      withMempoolBalance <-
+        if (mempoolIsInTimeRange) {
+          // Either last balance, or previous balance if no balance in time range or nobalance
+          val lastBalance =
+            balances.lastOption.orElse(previousBalance).map(_.balance).getOrElse(BigInt(0))
+
+          getMempoolBalanceAmount(accountId)
+            .map(amount =>
+              balances.appended(
+                BalanceHistory(
+                  accountId,
+                  amount + lastBalance,
+                  None,
+                  Instant.now()
+                )
+              )
+            )
+        } else
+          IO.pure(balances)
+
     } yield intervalO
-      .map(getBalancesAtInterval(accountId, balances, previousBalance, _, startO, endO))
-      .getOrElse(balances)
+      .map(getBalancesAtInterval(accountId, withMempoolBalance, previousBalance, _, startO, endO))
+      .getOrElse(withMempoolBalance)
 
   def getBalanceHistoryCount(accountId: UUID): IO[Int] =
     BalanceQueries.getBalanceHistoryCount(accountId).transact(db)
@@ -85,7 +119,7 @@ class BalanceService(db: Transactor[IO]) extends IOLogging {
     val end               = endO.getOrElse(balances.last.time)
     val intervalInSeconds = (end.getEpochSecond - start.getEpochSecond + 1) / interval.toDouble
 
-    val noBalance = BalanceHistory(accountId, 0, 0, Instant.now())
+    val noBalance = BalanceHistory(accountId, 0, Some(0), Instant.now())
 
     // We need a tailrec function for big accounts
     @tailrec
@@ -168,6 +202,23 @@ class BalanceService(db: Transactor[IO]) extends IOLogging {
       interval
     ).reverse
 
+  }
+
+  def getMempoolBalanceAmount(
+      accountId: UUID
+  ): IO[BigInt] = {
+    OperationQueries
+      .fetchUnconfirmedTransactionsViews(accountId)
+      .transact(db)
+      .map {
+        case Nil => BigInt(0)
+        case txs =>
+          txs.foldLeft(BigInt(0)) { (balance, tx) =>
+            balance +
+              tx.outputs.collect { case o if o.belongs => o.value }.sum -
+              tx.inputs.collect { case i if i.belongs => i.value }.sum
+          }
+      }
   }
 
 }

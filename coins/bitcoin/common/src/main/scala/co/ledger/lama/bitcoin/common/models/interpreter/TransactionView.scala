@@ -16,7 +16,7 @@ case class TransactionView(
     fees: BigInt,
     inputs: Seq[InputView],
     outputs: Seq[OutputView],
-    block: BlockView,
+    block: Option[BlockView],
     confirmations: Int
 ) {
   def toProto: protobuf.TransactionView =
@@ -28,7 +28,7 @@ case class TransactionView(
       fees.toString,
       inputs.map(_.toProto),
       outputs.map(_.toProto),
-      Some(block.toProto),
+      block.map(_.toProto),
       confirmations
     )
 }
@@ -46,9 +46,7 @@ object TransactionView {
       BigInt(proto.fees),
       proto.inputs.map(InputView.fromProto),
       proto.outputs.map(OutputView.fromProto),
-      BlockView.fromProto(
-        proto.getBlock
-      ), // block should never be missing, it's because of protobuf cc generator
+      proto.block.map(BlockView.fromProto),
       proto.confirmations
     )
 }

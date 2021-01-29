@@ -24,6 +24,7 @@ message Operation {
   string value = 5;
   string fees = 6;
   google.protobuf.Timestamp time = 7;
+  int64 block_height = 8;
 }
 
 message TransactionView {
@@ -55,7 +56,7 @@ message OutputView {
   string value = 2;
   string address = 3;
   string script_hex = 4;
-  ChangeType changeType = 5;
+  ChangeType change_type = 5;
   repeated uint32 derivation = 6;
 }
 
@@ -65,7 +66,7 @@ message Utxo {
   string value = 3;
   string address = 4;
   string script_hex = 5;
-  ChangeType changeType = 6;
+  ChangeType change_type = 6;
   repeated uint32 derivation = 7;
   google.protobuf.Timestamp time = 8;
 }
@@ -87,6 +88,7 @@ message CurrentBalance {
   int32 utxos = 2;
   string received = 3;
   string sent = 4;
+  string unconfirmed_balance = 5;
 }
 
 message BalanceHistory {

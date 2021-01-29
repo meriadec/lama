@@ -12,14 +12,14 @@ import io.circe.generic.extras.semiauto.{deriveConfiguredDecoder, deriveConfigur
 case class BalanceHistory(
     accountId: UUID,
     balance: BigInt,
-    blockHeight: Long,
+    blockHeight: Option[Long],
     time: Instant
 ) {
   def toProto: protobuf.BalanceHistory =
     protobuf.BalanceHistory(
       accountId = UuidUtils.uuidToBytes(accountId),
       balance = balance.toString,
-      blockHeight = blockHeight,
+      blockHeight = blockHeight.getOrElse(-1),
       time = Some(TimestampProtoUtils.serialize(time))
     )
 }
@@ -32,7 +32,7 @@ object BalanceHistory {
     BalanceHistory(
       accountId = UuidUtils.unsafeBytesToUuid(proto.accountId),
       balance = BigInt(proto.balance),
-      blockHeight = proto.blockHeight,
+      blockHeight = if (proto.blockHeight >= 0) Some(proto.blockHeight) else None,
       time = proto.time.map(TimestampProtoUtils.deserialize).getOrElse(Instant.now)
     )
 }

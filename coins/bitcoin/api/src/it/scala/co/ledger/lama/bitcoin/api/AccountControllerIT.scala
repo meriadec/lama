@@ -240,7 +240,7 @@ trait AccountControllerIT extends AnyFlatSpecLike with Matchers {
             }
 
             it should "have a correct balance history" in {
-              balances should have size account.expected.balanceHistorySize
+              balances should have size account.expected.balanceHistorySize + 1 //This 1 is mempool balance
               balances.last.balance shouldBe accountInfoAfterSync.balance
             }
 

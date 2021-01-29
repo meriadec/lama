@@ -4,17 +4,15 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
 
-import cats.implicits._
 import co.ledger.lama.common.models._
+import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.common.models.messages.WorkerMessage
 import doobie.util.meta.Meta
 import doobie.postgres.implicits._
 import doobie.implicits.javasql._
 import doobie.util.{Get, Put, Read}
 import io.circe.{Decoder, Encoder, Json, JsonObject}
-import io.circe.parser._
 import io.circe.syntax._
-import org.postgresql.util.PGobject
 
 object implicits {
 
@@ -25,16 +23,6 @@ object implicits {
     TimestampMeta.imap[Instant] { ts =>
       Instant.ofEpochMilli(ts.getTime)
     }(Timestamp.from)
-
-  implicit val jsonMeta: Meta[Json] =
-    Meta.Advanced
-      .other[PGobject]("json")
-      .timap[Json](a => parse(a.getValue).leftMap[Json](e => throw e).merge)(a => {
-        val o = new PGobject
-        o.setType("json")
-        o.setValue(a.noSpaces)
-        o
-      })
 
   implicit val jsonObjectGet: Get[Option[JsonObject]] =
     jsonMeta.get.map(_.asObject)
@@ -129,6 +117,31 @@ object implicits {
           syncFrequency,
           None,
           label
+        )
+    }
+
+  implicit val doobieRead: Read[AccountSyncStatus] =
+    Read[(AccountInfo, UUID, Status, Option[JsonObject], Option[ReportError], Instant)].map {
+      case (
+            accountInfo,
+            syncId,
+            status,
+            cursor,
+            error,
+            updated
+          ) =>
+        AccountSyncStatus(
+          accountInfo.id,
+          accountInfo.key,
+          accountInfo.coinFamily,
+          accountInfo.coin,
+          accountInfo.syncFrequency,
+          accountInfo.label,
+          syncId,
+          status,
+          cursor,
+          error,
+          updated
         )
     }
 }

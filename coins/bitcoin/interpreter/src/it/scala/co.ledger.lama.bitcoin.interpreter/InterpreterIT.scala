@@ -4,16 +4,11 @@ import java.time.Instant
 import java.util.UUID
 
 import cats.data.NonEmptyList
+import cats.effect.IO
 import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.explorer._
 import co.ledger.lama.bitcoin.common.models.interpreter._
-import co.ledger.lama.bitcoin.interpreter.services.{
-  BalanceService,
-  FlaggingService,
-  OperationService,
-  TransactionService
-}
-import co.ledger.lama.common.models.Sort
+import co.ledger.lama.common.models.{Coin, Sort}
 import co.ledger.lama.common.utils.IOAssertion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -69,10 +64,7 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
   "a transaction" should "have a full lifecycle" in IOAssertion {
     setup() *>
       appResources.use { db =>
-        val operationService   = new OperationService(db, conf.maxConcurrent)
-        val transactionService = new TransactionService(db, conf.maxConcurrent)
-        val flaggingService    = new FlaggingService(db)
-        val balanceService     = new BalanceService(db)
+        val interpreter = new Interpreter(_ => IO.unit, db, 1)
 
         val block2 = Block(
           "0000000000000000000cc9cc204cf3b314d106e69afbea68f2ae7f9e5047ba74",
@@ -89,37 +81,35 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
         val blocksToSave = List(block2, block, block3)
 
         for {
-          _ <- QueryUtils.saveTx(db, insertTx, accountId)
-          _ <- QueryUtils.saveTx(db, insertTx.copy(hash = "toto", block = block2), accountId)
-          _ <- QueryUtils.saveTx(db, insertTx.copy(hash = "tata", block = block3), accountId)
+          _ <- interpreter.saveTransactions(accountId, List(insertTx))
+          _ <- interpreter.saveTransactions(
+            accountId,
+            List(
+              insertTx.copy(hash = "toto", block = block2),
+              insertTx.copy(hash = "tata", block = block3)
+            )
+          )
 
-          blocks <- transactionService.getLastBlocks(accountId).compile.toList
+          blocks <- interpreter.getLastBlocks(accountId)
 
-          _ <- flaggingService.flagInputsAndOutputs(accountId, List(inputAddress, outputAddress2))
-          _ <- operationService
-            .compute(accountId)
-            .through(operationService.saveOperationSink)
-            .compile
-            .toList
+          _ <- interpreter.compute(accountId, List(inputAddress, outputAddress2), Coin.Btc)
 
-          _ <- balanceService.computeNewBalanceHistory(accountId)
-
-          resOpsBeforeDeletion <- operationService.getOperations(
+          resOpsBeforeDeletion <- interpreter.getOperations(
             accountId,
             blockHeight = 0L,
-            limit = 20,
-            offset = 0,
+            20,
+            0,
             Sort.Ascending
           )
 
           GetOperationsResult(opsBeforeDeletion, opsBeforeDeletionTotal, opsBeforeDeletionTrunc) =
             resOpsBeforeDeletion
 
-          resUtxoBeforeDeletion <- operationService.getUTXOs(
+          resUtxoBeforeDeletion <- interpreter.getUTXOs(
             accountId,
-            Sort.Ascending,
-            limit = 20,
-            offset = 0
+            20,
+            0,
+            Sort.Ascending
           )
 
           GetUtxosResult(utxosBeforeDeletion, utxosBeforeDeletionTotal, utxosBeforeDeletionTrunc) =
@@ -127,35 +117,34 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
 
           start = time.minusSeconds(86400)
           end   = time.plusSeconds(86400)
-          balancesBeforeDeletion <- balanceService.getBalanceHistory(
+          balancesBeforeDeletion <- interpreter.getBalanceHistory(
             accountId,
             Some(start),
             Some(end),
-            None
+            0
           )
 
-          _ <- transactionService.removeFromCursor(accountId, block.height)
-          _ <- balanceService.removeBalanceHistoryFromCursor(accountId, block.height)
+          _ <- interpreter.removeDataFromCursor(accountId, block.height)
 
-          resOpsAfterDeletion <- operationService.getOperations(
+          resOpsAfterDeletion <- interpreter.getOperations(
             accountId,
             blockHeight = 0L,
-            limit = 20,
-            offset = 0,
+            20,
+            0,
             Sort.Ascending
           )
 
           GetOperationsResult(opsAfterDeletion, opsAfterDeletionTotal, opsAfterDeletionTrunc) =
             resOpsAfterDeletion
 
-          balancesAfterDeletion <- balanceService.getBalanceHistory(
+          balancesAfterDeletion <- interpreter.getBalanceHistory(
             accountId,
             Some(start),
             Some(end),
-            None
+            0
           )
 
-          blocksAfterDelete <- transactionService.getLastBlocks(accountId).compile.toList
+          blocksAfterDelete <- interpreter.getLastBlocks(accountId)
         } yield {
           blocks should be(blocksToSave.sortBy(_.height)(Ordering[Long].reverse))
 
@@ -178,5 +167,50 @@ class InterpreterIT extends AnyFlatSpecLike with Matchers with TestResources {
           blocksAfterDelete shouldBe empty
         }
       }
+  }
+
+  "an unconfirmed transaction" should "have a full lifecycle" in IOAssertion {
+    setup() *>
+      appResources.use { db =>
+        val interpreter = new Interpreter(_ => IO.unit, db, 1)
+
+        val uTx = UnconfirmedTransaction(
+          "txId",
+          "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1f",
+          time,
+          0,
+          20566,
+          inputs,
+          outputs,
+          1
+        )
+        val uTx2 = uTx.copy(
+          id = "txId2",
+          hash = "a8a935c6bc2bd8b3a7c20f107a9eb5f10a315ce27de9d72f3f4e27ac9ec1eb1e"
+        )
+
+        for {
+          _ <- interpreter.saveUnconfirmedTransactions(accountId, List(uTx))
+          _ <- interpreter.saveUnconfirmedTransactions(accountId, List(uTx2))
+          _ <- interpreter.compute(
+            accountId,
+            List(outputAddress1),
+            Coin.Btc
+          )
+          res <- interpreter.getOperations(accountId, 0L, 20, 0, Sort.Descending)
+          GetOperationsResult(operations, _, _) = res
+          currentBalance <- interpreter.getBalance(accountId)
+          balanceHistory <- interpreter.getBalanceHistory(accountId, None, None, 0)
+        } yield {
+          currentBalance.balance should be(0)
+          currentBalance.unconfirmedBalance should be(100000)
+
+          operations should have size 2
+          operations.head.blockHeight should be(None)
+
+          balanceHistory.last.balance should be(currentBalance.unconfirmedBalance)
+        }
+      }
+
   }
 }

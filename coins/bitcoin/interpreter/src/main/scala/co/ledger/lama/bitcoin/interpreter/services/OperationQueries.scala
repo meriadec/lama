@@ -3,18 +3,19 @@ package co.ledger.lama.bitcoin.interpreter.services
 import java.util.UUID
 
 import cats.data.NonEmptyList
-
+import cats.implicits._
 import co.ledger.lama.bitcoin.common.models.interpreter._
+import co.ledger.lama.common.models.implicits._
 import co.ledger.lama.bitcoin.interpreter.models.{OperationToSave, TransactionAmounts}
 import co.ledger.lama.bitcoin.interpreter.models.implicits._
 import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models.Sort
-
 import doobie._
 import doobie.implicits._
 import doobie.postgres.implicits._
-
+import io.circe.syntax._
 import fs2.{Chunk, Stream}
+import io.circe.Json
 
 object OperationQueries extends IOLogging {
 
@@ -39,20 +40,6 @@ object OperationQueries extends IOLogging {
       )
     }
   }
-
-  def fetchTxHashesWithNoOperations(
-      accountId: UUID
-  ): Stream[ConnectionIO, String] =
-    sql"""SELECT tx.hash
-          FROM transaction tx
-            LEFT JOIN operation op
-              ON op.hash = tx.hash
-              AND op.account_id = tx.account_id
-          WHERE op.hash IS NULL
-          AND tx.account_id = $accountId
-       """
-      .query[String]
-      .stream
 
   def fetchTransactionAmounts(
       accountId: UUID
@@ -129,6 +116,54 @@ object OperationQueries extends IOLogging {
     Update[OperationToSave](query).updateMany(operation)
   }
 
+  def fetchUnconfirmedTransactionsViews(
+      accountId: UUID
+  ): ConnectionIO[List[TransactionView]] = {
+    log.logger.debug(s"Fetching transactions for accountId $accountId")
+    sql"""SELECT transaction_views
+          FROM unconfirmed_transaction_view
+          WHERE account_id = $accountId
+       """
+      .query[Json]
+      .option
+      .map { t =>
+        t.map(_.as[List[TransactionView]]) match {
+          case Some(result) =>
+            result.leftMap { error =>
+              log.error("Could not parse TansactionView list json : ", error)
+              error
+            }
+          case None => Right(List.empty[TransactionView])
+        }
+      }
+      .rethrow
+  }
+
+  def deleteUnconfirmedTransactionsViews(accountId: UUID): doobie.ConnectionIO[Int] = {
+    sql"""DELETE FROM unconfirmed_transaction_view
+         WHERE account_id = $accountId
+       """.update.run
+  }
+
+  def deleteUnconfirmedOperations(accountId: UUID): doobie.ConnectionIO[Int] = {
+    sql"""DELETE FROM operation
+         WHERE account_id = $accountId
+         AND block_height IS NULL
+       """.update.run
+  }
+
+  def saveUnconfirmedTransactionView(
+      accountId: UUID,
+      txs: List[TransactionView]
+  ): ConnectionIO[Int] = {
+    sql"""INSERT INTO unconfirmed_transaction_view(
+            account_id, transaction_views
+          ) VALUES (
+            $accountId, ${txs.asJson}
+          )
+       """.update.run
+  }
+
   private def fetchTx(
       accountId: UUID,
       hash: String
@@ -166,8 +201,8 @@ object OperationQueries extends IOLogging {
       .query[OutputView]
       .stream
 
-  def countOperations(accountId: UUID, blockHeight: Long = 0L) =
-    sql"""SELECT COUNT(*) FROM operation WHERE account_id = $accountId AND block_height >= $blockHeight"""
+  def countOperations(accountId: UUID, blockHeight: Long = 0L): ConnectionIO[Int] =
+    sql"""SELECT COUNT(*) FROM operation WHERE account_id = $accountId AND (block_height >= $blockHeight OR block_height IS NULL)"""
       .query[Int]
       .unique
 
@@ -183,10 +218,11 @@ object OperationQueries extends IOLogging {
     val offsetF = offset.map(o => fr"OFFSET $o").getOrElse(Fragment.empty)
 
     val query =
-      sql"""SELECT account_id, hash, operation_type, value, fees, time
+      sql"""SELECT account_id, hash, operation_type, value, fees, time, block_height
             FROM operation
             WHERE account_id = $accountId
-            AND block_height >= $blockHeight
+            AND (block_height >= $blockHeight
+              OR block_height IS NULL)
          """ ++ orderF ++ limitF ++ offsetF
     query.query[Operation].stream
   }
@@ -222,4 +258,11 @@ object OperationQueries extends IOLogging {
 
     queries.traverse(_.update.run).map(_.toList.sum)
   }
+
+  def removeFromCursor(accountId: UUID, blockHeight: Long): ConnectionIO[Int] =
+    sql"""DELETE from operation
+          WHERE account_id = $accountId
+          AND (block_height >= $blockHeight
+              OR block_height IS NULL)
+       """.update.run
 }

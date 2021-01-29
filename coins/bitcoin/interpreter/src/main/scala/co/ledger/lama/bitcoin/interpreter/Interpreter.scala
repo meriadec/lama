@@ -8,9 +8,10 @@ import co.ledger.lama.common.logging.IOLogging
 import co.ledger.lama.common.models._
 import io.circe.syntax._
 import doobie.Transactor
-
 import java.time.Instant
 import java.util.UUID
+
+import co.ledger.lama.bitcoin.interpreter.models.OperationToSave
 
 class Interpreter(
     publish: Notification => IO[Unit],
@@ -29,6 +30,12 @@ class Interpreter(
       transactions: List[ConfirmedTransaction]
   ): IO[Int] =
     transactionService.saveTransactions(accountId, transactions)
+
+  def saveUnconfirmedTransactions(
+      accountId: UUID,
+      transactions: List[UnconfirmedTransaction]
+  ): IO[Int] =
+    transactionService.saveUnconfirmedTransactions(accountId, transactions)
 
   def getLastBlocks(
       accountId: UUID
@@ -67,6 +74,9 @@ class Interpreter(
   ): IO[Int] = {
     for {
       txRes <- transactionService.removeFromCursor(accountId, blockHeight)
+      _     <- transactionService.deleteUnconfirmedTransaction(accountId)
+      _     <- operationService.removeFromCursor(accountId, blockHeight)
+      _     <- operationService.deleteUnconfirmedTransactionView(accountId)
       _     <- log.info(s"Deleted $txRes transactions")
       balancesRes <- balanceService.removeBalanceHistoryFromCursor(
         accountId,
@@ -83,10 +93,23 @@ class Interpreter(
   ): IO[Int] =
     for {
       balanceHistoryCount <- balanceService.getBalanceHistoryCount(accountId)
-      nbSavedOps          <- computeOps(accountId, addresses, coin, balanceHistoryCount > 0)
-      _                   <- log.info("Computing balance history")
-      _                   <- balanceService.computeNewBalanceHistory(accountId)
-      currentBalance      <- balanceService.getCurrentBalance(accountId)
+
+      unconfirmedTransactions <- computeAndSaveUnconfirmedTxs(accountId, addresses)
+      unconfirmedOperations = unconfirmedTransactions.flatMap(
+        OperationToSave.fromTransactionView(accountId, _)
+      )
+
+      nbSavedOps <- computeOps(
+        accountId,
+        addresses,
+        coin,
+        balanceHistoryCount > 0,
+        unconfirmedOperations
+      )
+
+      _              <- log.info("Computing balance history")
+      _              <- balanceService.computeNewBalanceHistory(accountId)
+      currentBalance <- balanceService.getCurrentBalance(accountId)
 
       _ <- publish(
         BalanceUpdatedNotification(
@@ -99,20 +122,38 @@ class Interpreter(
 
     } yield nbSavedOps
 
+  def computeAndSaveUnconfirmedTxs(
+      accountId: UUID,
+      addresses: List[AccountAddress]
+  ): IO[List[TransactionView]] =
+    for {
+      uTransactions <- transactionService.fetchUnconfirmedTransactions(accountId)
+      transactionsViews = uTransactions.map(_.toTransactionView(addresses))
+      _ <- operationService.deleteUnconfirmedTransactionView(accountId)
+      _ <- operationService.saveUnconfirmedTransactionView(accountId, transactionsViews)
+      _ <- transactionService.deleteUnconfirmedTransaction(accountId)
+    } yield transactionsViews
+
   def computeOps(
       accountId: UUID,
       addresses: List[AccountAddress],
       coin: Coin,
-      shouldNotify: Boolean
-  ): IO[Int] = {
-
+      shouldNotify: Boolean,
+      unconfirmedOperations: List[OperationToSave]
+  ): IO[Int] =
     for {
       _ <- log.info(s"Flagging inputs and outputs belong to account=$accountId")
       _ <- flaggingService.flagInputsAndOutputs(accountId, addresses)
 
+      _ <- operationService.deleteUnconfirmedOperations(accountId)
+
       _ <- log.info("Computing operations")
       nbSavedOps <- operationService
         .compute(accountId)
+        .append(
+          fs2.Stream
+            .emits(unconfirmedOperations)
+        )
         .through(operationService.saveOperationSink)
         .parEvalMap(maxConcurrent) { op =>
           if (shouldNotify) {
@@ -124,16 +165,14 @@ class Interpreter(
                 operation = op.asJson
               )
             )
-          } else {
+          } else
             IO.unit
-          }
         }
         .compile
         .toList
         .map(_.length)
 
     } yield nbSavedOps
-  }
 
   def getBalance(
       accountId: UUID

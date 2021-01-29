@@ -30,6 +30,18 @@ class InterpreterGrpcService(
     } yield protobuf.ResultCount(savedCount)
   }
 
+  def saveUnconfirmedTransactions(
+      request: protobuf.SaveTransactionsRequest,
+      ctx: Metadata
+  ): IO[protobuf.ResultCount] = {
+    for {
+      accountId  <- UuidUtils.bytesToUuidIO(request.accountId)
+      _          <- log.info(s"Saving transactions for $accountId")
+      txs        <- IO(request.transactions.map(UnconfirmedTransaction.fromProto).toList)
+      savedCount <- interpreter.saveUnconfirmedTransactions(accountId, txs)
+    } yield protobuf.ResultCount(savedCount)
+  }
+
   def getLastBlocks(
       request: protobuf.GetLastBlocksRequest,
       ctx: Metadata
@@ -51,11 +63,11 @@ class InterpreterGrpcService(
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
       sort = Sort.fromIsAsc(request.sort.isAsc)
       _ <- log.info(s"""Getting operations with parameters:
-                  |- accountId: $accountId
-                  |- blockHeight: ${request.blockHeight}
-                  |- limit: ${request.limit}
-                  |- offset: ${request.offset}
-                  |- sort: $sort""".stripMargin)
+                  - accountId: $accountId
+                  - blockHeight: ${request.blockHeight}
+                  - limit: ${request.limit}
+                  - offset: ${request.offset}
+                  - sort: $sort""")
       opResult <- interpreter.getOperations(
         accountId,
         request.blockHeight,
@@ -71,10 +83,10 @@ class InterpreterGrpcService(
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
       sort = Sort.fromIsAsc(request.sort.isAsc)
       _   <- log.info(s"""Getting UTXOs with parameters:
-                               |- accountId: $accountId
-                               |- limit: ${request.limit}
-                               |- offset: ${request.offset}
-                               |- sort: $sort""".stripMargin)
+                               - accountId: $accountId
+                               - limit: ${request.limit}
+                               - offset: ${request.offset}
+                               - sort: $sort""")
       res <- interpreter.getUTXOs(accountId, request.limit, request.offset, sort)
     } yield {
       res.toProto
@@ -89,8 +101,8 @@ class InterpreterGrpcService(
       accountId <- UuidUtils.bytesToUuidIO(request.accountId)
       blockHeight = request.blockHeight
       _     <- log.info(s"""Deleting data with parameters:
-                      |- accountId: $accountId
-                      |- blockHeight: $blockHeight""".stripMargin)
+                      - accountId: $accountId
+                      - blockHeight: $blockHeight""")
       txRes <- interpreter.removeDataFromCursor(accountId, blockHeight)
     } yield protobuf.ResultCount(txRes)
   }
@@ -127,10 +139,10 @@ class InterpreterGrpcService(
       end   = request.end.map(TimestampProtoUtils.deserialize)
 
       _ <- log.info(s"""Getting balances with parameters:
-                       |- accountId: $accountId
-                       |- start: $start
-                       |- end: $end
-                       |- interval: ${request.interval}""".stripMargin)
+                       - accountId: $accountId
+                       - start: $start
+                       - end: $end
+                       - interval: ${request.interval}""")
 
       balances <- interpreter.getBalanceHistory(accountId, start, end, request.interval)
     } yield protobuf.GetBalanceHistoryResult(balances.map(_.toProto))

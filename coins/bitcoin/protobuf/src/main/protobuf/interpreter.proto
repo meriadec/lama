@@ -11,6 +11,7 @@ option java_package = "co.ledger.lama.bitcoin.interpreter.protobuf";
 
 service BitcoinInterpreterService {
   rpc SaveTransactions(SaveTransactionsRequest) returns (ResultCount) {}
+  rpc SaveUnconfirmedTransactions(SaveTransactionsRequest) returns (ResultCount) {}
   rpc GetLastBlocks(GetLastBlocksRequest) returns (GetLastBlocksResult) {}
   rpc RemoveDataFromCursor(DeleteTransactionsRequest) returns (ResultCount) {}
   rpc GetOperations(GetOperationsRequest) returns (GetOperationsResult) {}
@@ -62,6 +63,14 @@ message GetOperationsResult {
   repeated Operation operations = 1;
   int32 total = 2;
   bool truncated = 3;
+}
+
+message GetUnconfirmedOperationsRequest {
+  bytes account_id = 1;
+}
+
+message GetUnconfirmedOperationsResult {
+  repeated Operation operations = 1;
 }
 
 message GetUTXOsRequest {

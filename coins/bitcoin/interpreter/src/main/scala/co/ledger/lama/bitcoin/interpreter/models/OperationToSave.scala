@@ -4,7 +4,8 @@ import java.time.Instant
 import java.util.UUID
 
 import co.ledger.lama.common.models.implicits._
-import co.ledger.lama.bitcoin.common.models.interpreter.{OperationType}
+import co.ledger.lama.bitcoin.common.models.interpreter.{ChangeType, OperationType, TransactionView}
+import co.ledger.lama.common.logging.IOLogging
 import fs2.Chunk
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto._
@@ -16,8 +17,8 @@ case class OperationToSave(
     value: BigInt,
     fees: BigInt,
     time: Instant,
-    blockHash: String,
-    blockHeight: Long
+    blockHash: Option[String],
+    blockHeight: Option[Long]
 )
 
 object OperationToSave {
@@ -25,44 +26,67 @@ object OperationToSave {
     deriveConfiguredEncoder[OperationToSave]
   implicit val decoder: Decoder[OperationToSave] =
     deriveConfiguredDecoder[OperationToSave]
+
+  def fromTransactionView(accountId: UUID, tx: TransactionView): List[OperationToSave] =
+    TransactionAmounts(
+      accountId,
+      tx.hash,
+      None,
+      None,
+      None,
+      tx.fees,
+      tx.inputs.filter(_.belongs).map(_.value).sum,
+      tx.outputs
+        .filter(o => o.belongs && o.changeType.contains(ChangeType.Internal))
+        .map(_.value)
+        .sum,
+      tx.outputs
+        .filter(o => o.belongs && o.changeType.contains(ChangeType.External))
+        .map(_.value)
+        .sum
+    ).computeOperations.toList
 }
 
 case class TransactionAmounts(
     accountId: UUID,
     hash: String,
-    blockHash: String,
-    blockHeight: Long,
-    blockTime: Instant,
+    blockHash: Option[String],
+    blockHeight: Option[Long],
+    blockTime: Option[Instant],
     fees: BigInt,
     inputAmount: BigInt,
     outputAmount: BigInt,
     changeAmount: BigInt
-) {
+) extends IOLogging {
 
-  def computeOperations(): Chunk[OperationToSave] = {
-    (inputAmount > 0, outputAmount > 0) match {
-      // only input, consider changeAmount as deducted from spent
-      case (true, false) => Chunk(makeOperation(inputAmount - changeAmount, OperationType.Sent))
-      // only output, consider changeAmount as received
-      case (false, true) =>
-        Chunk(makeOperation(outputAmount + changeAmount, OperationType.Received))
-      // both input and output, consider change as deducted from spend
-      case (true, true) =>
+  def computeOperations: Chunk[OperationToSave] = {
+    TransactionType.fromAmounts(inputAmount, outputAmount, changeAmount) match {
+      case SendType =>
+        Chunk(makeOperationToSave(inputAmount - changeAmount, OperationType.Sent))
+      case ReceiveType =>
+        Chunk(makeOperationToSave(outputAmount + changeAmount, OperationType.Received))
+      case ChangeOnlyType =>
+        Chunk(makeOperationToSave(changeAmount, OperationType.Received))
+      case BothType =>
         Chunk(
-          makeOperation(inputAmount - changeAmount, OperationType.Sent),
-          makeOperation(outputAmount, OperationType.Received)
+          makeOperationToSave(inputAmount - changeAmount, OperationType.Sent),
+          makeOperationToSave(outputAmount, OperationType.Received)
         )
-      case _ => Chunk.empty
+      case NoneType =>
+        log.error(
+          s"Error on tx : $hash, no transaction type found for amounts : input: $inputAmount, output: $outputAmount, change: $changeAmount"
+        )
+        Chunk.empty
     }
   }
 
-  private def makeOperation(amount: BigInt, operationType: OperationType) = {
+  private def makeOperationToSave(amount: BigInt, operationType: OperationType) = {
     OperationToSave(
       accountId = accountId,
       hash = hash,
       operationType = operationType,
       value = amount,
-      time = blockTime,
+      time = blockTime.getOrElse(Instant.now()),
       blockHash = blockHash,
       blockHeight = blockHeight,
       fees = fees
