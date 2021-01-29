@@ -1,11 +1,10 @@
 package co.ledger.lama.bitcoin.common.clients.grpc.mocks
 
 import java.util.UUID
-
 import cats.data.NonEmptyList
 import cats.effect.IO
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
-import co.ledger.lama.bitcoin.common.models.keychain.KeychainInfo
+import co.ledger.lama.bitcoin.common.models.keychain.{AccountKey, KeychainInfo}
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.bitcoin.common.clients.grpc.KeychainClient
 import co.ledger.lama.common.logging.IOLogging
@@ -58,7 +57,7 @@ class KeychainClientMock extends KeychainClient with IOLogging {
   ) ++ (1 to 20).map(i => AccountAddress(s"unused$i", change, derivations))
 
   def create(
-      extendedPublicKey: String,
+      accountKey: AccountKey,
       scheme: Scheme,
       lookaheadSize: Int,
       network: BitcoinNetwork

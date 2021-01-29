@@ -1,9 +1,9 @@
 package co.ledger.lama.bitcoin.api.models
 
 import java.util.UUID
-
 import cats.syntax.functor._
 import co.ledger.lama.bitcoin.common.models.Scheme
+import co.ledger.lama.bitcoin.common.models.keychain.AccountKey
 import co.ledger.lama.common.models.implicits._
 import io.circe.{Decoder, Encoder, JsonObject}
 import io.circe.generic.extras.semiauto._
@@ -51,7 +51,7 @@ object accountManager {
   }
 
   case class CreationRequest(
-      extendedPublicKey: String,
+      accountKey: AccountKey,
       label: Option[String],
       scheme: Scheme,
       lookaheadSize: Int,
@@ -60,8 +60,8 @@ object accountManager {
   )
 
   object CreationRequest {
-    implicit val encoder: Encoder[CreationRequest] = deriveConfiguredEncoder[CreationRequest]
     implicit val decoder: Decoder[CreationRequest] = deriveConfiguredDecoder[CreationRequest]
+    implicit val encoder: Encoder[CreationRequest] = deriveConfiguredEncoder[CreationRequest]
   }
 
 }

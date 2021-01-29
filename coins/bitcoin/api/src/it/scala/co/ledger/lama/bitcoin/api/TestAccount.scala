@@ -30,5 +30,4 @@ object AccountExpectedResult {
     deriveConfiguredDecoder[AccountExpectedResult]
   implicit val encoder: Encoder[AccountExpectedResult] =
     deriveConfiguredEncoder[AccountExpectedResult]
-
 }

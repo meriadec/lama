@@ -1,11 +1,10 @@
 package co.ledger.lama.bitcoin.common.clients.grpc
 
 import java.util.UUID
-
 import cats.data.NonEmptyList
 import cats.effect.{ContextShift, IO}
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
-import co.ledger.lama.bitcoin.common.models.keychain.KeychainInfo
+import co.ledger.lama.bitcoin.common.models.keychain.{AccountKey, KeychainInfo}
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.common.clients.grpc.GrpcClient
 import co.ledger.lama.common.utils.UuidUtils
@@ -14,7 +13,7 @@ import io.grpc._
 
 trait KeychainClient {
   def create(
-      extendedPublicKey: String,
+      accountKey: AccountKey,
       scheme: Scheme,
       lookaheadSize: Int,
       network: BitcoinNetwork
@@ -44,7 +43,7 @@ class KeychainGrpcClient(
     GrpcClient.resolveClient(keychain.KeychainServiceFs2Grpc.stub[IO], managedChannel)
 
   def create(
-      extendedPublicKey: String,
+      accountKey: AccountKey,
       scheme: Scheme,
       lookaheadSize: Int,
       network: BitcoinNetwork
@@ -52,7 +51,7 @@ class KeychainGrpcClient(
     client
       .createKeychain(
         keychain.CreateKeychainRequest(
-          keychain.CreateKeychainRequest.Account.ExtendedPublicKey(extendedPublicKey),
+          accountKey.toProto,
           scheme.toProto,
           lookaheadSize,
           network.toKeychainProto

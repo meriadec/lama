@@ -114,7 +114,7 @@ object AccountController extends Http4sDsl[IO] with IOLogging {
           _               <- log.info(s"Creating keychain with arguments: $creationRequest")
 
           createdKeychain <- keychainClient.create(
-            creationRequest.extendedPublicKey,
+            creationRequest.accountKey,
             creationRequest.scheme,
             creationRequest.lookaheadSize,
             creationRequest.coin.toNetwork

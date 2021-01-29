@@ -367,9 +367,27 @@ components:
         label:
           type: string
           example: 'an example account'
+    RegisterWithExtendedPublicKey:
+      type: object
+      properties:
+        extended_public_key:
+          type: string
+          example: 'tpubDCmWgKi3ZvZr7w7TvZK7cfh9Jpr7VaBmr6QEkhbtPeZXSeW34TunnoP982NCrgCsFBPLvTxS6qyiqBT3EH8KDeXq2mA23CbPfWPMWZ8LwWk'
+    RegisterWithChainCode:
+      type: object
+      properties:
+        chain_code:
+          type: string
+          format: hex
+        public_key:
+          type: string
+          format: hex
+        index:
+          type: number
+          example: 0
     RegisterAccountRequest:
       required:
-        - extended_public_key
+        - account_key
         - scheme
         - lookahead_size
         - network
@@ -377,9 +395,10 @@ components:
         - coin
       type: object
       properties:
-        extended_public_key:
-          type: string
-          example: 'tpubDCmWgKi3ZvZr7w7TvZK7cfh9Jpr7VaBmr6QEkhbtPeZXSeW34TunnoP982NCrgCsFBPLvTxS6qyiqBT3EH8KDeXq2mA23CbPfWPMWZ8LwWk'
+        account_key:
+          oneOf:
+            - $ref: '#/components/schemas/RegisterWithExtendedPublicKey'
+            - $ref: '#/components/schemas/RegisterWithChainCode'
         scheme:
           type: string
           enum: [BIP44, BIP49, BIP84]

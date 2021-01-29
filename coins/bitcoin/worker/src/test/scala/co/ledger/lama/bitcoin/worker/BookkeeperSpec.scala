@@ -14,7 +14,7 @@ import co.ledger.lama.bitcoin.common.models.explorer.{
   UnconfirmedTransaction
 }
 import co.ledger.lama.bitcoin.common.models.interpreter.{AccountAddress, ChangeType}
-import co.ledger.lama.bitcoin.common.models.keychain.KeychainInfo
+import co.ledger.lama.bitcoin.common.models.keychain.{AccountKey, KeychainInfo}
 import co.ledger.lama.bitcoin.common.models.{BitcoinNetwork, Scheme}
 import co.ledger.lama.bitcoin.worker.models.BatchResult
 import co.ledger.lama.bitcoin.worker.services.Bookkeeper
@@ -292,7 +292,7 @@ object KeychainFixture {
     new KeychainClient with UsedAddressesTracker {
 
       override def create(
-          extendedPublicKey: String,
+          accountKey: AccountKey,
           scheme: Scheme,
           lookaheadSize: Int,
           network: BitcoinNetwork
