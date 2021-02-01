@@ -85,14 +85,16 @@ class OperationService(
           .toList
 
       // Flag utxos used in the mempool
-      unconfirmedTxs <-
+      unconfirmedInputs <-
         OperationQueries
           .fetchUnconfirmedTransactionsViews(accountId)
           .transact(db)
+          .map(_.flatMap(_.inputs).filter(_.belongs))
 
-      unconfirmedInputs = unconfirmedTxs.flatMap(_.inputs).filter(_.belongs)
+      total <- OperationQueries.countUTXOs(accountId).transact(db)
 
-      utxos = confirmedUtxos.map(utxo =>
+    } yield {
+      val utxos = confirmedUtxos.map(utxo =>
         utxo.copy(
           usedInMempool = unconfirmedInputs.exists(input =>
             input.outputHash == utxo.transactionHash && input.outputIndex == utxo.outputIndex
@@ -100,12 +102,9 @@ class OperationService(
         )
       )
 
-      total <- OperationQueries.countUTXOs(accountId).transact(db)
-
       // We get 1 more than necessary to know if there's more, then we return the correct number
-      truncated = utxos.size > limit
-
-    } yield GetUtxosResult(utxos.slice(0, limit), total, truncated)
+      GetUtxosResult(utxos.slice(0, limit), total, truncated = utxos.size > limit)
+    }
 
   def getUnconfirmedUtxos(accountId: UUID): IO[List[Utxo]] =
     OperationQueries
