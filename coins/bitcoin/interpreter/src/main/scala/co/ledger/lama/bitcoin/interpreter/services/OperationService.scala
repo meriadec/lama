@@ -107,40 +107,42 @@ class OperationService(
 
     } yield GetUtxosResult(utxos.slice(0, limit), total, truncated)
 
-  def getUnconfirmedUtxos(accountId: UUID): IO[List[Utxo]] = {
-    for {
-      unconfirmedTxs <-
-        OperationQueries
-          .fetchUnconfirmedTransactionsViews(accountId)
-          .transact(db)
+  def getUnconfirmedUtxos(accountId: UUID): IO[List[Utxo]] =
+    OperationQueries
+      .fetchUnconfirmedTransactionsViews(accountId)
+      .transact(db)
+      .map { unconfirmedTxs =>
+        val usedOutputs = unconfirmedTxs
+          .flatMap(_.inputs)
+          .filter(_.belongs)
+          .map(i => (i.outputHash, i.outputIndex))
 
-      inputs    = unconfirmedTxs.flatMap(_.inputs).filter(_.belongs)
-      outputMap = unconfirmedTxs.map(tx => (tx, tx.outputs.filter(_.belongs)))
+        val outputMap = unconfirmedTxs
+          .flatMap(tx =>
+            tx.outputs
+              .filter(_.belongs)
+              .map(o => (tx.hash, o.outputIndex) -> (tx.hash, o, tx.receivedAt))
+          )
+          .toMap
 
-      unspentOutputs = outputMap
-        .flatMap { case (tx, outputs) =>
-          outputs
-            .filterNot(output =>
-              inputs.exists(input =>
-                input.outputHash == tx.hash && input.outputIndex == output.outputIndex
-              )
+        val unusedOutputs = outputMap.keys.toList
+          .diff(usedOutputs)
+          .map(outputMap)
+
+        unusedOutputs
+          .map { case (hash, output, time) =>
+            Utxo(
+              hash,
+              output.outputIndex,
+              output.value,
+              output.address,
+              output.scriptHex,
+              output.changeType,
+              output.derivation.get,
+              time
             )
-            .map(output =>
-              Utxo(
-                tx.hash,
-                output.outputIndex,
-                output.value,
-                output.address,
-                output.scriptHex,
-                output.changeType,
-                output.derivation.get,
-                tx.receivedAt
-              )
-            )
-        }
-
-    } yield unspentOutputs
-  }
+          }
+      }
 
   def removeFromCursor(accountId: UUID, blockHeight: Long): IO[Int] =
     OperationQueries.removeFromCursor(accountId, blockHeight).transact(db)
